@@ -1,0 +1,38 @@
+{
+  "settings": {
+    "index": {
+      "number_of_shards": 10,
+      "number_of_replicas": 2
+    }
+  },
+  "mapping": {
+    "_doc": {
+      "properties": {
+        "type": {
+          "type": "keyword"
+        },
+        "account": {
+          "type": "keyword"
+        },
+        "name": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "description": {
+          "type": "text"
+        },
+        "ttl": {
+          "type": "integer"
+        },
+        "expiration_timestamp": {
+          "type": "long"
+        }
+      }
+    }
+  }
+}
