@@ -25,6 +25,11 @@ public interface KvStorageManager extends PluggableService {
     ConfigKey<String> KvStorageElasticSearchList = new ConfigKey<>("Advanced", String.class, "storage.kv.elasticsearch.list", null,
             "Comma separated list of ElasticSearch HTTP hosts; e.g. http://localhost,http://localhost:9201", false);
 
+    ConfigKey<Integer> KvStorageMaxNameLength = new ConfigKey<>("Advanced", Integer.class, "storage.kv.name.length.max", "256", "Max name length for account storages", true);
+
+    ConfigKey<Integer> KvStorageMaxDescriptionLength = new ConfigKey<>("Advanced", Integer.class, "storage.kv.description.length.max", "1024",
+            "Max description length for account storages", true);
+
     String createAccountStorage(Long accountId, String name, String description);
 
     String createTempStorage(Integer ttl);
