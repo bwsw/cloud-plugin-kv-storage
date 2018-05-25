@@ -21,6 +21,8 @@ import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.user.AccountVO;
 import com.cloud.user.dao.AccountDao;
+import com.cloud.vm.VMInstanceVO;
+import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.framework.config.ConfigKey;
@@ -41,6 +43,9 @@ public class KvStorageManagerImpl implements KvStorageManager, Configurable {
 
     @Inject
     private AccountDao _accountDao;
+
+    @Inject
+    private VMInstanceDao _vmInstanceDao;
 
     @Inject
     private KvRequestBuilder _kvRequestBuilder;
@@ -85,7 +90,19 @@ public class KvStorageManagerImpl implements KvStorageManager, Configurable {
 
     @Override
     public String createVmStorage(Long vmId) {
-        return null;
+        VMInstanceVO vmInstanceVO = _vmInstanceDao.findById(vmId);
+        if (vmInstanceVO == null) {
+            throw new InvalidParameterValueException("Unable to find a virtual machine with specified id");
+        }
+        KvStorage storage = new KvStorage(vmInstanceVO.getUuid());
+        try {
+            IndexRequest request = _kvRequestBuilder.getCreateRequest(storage);
+            _kvExecutor.index(_restHighLevelClient, request);
+        } catch (IOException e) {
+            s_logger.error("Unable to create a virtual machine storage", e);
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to create a storage", e);
+        }
+        return storage.getId();
     }
 
     @Override
