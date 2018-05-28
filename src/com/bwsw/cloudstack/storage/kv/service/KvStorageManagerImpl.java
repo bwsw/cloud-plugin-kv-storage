@@ -35,6 +35,7 @@ import org.elasticsearch.common.Strings;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -102,7 +103,8 @@ public class KvStorageManagerImpl implements KvStorageManager, Configurable {
 
     @Override
     public List<Class<?>> getCommands() {
-        return null;
+        List<Class<?>> commands = new ArrayList<>();
+        return commands;
     }
 
     @Override
