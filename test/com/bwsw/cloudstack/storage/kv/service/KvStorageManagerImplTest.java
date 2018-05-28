@@ -4,6 +4,8 @@ import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.user.AccountVO;
 import com.cloud.user.dao.AccountDao;
+import com.cloud.vm.VMInstanceVO;
+import com.cloud.vm.dao.VMInstanceDao;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Strings;
 import org.apache.cloudstack.api.ServerApiException;
@@ -43,6 +45,9 @@ public class KvStorageManagerImplTest {
     private AccountDao _accountDao;
 
     @Mock
+    private VMInstanceDao _vmInstanceDao;
+
+    @Mock
     private KvRequestBuilder _kvRequestBuilder;
 
     @Mock
@@ -54,9 +59,11 @@ public class KvStorageManagerImplTest {
     @Mock
     private IndexRequest _indexRequest;
 
+    @Mock
+    private VMInstanceVO _vmInstanceVO;
+
     @InjectMocks
     private KvStorageManagerImpl _kvStorageManager = new KvStorageManagerImpl();
-
 
     @Test
     public void testCreateAccountStorageInvalidAccount() {
@@ -115,6 +122,38 @@ public class KvStorageManagerImplTest {
         verify(_kvExecutor).index(_restHighLevelClient, _indexRequest);
     }
 
+    @Test
+    public void testCreateVmStorageInvalidVm() {
+        expectedException.expect(InvalidParameterValueException.class);
+        expectedException.expectMessage("virtual machine");
+        when(_vmInstanceDao.findById(ID)).thenReturn(null);
+
+        _kvStorageManager.createVmStorage(ID);
+    }
+
+    @Test
+    public void testCreateVmRequestException() throws IOException {
+        expectedException.expect(ServerApiException.class);
+        expectedException.expectMessage("storage");
+
+        setVmExpectations();
+        setVmRequestExpectations();
+        doThrow(new IOException()).when(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+
+        _kvStorageManager.createVmStorage(ID);
+    }
+
+    @Test
+    public void testCreateVm() throws IOException {
+        setVmExpectations();
+        setVmRequestExpectations();
+        doNothing().when(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+
+        _kvStorageManager.createVmStorage(ID);
+
+        verify(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+    }
+
     private void testCreateAccountStorageInvalidName(String name) {
         expectedException.expect(InvalidParameterValueException.class);
         expectedException.expectMessage("name");
@@ -130,6 +169,11 @@ public class KvStorageManagerImplTest {
         accountVO.setUuid(UUID);
 
         when(_accountDao.findById(ID)).thenReturn(accountVO);
+    }
+
+    private void setVmExpectations() {
+        when(_vmInstanceVO.getUuid()).thenReturn(UUID);
+        when(_vmInstanceDao.findById(ID)).thenReturn(_vmInstanceVO);
     }
 
     private void setAccountRequestExpectations() throws JsonProcessingException {
@@ -153,6 +197,19 @@ public class KvStorageManagerImplTest {
                     return false;
                 }
                 return true;
+            }
+        }))).thenReturn(_indexRequest);
+    }
+
+    private void setVmRequestExpectations() throws JsonProcessingException {
+        when(_kvRequestBuilder.getCreateRequest(argThat(new CustomMatcher<KvStorage>("vm storage") {
+            @Override
+            public boolean matches(Object o) {
+                if (!(o instanceof KvStorage)) {
+                    return false;
+                }
+                KvStorage storage = (KvStorage)o;
+                return UUID.equals(storage.getId());
             }
         }))).thenReturn(_indexRequest);
     }
