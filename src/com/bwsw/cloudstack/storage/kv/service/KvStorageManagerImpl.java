@@ -18,17 +18,21 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.util.HttpUtils;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.user.AccountVO;
 import com.cloud.user.dao.AccountDao;
+import com.cloud.utils.component.ComponentLifecycleBase;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
+import org.apache.http.HttpHost;
 import org.apache.log4j.Logger;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.Strings;
 
@@ -37,9 +41,10 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
-public class KvStorageManagerImpl implements KvStorageManager, Configurable {
+public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvStorageManager, Configurable {
 
     private static final Logger s_logger = Logger.getLogger(KvStorageManagerImpl.class);
 
@@ -114,7 +119,18 @@ public class KvStorageManagerImpl implements KvStorageManager, Configurable {
 
     @Override
     public ConfigKey<?>[] getConfigKeys() {
-        return new ConfigKey[] {KvStorageElasticSearchList, KvStorageMaxNameLength, KvStorageMaxDescriptionLength};
+        return new ConfigKey[] {KvStorageElasticSearchList, KvStorageMaxNameLength, KvStorageMaxDescriptionLength, KvStorageMaxTtl};
+    }
+
+    @Override
+    public boolean configure(String name, Map<String, Object> params) {
+        try {
+            _restHighLevelClient = new RestHighLevelClient(RestClient.builder(HttpUtils.getHttpHosts(KvStorageElasticSearchList.value()).toArray(new HttpHost[] {})));
+        } catch (IllegalArgumentException e) {
+            s_logger.error("Failed to create ElasticSearch client", e);
+            return false;
+        }
+        return true;
     }
 
     private String createStorage(KvStorage storage) {
