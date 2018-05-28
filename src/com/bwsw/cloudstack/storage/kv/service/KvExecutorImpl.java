@@ -18,14 +18,24 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
 import com.cloud.utils.exception.CloudRuntimeException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.cloudstack.api.ResponseObject;
+import org.apache.cloudstack.api.response.ListResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.search.SearchHit;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class KvExecutorImpl implements KvExecutor {
+
+    private final ObjectMapper _objectMapper = new ObjectMapper();
 
     @Override
     public void index(RestHighLevelClient client, IndexRequest request) throws IOException {
@@ -33,5 +43,24 @@ public class KvExecutorImpl implements KvExecutor {
         if (response.status() != RestStatus.CREATED || response.status() != RestStatus.OK) {
             throw new CloudRuntimeException("Failed to execute create/update operation");
         }
+    }
+
+    @Override
+    public <T extends ResponseObject> ListResponse<T> search(RestHighLevelClient client, SearchRequest request, Class<T> elementClass) throws IOException {
+        SearchResponse response = client.search(request);
+        if (response.status() != RestStatus.OK || response.getHits() == null) {
+            throw new CloudRuntimeException("Failed to execute search operation");
+        }
+        ListResponse<T> results = new ListResponse<>();
+        results.setResponses(parseResults(response, elementClass), (int)response.getHits().getTotalHits());
+        return results;
+    }
+
+    private <T> List<T> parseResults(SearchResponse response, Class<T> elementClass) throws IOException {
+        List<T> results = new ArrayList<>();
+        for (SearchHit searchHit : response.getHits()) {
+            results.add(_objectMapper.readValue(searchHit.getSourceAsString(), elementClass));
+        }
+        return results;
     }
 }

@@ -20,8 +20,11 @@ package com.bwsw.cloudstack.storage.kv.service;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
 
 public interface KvRequestBuilder {
 
     IndexRequest getCreateRequest(KvStorage storage) throws JsonProcessingException;
+
+    SearchRequest getSearchRequest(String accountUuid, int from, int size);
 }

@@ -17,7 +17,9 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.api.ListKvStoragesCmd;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.bwsw.cloudstack.storage.kv.util.HttpUtils;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.user.AccountVO;
@@ -27,11 +29,13 @@ import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.ServerApiException;
+import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.http.HttpHost;
 import org.apache.log4j.Logger;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.Strings;
@@ -84,6 +88,29 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
+    public ListResponse<KvStorageResponse> listStorages(Long accountId, Long startIndex, Long pageSize) {
+        if (pageSize == null || pageSize < 1) {
+            throw new InvalidParameterValueException("Invalid page size");
+        }
+        if (startIndex == null) {
+            startIndex = 0L;
+        } else if (startIndex < 0) {
+            throw new InvalidParameterValueException("Invalid start index");
+        }
+        AccountVO accountVO = _accountDao.findById(accountId);
+        if (accountVO == null) {
+            throw new InvalidParameterValueException("Unable to find an account with the specified id");
+        }
+        SearchRequest searchRequest = _kvRequestBuilder.getSearchRequest(accountVO.getUuid(), startIndex.intValue(), pageSize.intValue());
+        try {
+            return _kvExecutor.search(_restHighLevelClient, searchRequest, KvStorageResponse.class);
+        } catch (IOException e) {
+            s_logger.error("Unable to retrieve storage", e);
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to retrieve storages", e);
+        }
+    }
+
+    @Override
     public String createTempStorage(Integer ttl) {
         if (ttl == null) {
             throw new InvalidParameterValueException("Unspecified TTL");
@@ -109,6 +136,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     @Override
     public List<Class<?>> getCommands() {
         List<Class<?>> commands = new ArrayList<>();
+        commands.add(ListKvStoragesCmd.class);
         return commands;
     }
 

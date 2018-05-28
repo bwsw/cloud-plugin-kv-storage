@@ -22,12 +22,24 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.sort.FieldSortBuilder;
+import org.elasticsearch.search.sort.SortOrder;
 
 public class KvRequestBuilderImpl implements KvRequestBuilder {
 
     public static final String STORAGE_INDEX = "storage-registry";
     public static final String STORAGE_TYPE = "_doc";
+    public static final String ID_FIELD = "_id";
+    public static final String ACCOUNT_FIELD = "account";
+    public static final String TYPE_FIELD = "type";
+    public static final String NAME_FIELD = "name";
+    public static final String DESCRIPTION_FIELD = "description";
+    private static final String[] FIELDS = {ID_FIELD, NAME_FIELD, DESCRIPTION_FIELD};
 
     private static final ObjectMapper s_objectMapper = new ObjectMapper();
 
@@ -37,5 +49,26 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
         request.source(s_objectMapper.writeValueAsString(storage), XContentType.JSON);
         request.opType(DocWriteRequest.OpType.CREATE);
         return request;
+    }
+
+    @Override
+    public SearchRequest getSearchRequest(String accountUuid, int from, int size) {
+        SearchRequest searchRequest = new SearchRequest(STORAGE_INDEX);
+
+        SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
+        sourceBuilder.from(from);
+        sourceBuilder.size(size);
+
+        sourceBuilder.fetchSource(FIELDS, null);
+
+        BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery();
+        queryBuilder.filter(QueryBuilders.termQuery(ACCOUNT_FIELD, accountUuid));
+        queryBuilder.filter(QueryBuilders.termQuery(TYPE_FIELD, KvStorage.KvStorageType.ACCOUNT.toString()));
+        sourceBuilder.query(queryBuilder);
+
+        sourceBuilder.sort(new FieldSortBuilder(ID_FIELD).order(SortOrder.ASC));
+
+        searchRequest.source(sourceBuilder);
+        return searchRequest;
     }
 }
