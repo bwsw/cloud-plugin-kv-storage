@@ -22,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import java.io.IOException;
+import java.time.Instant;
 
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.doNothing;
@@ -37,6 +38,7 @@ public class KvStorageManagerImplTest {
     private static final String NAME = "test storage";
     private static final String DESCRIPTION = "test storage description";
     private static final String UUID_PATTERN = "\\p{XDigit}{8}-\\p{XDigit}{4}-\\p{XDigit}{4}-\\p{XDigit}{4}-\\p{XDigit}{12}";
+    private static final Integer TTL = 300000;
 
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
@@ -154,6 +156,51 @@ public class KvStorageManagerImplTest {
         verify(_kvExecutor).index(_restHighLevelClient, _indexRequest);
     }
 
+    @Test
+    public void testCreateTempStorageNullTtl() {
+        testCreateTempStorageInvalidTtl(null);
+    }
+
+    @Test
+    public void testCreateTempStorageNegativeTtl() {
+        testCreateTempStorageInvalidTtl(-1);
+    }
+
+    @Test
+    public void testCreateTempStorageZeroTtl() {
+        testCreateTempStorageInvalidTtl(0);
+    }
+
+    @Test
+    public void testCreateTempStorageBigTtl() {
+        testCreateTempStorageInvalidTtl(KvStorageManager.KvStorageMaxTtl.value() + 1);
+    }
+
+    @Test
+    public void testCreateTempStorage() throws JsonProcessingException {
+        when(_kvRequestBuilder.getCreateRequest(argThat(new CustomMatcher<KvStorage>("temp storage") {
+            @Override
+            public boolean matches(Object o) {
+                if (!(o instanceof KvStorage)) {
+                    return false;
+                }
+                KvStorage storage = (KvStorage)o;
+                if (Strings.isNullOrEmpty(storage.getId()) || !storage.getId().matches(UUID_PATTERN)) {
+                    return false;
+                }
+                if (!TTL.equals(storage.getTtl())) {
+                    return false;
+                }
+                if (storage.getExpirationTimestamp() == null || storage.getExpirationTimestamp() - storage.getTtl() > Instant.now().toEpochMilli()) {
+                    return false;
+                }
+                return true;
+            }
+        }))).thenReturn(_indexRequest);
+
+        _kvStorageManager.createTempStorage(TTL);
+    }
+
     private void testCreateAccountStorageInvalidName(String name) {
         expectedException.expect(InvalidParameterValueException.class);
         expectedException.expectMessage("name");
@@ -161,6 +208,13 @@ public class KvStorageManagerImplTest {
         setAccountExpectations();
 
         _kvStorageManager.createAccountStorage(ID, name, DESCRIPTION);
+    }
+
+    private void testCreateTempStorageInvalidTtl(Integer ttl) {
+        expectedException.expect(InvalidParameterValueException.class);
+        expectedException.expectMessage("TTL");
+
+        _kvStorageManager.createTempStorage(ttl);
     }
 
     private void setAccountExpectations() {

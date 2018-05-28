@@ -30,6 +30,8 @@ public interface KvStorageManager extends PluggableService {
     ConfigKey<Integer> KvStorageMaxDescriptionLength = new ConfigKey<>("Advanced", Integer.class, "storage.kv.description.length.max", "1024",
             "Max description length for account storages", true);
 
+    ConfigKey<Integer> KvStorageMaxTtl = new ConfigKey<>("Advanced", Integer.class, "storage.kv.ttl.max", "3600000", "Max ttl in ms for temporal storages", true);
+
     String createAccountStorage(Long accountId, String name, String description);
 
     String createTempStorage(Integer ttl);

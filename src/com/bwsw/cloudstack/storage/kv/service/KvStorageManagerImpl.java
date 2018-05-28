@@ -34,6 +34,7 @@ import org.elasticsearch.common.Strings;
 
 import javax.inject.Inject;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -73,19 +74,20 @@ public class KvStorageManagerImpl implements KvStorageManager, Configurable {
             throw new InvalidParameterValueException("Invalid description, max length is " + maxDescriptionLength);
         }
         KvStorage storage = new KvStorage(UUID.randomUUID().toString(), accountVO.getUuid(), name, description);
-        try {
-            IndexRequest request = _kvRequestBuilder.getCreateRequest(storage);
-            _kvExecutor.index(_restHighLevelClient, request);
-        } catch (IOException e) {
-            s_logger.error("Unable to create an account storage", e);
-            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to create a storage", e);
-        }
-        return storage.getId();
+        return createStorage(storage);
     }
 
     @Override
     public String createTempStorage(Integer ttl) {
-        return null;
+        if (ttl == null) {
+            throw new InvalidParameterValueException("Unspecified TTL");
+        }
+        Integer maxTtl = KvStorageMaxTtl.value();
+        if (ttl <= 0 || maxTtl != null && ttl > maxTtl) {
+            throw new InvalidParameterValueException("Invalid TTL");
+        }
+        KvStorage storage = new KvStorage(UUID.randomUUID().toString(), ttl, Instant.now().toEpochMilli() + ttl);
+        return createStorage(storage);
     }
 
     @Override
@@ -95,14 +97,7 @@ public class KvStorageManagerImpl implements KvStorageManager, Configurable {
             throw new InvalidParameterValueException("Unable to find a virtual machine with specified id");
         }
         KvStorage storage = new KvStorage(vmInstanceVO.getUuid());
-        try {
-            IndexRequest request = _kvRequestBuilder.getCreateRequest(storage);
-            _kvExecutor.index(_restHighLevelClient, request);
-        } catch (IOException e) {
-            s_logger.error("Unable to create a virtual machine storage", e);
-            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to create a storage", e);
-        }
-        return storage.getId();
+        return createStorage(storage);
     }
 
     @Override
@@ -118,5 +113,16 @@ public class KvStorageManagerImpl implements KvStorageManager, Configurable {
     @Override
     public ConfigKey<?>[] getConfigKeys() {
         return new ConfigKey[] {KvStorageElasticSearchList, KvStorageMaxNameLength, KvStorageMaxDescriptionLength};
+    }
+
+    private String createStorage(KvStorage storage) {
+        try {
+            IndexRequest request = _kvRequestBuilder.getCreateRequest(storage);
+            _kvExecutor.index(_restHighLevelClient, request);
+        } catch (IOException e) {
+            s_logger.error("Unable to create a storage", e);
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to create a storage", e);
+        }
+        return storage.getId();
     }
 }
