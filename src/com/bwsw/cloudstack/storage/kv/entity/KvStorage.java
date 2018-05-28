@@ -17,6 +17,7 @@
 
 package com.bwsw.cloudstack.storage.kv.entity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -24,8 +25,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class KvStorage {
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
+    public enum KvStorageType {
+        ACCOUNT, VM, TEMP
+    }
+
     @JsonIgnore
     private String id;
+    private KvStorageType type;
     private String account;
     private String name;
     private String description;
@@ -37,10 +44,12 @@ public class KvStorage {
 
     public KvStorage(String id) {
         this.id = id;
+        this.type = KvStorageType.VM;
     }
 
     public KvStorage(String id, String account, String name, String description) {
         this.id = id;
+        this.type = KvStorageType.ACCOUNT;
         this.account = account;
         this.name = name;
         this.description = description;
@@ -48,6 +57,7 @@ public class KvStorage {
 
     public KvStorage(String id, Integer ttl, Long expirationTimestamp) {
         this.id = id;
+        this.type = KvStorageType.TEMP;
         this.ttl = ttl;
         this.expirationTimestamp = expirationTimestamp;
     }
@@ -58,6 +68,14 @@ public class KvStorage {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public KvStorageType getType() {
+        return type;
+    }
+
+    public void setType(KvStorageType type) {
+        this.type = type;
     }
 
     public String getAccount() {

@@ -37,12 +37,11 @@ public class KvRequestBuilderImplTest {
 
     @DataProvider
     public static Object[][] storages() {
-        return new Object[][] {
-                { get("id val", "account val", "name val", "description val", null, null),
-                        "{\"account\":\"account val\",\"name\":\"name val\",\"description\":\"description val\"}"},
-                { get("id val", null, null, null, null, null), "{}"},
-                { get("id val", null, null, null, 300000, 1527067849287L), "{\"ttl\":300000,\"expiration_timestamp\":1527067849287}"}
-        };
+        return new Object[][] {{get("id val", KvStorage.KvStorageType.ACCOUNT, "account val", "name val", "description val", null, null),
+                "{\"type\":\"ACCOUNT\",\"account\":\"account val\",\"name\":\"name val\",\"description\":\"description val\"}"},
+                {get("id val", KvStorage.KvStorageType.VM, null, null, null, null, null), "{\"type\":\"VM\"}"},
+                {get("id val", KvStorage.KvStorageType.TEMP, null, null, null, 300000, 1527067849287L),
+                        "{\"type\":\"TEMP\",\"ttl\":300000,\"expiration_timestamp\":1527067849287}"}};
     }
 
     @Rule
@@ -63,9 +62,10 @@ public class KvRequestBuilderImplTest {
         assertEquals(source, request.source().utf8ToString());
     }
 
-    private static KvStorage get(String id, String account, String name, String description, Integer ttl, Long expirationTimestamp) {
+    private static KvStorage get(String id, KvStorage.KvStorageType type, String account, String name, String description, Integer ttl, Long expirationTimestamp) {
         KvStorage storage = new KvStorage();
         storage.setId(id);
+        storage.setType(type);
         storage.setAccount(account);
         storage.setName(name);
         storage.setDescription(description);
