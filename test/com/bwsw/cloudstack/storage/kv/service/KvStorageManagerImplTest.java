@@ -1,6 +1,7 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.user.AccountVO;
 import com.cloud.user.dao.AccountDao;
@@ -9,8 +10,10 @@ import com.cloud.vm.dao.VMInstanceDao;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Strings;
 import org.apache.cloudstack.api.ServerApiException;
+import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.hamcrest.CustomMatcher;
 import org.junit.Rule;
@@ -24,6 +27,7 @@ import org.mockito.runners.MockitoJUnitRunner;
 import java.io.IOException;
 import java.time.Instant;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
@@ -39,6 +43,9 @@ public class KvStorageManagerImplTest {
     private static final String DESCRIPTION = "test storage description";
     private static final String UUID_PATTERN = "\\p{XDigit}{8}-\\p{XDigit}{4}-\\p{XDigit}{4}-\\p{XDigit}{4}-\\p{XDigit}{12}";
     private static final Integer TTL = 300000;
+    private static final long PAGE_SIZE = 5L;
+    private static final long START_INDEX = 10L;
+    private static final long DEFAULT_INDEX = 0L;
 
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
@@ -67,10 +74,12 @@ public class KvStorageManagerImplTest {
     @InjectMocks
     private KvStorageManagerImpl _kvStorageManager = new KvStorageManagerImpl();
 
+    private SearchRequest _searchRequest = new SearchRequest();
+
     @Test
     public void testCreateAccountStorageInvalidAccount() {
-        expectedException.expect(InvalidParameterValueException.class);
-        expectedException.expectMessage("account");
+        setExceptionExpectation(InvalidParameterValueException.class, "account");
+
         when(_accountDao.findById(ID)).thenReturn(null);
 
         _kvStorageManager.createAccountStorage(ID, NAME, DESCRIPTION);
@@ -93,8 +102,7 @@ public class KvStorageManagerImplTest {
 
     @Test
     public void testCreateAccountStorageLongDescription() {
-        expectedException.expect(InvalidParameterValueException.class);
-        expectedException.expectMessage("description");
+        setExceptionExpectation(InvalidParameterValueException.class, "description");
 
         setAccountExpectations();
 
@@ -103,8 +111,7 @@ public class KvStorageManagerImplTest {
 
     @Test
     public void testCreateAccountStorageRequestException() throws IOException {
-        expectedException.expect(ServerApiException.class);
-        expectedException.expectMessage("storage");
+        setExceptionExpectation(ServerApiException.class, "storage");
 
         setAccountExpectations();
         setAccountRequestExpectations();
@@ -126,8 +133,8 @@ public class KvStorageManagerImplTest {
 
     @Test
     public void testCreateVmStorageInvalidVm() {
-        expectedException.expect(InvalidParameterValueException.class);
-        expectedException.expectMessage("virtual machine");
+        setExceptionExpectation(InvalidParameterValueException.class, "virtual machine");
+
         when(_vmInstanceDao.findById(ID)).thenReturn(null);
 
         _kvStorageManager.createVmStorage(ID);
@@ -135,8 +142,7 @@ public class KvStorageManagerImplTest {
 
     @Test
     public void testCreateVmRequestException() throws IOException {
-        expectedException.expect(ServerApiException.class);
-        expectedException.expectMessage("storage");
+        setExceptionExpectation(ServerApiException.class, "storage");
 
         setVmExpectations();
         setVmRequestExpectations();
@@ -201,9 +207,55 @@ public class KvStorageManagerImplTest {
         _kvStorageManager.createTempStorage(TTL);
     }
 
+    @Test
+    public void testListStoragesNullPageSize() {
+        setExceptionExpectation(InvalidParameterValueException.class, "page size");
+        _kvStorageManager.listStorages(ID, START_INDEX, null);
+    }
+
+    @Test
+    public void testListStoragesInvalidPageSize() {
+        setExceptionExpectation(InvalidParameterValueException.class, "page size");
+        _kvStorageManager.listStorages(ID, START_INDEX, 0L);
+    }
+
+    @Test
+    public void testListStoragesNullStartIndex() throws IOException {
+        testListStorages(null, (int)DEFAULT_INDEX);
+    }
+
+    @Test
+    public void testListStoragesInvalidStartIndex() {
+        setExceptionExpectation(InvalidParameterValueException.class, "start index");
+        _kvStorageManager.listStorages(ID, -1L, PAGE_SIZE);
+    }
+
+    @Test
+    public void testListStoragesInvalidAccount() {
+        setExceptionExpectation(InvalidParameterValueException.class, "account");
+        when(_accountDao.findById(ID)).thenReturn(null);
+
+        _kvStorageManager.listStorages(ID, START_INDEX, PAGE_SIZE);
+    }
+
+    @Test
+    public void testListStoragesRequestException() throws IOException {
+        setExceptionExpectation(ServerApiException.class, "storage");
+
+        setAccountExpectations();
+        when(_kvRequestBuilder.getSearchRequest(UUID, (int)START_INDEX, (int)PAGE_SIZE)).thenReturn(_searchRequest);
+        doThrow(new IOException()).when(_kvExecutor).search(_restHighLevelClient, _searchRequest, KvStorageResponse.class);
+
+        _kvStorageManager.listStorages(ID, START_INDEX, PAGE_SIZE);
+    }
+
+    @Test
+    public void testListStorages() throws IOException {
+        testListStorages(START_INDEX, (int)START_INDEX);
+    }
+
     private void testCreateAccountStorageInvalidName(String name) {
-        expectedException.expect(InvalidParameterValueException.class);
-        expectedException.expectMessage("name");
+        setExceptionExpectation(InvalidParameterValueException.class, "name");
 
         setAccountExpectations();
 
@@ -211,10 +263,20 @@ public class KvStorageManagerImplTest {
     }
 
     private void testCreateTempStorageInvalidTtl(Integer ttl) {
-        expectedException.expect(InvalidParameterValueException.class);
-        expectedException.expectMessage("TTL");
+        setExceptionExpectation(InvalidParameterValueException.class, "TTL");
 
         _kvStorageManager.createTempStorage(ttl);
+    }
+
+    private void testListStorages(Long argStartIndex, int requestStartIndex) throws IOException {
+        ListResponse<KvStorageResponse> expectedResponse = new ListResponse<>();
+
+        setAccountExpectations();
+        when(_kvRequestBuilder.getSearchRequest(UUID, requestStartIndex, (int)PAGE_SIZE)).thenReturn(_searchRequest);
+        when(_kvExecutor.search(_restHighLevelClient, _searchRequest, KvStorageResponse.class)).thenReturn(expectedResponse);
+
+        ListResponse<KvStorageResponse> response = _kvStorageManager.listStorages(ID, argStartIndex, PAGE_SIZE);
+        assertEquals(expectedResponse, response);
     }
 
     private void setAccountExpectations() {
@@ -266,5 +328,10 @@ public class KvStorageManagerImplTest {
                 return UUID.equals(storage.getId());
             }
         }))).thenReturn(_indexRequest);
+    }
+
+    private void setExceptionExpectation(Class<? extends Exception> exceptionClass, String message) {
+        expectedException.expect(exceptionClass);
+        expectedException.expectMessage(message);
     }
 }
