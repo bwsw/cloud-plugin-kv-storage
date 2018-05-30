@@ -34,11 +34,11 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
 
     public static final String STORAGE_INDEX = "storage-registry";
     public static final String STORAGE_TYPE = "_doc";
-    public static final String ID_FIELD = "_id";
-    public static final String ACCOUNT_FIELD = "account";
-    public static final String TYPE_FIELD = "type";
-    public static final String NAME_FIELD = "name";
-    public static final String DESCRIPTION_FIELD = "description";
+    private static final String ID_FIELD = "_id";
+    private static final String ACCOUNT_FIELD = "account";
+    private static final String TYPE_FIELD = "type";
+    private static final String NAME_FIELD = "name";
+    private static final String DESCRIPTION_FIELD = "description";
     private static final String[] FIELDS = {ID_FIELD, NAME_FIELD, DESCRIPTION_FIELD};
 
     private static final ObjectMapper s_objectMapper = new ObjectMapper();
