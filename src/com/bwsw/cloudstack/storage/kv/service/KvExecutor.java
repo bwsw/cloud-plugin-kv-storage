@@ -17,7 +17,7 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
-import org.apache.cloudstack.api.ResponseObject;
+import com.bwsw.cloudstack.storage.kv.entity.ResponseEntity;
 import org.apache.cloudstack.api.response.ListResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
@@ -29,5 +29,5 @@ public interface KvExecutor {
 
     void index(RestHighLevelClient client, IndexRequest request) throws IOException;
 
-    <T extends ResponseObject> ListResponse<T> search(RestHighLevelClient client, SearchRequest request, Class<T> elementClass) throws IOException;
+    <T extends ResponseEntity> ListResponse<T> search(RestHighLevelClient client, SearchRequest request, Class<T> elementClass) throws IOException;
 }

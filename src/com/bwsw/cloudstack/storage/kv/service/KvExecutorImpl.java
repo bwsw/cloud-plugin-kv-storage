@@ -17,9 +17,9 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.entity.ResponseEntity;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.cloudstack.api.ResponseObject;
 import org.apache.cloudstack.api.response.ListResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
@@ -46,7 +46,7 @@ public class KvExecutorImpl implements KvExecutor {
     }
 
     @Override
-    public <T extends ResponseObject> ListResponse<T> search(RestHighLevelClient client, SearchRequest request, Class<T> elementClass) throws IOException {
+    public <T extends ResponseEntity> ListResponse<T> search(RestHighLevelClient client, SearchRequest request, Class<T> elementClass) throws IOException {
         SearchResponse response = client.search(request);
         if (response.status() != RestStatus.OK || response.getHits() == null) {
             throw new CloudRuntimeException("Failed to execute search operation");
@@ -56,10 +56,12 @@ public class KvExecutorImpl implements KvExecutor {
         return results;
     }
 
-    private <T> List<T> parseResults(SearchResponse response, Class<T> elementClass) throws IOException {
+    private <T extends ResponseEntity> List<T> parseResults(SearchResponse response, Class<T> elementClass) throws IOException {
         List<T> results = new ArrayList<>();
         for (SearchHit searchHit : response.getHits()) {
-            results.add(_objectMapper.readValue(searchHit.getSourceAsString(), elementClass));
+            T result = _objectMapper.readValue(searchHit.getSourceAsString(), elementClass);
+            result.setId(searchHit.getId());
+            results.add(result);
         }
         return results;
     }

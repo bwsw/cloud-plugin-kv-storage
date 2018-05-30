@@ -18,24 +18,35 @@
 package com.bwsw.cloudstack.storage.kv.entity;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.gson.annotations.SerializedName;
+import org.apache.cloudstack.api.ApiConstants;
+import org.apache.cloudstack.api.BaseResponse;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class KvStorage {
+public class KvStorage extends BaseResponse implements ResponseEntity {
 
     @JsonFormat(shape = JsonFormat.Shape.STRING)
     public enum KvStorageType {
         ACCOUNT, VM, TEMP
     }
 
-    @JsonIgnore
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @SerializedName(ApiConstants.ID)
     private String id;
+
     private KvStorageType type;
+
+    @SerializedName(ApiConstants.ACCOUNT)
     private String account;
+
+    @SerializedName(ApiConstants.NAME)
     private String name;
+
+    @SerializedName(ApiConstants.DESCRIPTION)
     private String description;
+
     private Integer ttl;
     private Long expirationTimestamp;
 

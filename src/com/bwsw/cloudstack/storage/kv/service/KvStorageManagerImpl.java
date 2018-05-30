@@ -17,6 +17,7 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.api.CreateAccountKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListKvStoragesCmd;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
@@ -67,7 +68,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     private RestHighLevelClient _restHighLevelClient;
 
     @Override
-    public String createAccountStorage(Long accountId, String name, String description) {
+    public KvStorage createAccountStorage(Long accountId, String name, String description) {
         AccountVO accountVO = _accountDao.findById(accountId);
         if (accountVO == null) {
             throw new InvalidParameterValueException("Unable to find an account with the specified id");
@@ -120,7 +121,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             throw new InvalidParameterValueException("Invalid TTL");
         }
         KvStorage storage = new KvStorage(UUID.randomUUID().toString(), ttl, Instant.now().toEpochMilli() + ttl);
-        return createStorage(storage);
+        return createStorage(storage).getId();
     }
 
     @Override
@@ -130,13 +131,14 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             throw new InvalidParameterValueException("Unable to find a virtual machine with specified id");
         }
         KvStorage storage = new KvStorage(vmInstanceVO.getUuid());
-        return createStorage(storage);
+        return createStorage(storage).getId();
     }
 
     @Override
     public List<Class<?>> getCommands() {
         List<Class<?>> commands = new ArrayList<>();
         commands.add(ListKvStoragesCmd.class);
+        commands.add(CreateAccountKvStorageCmd.class);
         return commands;
     }
 
@@ -161,7 +163,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         return true;
     }
 
-    private String createStorage(KvStorage storage) {
+    private KvStorage createStorage(KvStorage storage) {
         try {
             IndexRequest request = _kvRequestBuilder.getCreateRequest(storage);
             _kvExecutor.index(_restHighLevelClient, request);
@@ -169,6 +171,6 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             s_logger.error("Unable to create a storage", e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to create a storage", e);
         }
-        return storage.getId();
+        return storage;
     }
 }
