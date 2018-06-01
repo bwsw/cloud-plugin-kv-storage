@@ -40,7 +40,7 @@ public class KvExecutorImpl implements KvExecutor {
     @Override
     public void index(RestHighLevelClient client, IndexRequest request) throws IOException {
         IndexResponse response = client.index(request);
-        if (response.status() != RestStatus.CREATED || response.status() != RestStatus.OK) {
+        if (response.status() != RestStatus.CREATED && response.status() != RestStatus.OK) {
             throw new CloudRuntimeException("Failed to execute create/update operation");
         }
     }
