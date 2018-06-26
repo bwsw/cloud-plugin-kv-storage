@@ -47,23 +47,29 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
     @SerializedName(ApiConstants.DESCRIPTION)
     private String description;
 
+    @JsonProperty("history_enabled")
+    @SerializedName(EntityConstants.HISTORY_ENABLED)
+    private Boolean historyEnabled;
+
     private Integer ttl;
     private Long expirationTimestamp;
 
     public KvStorage() {
     }
 
-    public KvStorage(String id) {
+    public KvStorage(String id, boolean historyEnabled) {
         this.id = id;
         this.type = KvStorageType.VM;
+        this.historyEnabled = historyEnabled;
     }
 
-    public KvStorage(String id, String account, String name, String description) {
+    public KvStorage(String id, String account, String name, String description, boolean historyEnabled) {
         this.id = id;
         this.type = KvStorageType.ACCOUNT;
         this.account = account;
         this.name = name;
         this.description = description;
+        this.historyEnabled = historyEnabled;
     }
 
     public KvStorage(String id, Integer ttl, Long expirationTimestamp) {
@@ -71,6 +77,7 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
         this.type = KvStorageType.TEMP;
         this.ttl = ttl;
         this.expirationTimestamp = expirationTimestamp;
+        this.historyEnabled = false;
     }
 
     public String getId() {
@@ -111,6 +118,14 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Boolean getHistoryEnabled() {
+        return historyEnabled;
+    }
+
+    public void setHistoryEnabled(Boolean historyEnabled) {
+        this.historyEnabled = historyEnabled;
     }
 
     public Integer getTtl() {

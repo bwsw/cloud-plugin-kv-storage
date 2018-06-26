@@ -17,6 +17,7 @@
 
 package com.bwsw.cloudstack.storage.kv.api;
 
+import com.bwsw.cloudstack.storage.kv.entity.EntityConstants;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.service.KvStorageManager;
 import com.cloud.exception.ConcurrentOperationException;
@@ -51,6 +52,9 @@ public class CreateAccountKvStorageCmd extends BaseCmd {
     @Parameter(name = ApiConstants.DESCRIPTION, type = CommandType.STRING, description = "the KV storage description")
     private String description;
 
+    @Parameter(name = EntityConstants.HISTORY_ENABLED, type = CommandType.BOOLEAN, description = "true if KV storage should keep an operation history, false otherwise")
+    private Boolean historyEnabled;
+
     @Inject
     private KvStorageManager _kvStorageManager;
 
@@ -66,6 +70,10 @@ public class CreateAccountKvStorageCmd extends BaseCmd {
         return description;
     }
 
+    public Boolean getHistoryEnabled() {
+        return historyEnabled;
+    }
+
     @Override
     public long getEntityOwnerId() {
         Account account = _entityMgr.findById(Account.class, getAccountId());
@@ -78,7 +86,7 @@ public class CreateAccountKvStorageCmd extends BaseCmd {
 
     @Override
     public void execute() throws ServerApiException, ConcurrentOperationException {
-        KvStorage response = _kvStorageManager.createAccountStorage(getAccountId(), getName(), getDescription());
+        KvStorage response = _kvStorageManager.createAccountStorage(getAccountId(), getName(), getDescription(), getHistoryEnabled());
         response.setResponseName(getCommandName());
         response.setObjectName("kvstorage");
         setResponseObject(response);

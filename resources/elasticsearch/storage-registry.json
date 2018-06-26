@@ -31,6 +31,9 @@
         },
         "expiration_timestamp": {
           "type": "long"
+        },
+        "history_enabled": {
+          "type": "boolean"
         }
       }
     }

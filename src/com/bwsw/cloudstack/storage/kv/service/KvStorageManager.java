@@ -35,11 +35,11 @@ public interface KvStorageManager extends PluggableService {
 
     ConfigKey<Integer> KvStorageMaxTtl = new ConfigKey<>("Advanced", Integer.class, "storage.kv.ttl.max", "3600000", "Max ttl in ms for temporal storages", true);
 
-    KvStorage createAccountStorage(Long accountId, String name, String description);
+    KvStorage createAccountStorage(Long accountId, String name, String description, Boolean historyEnabled);
 
     ListResponse<KvStorageResponse> listStorages(Long accountId, Long startIndex, Long pageSize);
 
     String createTempStorage(Integer ttl);
 
-    String createVmStorage(Long vmId);
+    String createVmStorage(Long vmId, Boolean historyEnabled);
 }

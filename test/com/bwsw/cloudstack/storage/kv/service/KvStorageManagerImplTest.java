@@ -41,6 +41,7 @@ public class KvStorageManagerImplTest {
     private static final String UUID = "61d12f36-0201-4035-b6fc-c7f768f583f1";
     private static final String NAME = "test storage";
     private static final String DESCRIPTION = "test storage description";
+    private static final Boolean HISTORY_ENABLED = true;
     private static final String UUID_PATTERN = "\\p{XDigit}{8}-\\p{XDigit}{4}-\\p{XDigit}{4}-\\p{XDigit}{4}-\\p{XDigit}{12}";
     private static final Integer TTL = 300000;
     private static final long PAGE_SIZE = 5L;
@@ -82,7 +83,7 @@ public class KvStorageManagerImplTest {
 
         when(_accountDao.findById(ID)).thenReturn(null);
 
-        _kvStorageManager.createAccountStorage(ID, NAME, DESCRIPTION);
+        _kvStorageManager.createAccountStorage(ID, NAME, DESCRIPTION, HISTORY_ENABLED);
     }
 
     @Test
@@ -106,7 +107,7 @@ public class KvStorageManagerImplTest {
 
         setAccountExpectations();
 
-        _kvStorageManager.createAccountStorage(ID, NAME, StringUtils.repeat("A", KvStorageManager.KvStorageMaxDescriptionLength.value() + 1));
+        _kvStorageManager.createAccountStorage(ID, NAME, StringUtils.repeat("A", KvStorageManager.KvStorageMaxDescriptionLength.value() + 1), HISTORY_ENABLED);
     }
 
     @Test
@@ -114,19 +115,30 @@ public class KvStorageManagerImplTest {
         setExceptionExpectation(ServerApiException.class, "storage");
 
         setAccountExpectations();
-        setAccountRequestExpectations();
+        setAccountRequestExpectations(UUID, NAME, DESCRIPTION, HISTORY_ENABLED);
         doThrow(new IOException()).when(_kvExecutor).index(_restHighLevelClient, _indexRequest);
 
-        _kvStorageManager.createAccountStorage(ID, NAME, DESCRIPTION);
+        _kvStorageManager.createAccountStorage(ID, NAME, DESCRIPTION, HISTORY_ENABLED);
     }
 
     @Test
     public void testCreateAccountStorage() throws IOException {
         setAccountExpectations();
-        setAccountRequestExpectations();
+        setAccountRequestExpectations(UUID, NAME, DESCRIPTION, HISTORY_ENABLED);
         doNothing().when(_kvExecutor).index(_restHighLevelClient, _indexRequest);
 
-        _kvStorageManager.createAccountStorage(ID, NAME, DESCRIPTION);
+        _kvStorageManager.createAccountStorage(ID, NAME, DESCRIPTION, HISTORY_ENABLED);
+
+        verify(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+    }
+
+    @Test
+    public void testCreateAccountStorageDefaultHistorySettings() throws IOException {
+        setAccountExpectations();
+        setAccountRequestExpectations(UUID, NAME, DESCRIPTION, false);
+        doNothing().when(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+
+        _kvStorageManager.createAccountStorage(ID, NAME, DESCRIPTION, null);
 
         verify(_kvExecutor).index(_restHighLevelClient, _indexRequest);
     }
@@ -137,7 +149,7 @@ public class KvStorageManagerImplTest {
 
         when(_vmInstanceDao.findById(ID)).thenReturn(null);
 
-        _kvStorageManager.createVmStorage(ID);
+        _kvStorageManager.createVmStorage(ID, HISTORY_ENABLED);
     }
 
     @Test
@@ -148,7 +160,7 @@ public class KvStorageManagerImplTest {
         setVmRequestExpectations();
         doThrow(new IOException()).when(_kvExecutor).index(_restHighLevelClient, _indexRequest);
 
-        _kvStorageManager.createVmStorage(ID);
+        _kvStorageManager.createVmStorage(ID, HISTORY_ENABLED);
     }
 
     @Test
@@ -157,7 +169,7 @@ public class KvStorageManagerImplTest {
         setVmRequestExpectations();
         doNothing().when(_kvExecutor).index(_restHighLevelClient, _indexRequest);
 
-        _kvStorageManager.createVmStorage(ID);
+        _kvStorageManager.createVmStorage(ID, HISTORY_ENABLED);
 
         verify(_kvExecutor).index(_restHighLevelClient, _indexRequest);
     }
@@ -259,7 +271,7 @@ public class KvStorageManagerImplTest {
 
         setAccountExpectations();
 
-        _kvStorageManager.createAccountStorage(ID, name, DESCRIPTION);
+        _kvStorageManager.createAccountStorage(ID, name, DESCRIPTION, HISTORY_ENABLED);
     }
 
     private void testCreateTempStorageInvalidTtl(Integer ttl) {
@@ -292,7 +304,7 @@ public class KvStorageManagerImplTest {
         when(_vmInstanceDao.findById(ID)).thenReturn(_vmInstanceVO);
     }
 
-    private void setAccountRequestExpectations() throws JsonProcessingException {
+    private void setAccountRequestExpectations(String uuid, String name, String description, Boolean historyEnabled) throws JsonProcessingException {
         when(_kvRequestBuilder.getCreateRequest(argThat(new CustomMatcher<KvStorage>("account storage") {
             @Override
             public boolean matches(Object o) {
@@ -300,16 +312,19 @@ public class KvStorageManagerImplTest {
                     return false;
                 }
                 KvStorage storage = (KvStorage)o;
-                if (Strings.isNullOrEmpty(storage.getId()) || !storage.getId().matches(UUID_PATTERN) || storage.getId().equals(UUID)) {
+                if (Strings.isNullOrEmpty(storage.getId()) || !storage.getId().matches(UUID_PATTERN) || storage.getId().equals(uuid)) {
                     return false;
                 }
-                if (!UUID.equals(storage.getAccount())) {
+                if (!uuid.equals(storage.getAccount())) {
                     return false;
                 }
-                if (!NAME.equals(storage.getName())) {
+                if (!name.equals(storage.getName())) {
                     return false;
                 }
-                if (!DESCRIPTION.equals(storage.getDescription())) {
+                if (!description.equals(storage.getDescription())) {
+                    return false;
+                }
+                if (!historyEnabled.equals(storage.getHistoryEnabled())) {
                     return false;
                 }
                 return true;
@@ -325,7 +340,7 @@ public class KvStorageManagerImplTest {
                     return false;
                 }
                 KvStorage storage = (KvStorage)o;
-                return UUID.equals(storage.getId());
+                return UUID.equals(storage.getId()) && HISTORY_ENABLED.equals(storage.getHistoryEnabled());
             }
         }))).thenReturn(_indexRequest);
     }

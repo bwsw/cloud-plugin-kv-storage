@@ -68,7 +68,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     private RestHighLevelClient _restHighLevelClient;
 
     @Override
-    public KvStorage createAccountStorage(Long accountId, String name, String description) {
+    public KvStorage createAccountStorage(Long accountId, String name, String description, Boolean historyEnabled) {
         AccountVO accountVO = _accountDao.findById(accountId);
         if (accountVO == null) {
             throw new InvalidParameterValueException("Unable to find an account with the specified id");
@@ -84,7 +84,10 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         if (description != null && maxDescriptionLength != null && description.length() > maxDescriptionLength) {
             throw new InvalidParameterValueException("Invalid description, max length is " + maxDescriptionLength);
         }
-        KvStorage storage = new KvStorage(UUID.randomUUID().toString(), accountVO.getUuid(), name, description);
+        if (historyEnabled == null) {
+            historyEnabled = false;
+        }
+        KvStorage storage = new KvStorage(UUID.randomUUID().toString(), accountVO.getUuid(), name, description, historyEnabled);
         return createStorage(storage);
     }
 
@@ -125,12 +128,15 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
-    public String createVmStorage(Long vmId) {
+    public String createVmStorage(Long vmId, Boolean historyEnabled) {
         VMInstanceVO vmInstanceVO = _vmInstanceDao.findById(vmId);
         if (vmInstanceVO == null) {
             throw new InvalidParameterValueException("Unable to find a virtual machine with specified id");
         }
-        KvStorage storage = new KvStorage(vmInstanceVO.getUuid());
+        if (historyEnabled == null) {
+            historyEnabled = false;
+        }
+        KvStorage storage = new KvStorage(vmInstanceVO.getUuid(), historyEnabled);
         return createStorage(storage).getId();
     }
 
