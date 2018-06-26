@@ -37,7 +37,7 @@ public interface KvStorageManager extends PluggableService {
 
     KvStorage createAccountStorage(Long accountId, String name, String description, Boolean historyEnabled);
 
-    ListResponse<KvStorageResponse> listStorages(Long accountId, Long startIndex, Long pageSize);
+    ListResponse<KvStorageResponse> listAccountStorages(Long accountId, Long startIndex, Long pageSize);
 
     String createTempStorage(Integer ttl);
 

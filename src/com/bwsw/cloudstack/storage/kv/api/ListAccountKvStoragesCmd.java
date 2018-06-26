@@ -36,12 +36,12 @@ import org.apache.cloudstack.api.response.ListResponse;
 
 import javax.inject.Inject;
 
-@APICommand(name = ListKvStoragesCmd.API_NAME, description = "Lists KV storages", responseObject = KvStorageResponse.class, requestHasSensitiveInfo = false,
+@APICommand(name = ListAccountKvStoragesCmd.API_NAME, description = "Lists account KV storages", responseObject = KvStorageResponse.class, requestHasSensitiveInfo = false,
         responseHasSensitiveInfo = true, responseView = ResponseObject.ResponseView.Full,
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User}, entityType = {Account.class})
-public class ListKvStoragesCmd extends BaseListCmd {
+public class ListAccountKvStoragesCmd extends BaseListCmd {
 
-    public static final String API_NAME = "listKvStorages";
+    public static final String API_NAME = "listAccountKvStorages";
 
     @ACL(accessType = SecurityChecker.AccessType.OperateEntry)
     @Parameter(name = ApiConstants.ID, type = CommandType.UUID, entityType = AccountResponse.class, required = true, description = "the ID of the account")
@@ -66,7 +66,7 @@ public class ListKvStoragesCmd extends BaseListCmd {
 
     @Override
     public void execute() throws ServerApiException, ConcurrentOperationException {
-        ListResponse<KvStorageResponse> response = _kvStorageManager.listStorages(getId(), getStartIndex(), getPageSizeVal());
+        ListResponse<KvStorageResponse> response = _kvStorageManager.listAccountStorages(getId(), getStartIndex(), getPageSizeVal());
         response.setResponseName(getCommandName());
         response.setObjectName("kvstorages");
         setResponseObject(response);

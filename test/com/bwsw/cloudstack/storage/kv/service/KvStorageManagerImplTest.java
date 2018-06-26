@@ -222,13 +222,13 @@ public class KvStorageManagerImplTest {
     @Test
     public void testListStoragesNullPageSize() {
         setExceptionExpectation(InvalidParameterValueException.class, "page size");
-        _kvStorageManager.listStorages(ID, START_INDEX, null);
+        _kvStorageManager.listAccountStorages(ID, START_INDEX, null);
     }
 
     @Test
     public void testListStoragesInvalidPageSize() {
         setExceptionExpectation(InvalidParameterValueException.class, "page size");
-        _kvStorageManager.listStorages(ID, START_INDEX, 0L);
+        _kvStorageManager.listAccountStorages(ID, START_INDEX, 0L);
     }
 
     @Test
@@ -239,7 +239,7 @@ public class KvStorageManagerImplTest {
     @Test
     public void testListStoragesInvalidStartIndex() {
         setExceptionExpectation(InvalidParameterValueException.class, "start index");
-        _kvStorageManager.listStorages(ID, -1L, PAGE_SIZE);
+        _kvStorageManager.listAccountStorages(ID, -1L, PAGE_SIZE);
     }
 
     @Test
@@ -247,7 +247,7 @@ public class KvStorageManagerImplTest {
         setExceptionExpectation(InvalidParameterValueException.class, "account");
         when(_accountDao.findById(ID)).thenReturn(null);
 
-        _kvStorageManager.listStorages(ID, START_INDEX, PAGE_SIZE);
+        _kvStorageManager.listAccountStorages(ID, START_INDEX, PAGE_SIZE);
     }
 
     @Test
@@ -258,7 +258,7 @@ public class KvStorageManagerImplTest {
         when(_kvRequestBuilder.getSearchRequest(UUID, (int)START_INDEX, (int)PAGE_SIZE)).thenReturn(_searchRequest);
         doThrow(new IOException()).when(_kvExecutor).search(_restHighLevelClient, _searchRequest, KvStorageResponse.class);
 
-        _kvStorageManager.listStorages(ID, START_INDEX, PAGE_SIZE);
+        _kvStorageManager.listAccountStorages(ID, START_INDEX, PAGE_SIZE);
     }
 
     @Test
@@ -287,7 +287,7 @@ public class KvStorageManagerImplTest {
         when(_kvRequestBuilder.getSearchRequest(UUID, requestStartIndex, (int)PAGE_SIZE)).thenReturn(_searchRequest);
         when(_kvExecutor.search(_restHighLevelClient, _searchRequest, KvStorageResponse.class)).thenReturn(expectedResponse);
 
-        ListResponse<KvStorageResponse> response = _kvStorageManager.listStorages(ID, argStartIndex, PAGE_SIZE);
+        ListResponse<KvStorageResponse> response = _kvStorageManager.listAccountStorages(ID, argStartIndex, PAGE_SIZE);
         assertEquals(expectedResponse, response);
     }
 

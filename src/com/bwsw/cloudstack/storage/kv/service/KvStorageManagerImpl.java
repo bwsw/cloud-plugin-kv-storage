@@ -18,7 +18,7 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.api.CreateAccountKvStorageCmd;
-import com.bwsw.cloudstack.storage.kv.api.ListKvStoragesCmd;
+import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.bwsw.cloudstack.storage.kv.util.HttpUtils;
@@ -92,7 +92,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
-    public ListResponse<KvStorageResponse> listStorages(Long accountId, Long startIndex, Long pageSize) {
+    public ListResponse<KvStorageResponse> listAccountStorages(Long accountId, Long startIndex, Long pageSize) {
         if (pageSize == null || pageSize < 1) {
             throw new InvalidParameterValueException("Invalid page size");
         }
@@ -143,7 +143,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     @Override
     public List<Class<?>> getCommands() {
         List<Class<?>> commands = new ArrayList<>();
-        commands.add(ListKvStoragesCmd.class);
+        commands.add(ListAccountKvStoragesCmd.class);
         commands.add(CreateAccountKvStorageCmd.class);
         return commands;
     }
