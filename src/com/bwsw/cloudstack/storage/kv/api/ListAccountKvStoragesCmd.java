@@ -44,19 +44,19 @@ public class ListAccountKvStoragesCmd extends BaseListCmd {
     public static final String API_NAME = "listAccountKvStorages";
 
     @ACL(accessType = SecurityChecker.AccessType.OperateEntry)
-    @Parameter(name = ApiConstants.ID, type = CommandType.UUID, entityType = AccountResponse.class, required = true, description = "the ID of the account")
-    private Long id;
+    @Parameter(name = ApiConstants.ACCOUNT_ID, type = CommandType.UUID, entityType = AccountResponse.class, required = true, description = "the ID of the account")
+    private Long accountId;
 
     @Inject
     private KvStorageManager _kvStorageManager;
 
-    public Long getId() {
-        return id;
+    public Long getAccountId() {
+        return accountId;
     }
 
     @Override
     public long getEntityOwnerId() {
-        Account account = _entityMgr.findById(Account.class, getId());
+        Account account = _entityMgr.findById(Account.class, getAccountId());
         if (account != null) {
             return account.getAccountId();
         }
@@ -66,7 +66,7 @@ public class ListAccountKvStoragesCmd extends BaseListCmd {
 
     @Override
     public void execute() throws ServerApiException, ConcurrentOperationException {
-        ListResponse<KvStorageResponse> response = _kvStorageManager.listAccountStorages(getId(), getStartIndex(), getPageSizeVal());
+        ListResponse<KvStorageResponse> response = _kvStorageManager.listAccountStorages(getAccountId(), getStartIndex(), getPageSizeVal());
         response.setResponseName(getCommandName());
         response.setObjectName("kvstorages");
         setResponseObject(response);
