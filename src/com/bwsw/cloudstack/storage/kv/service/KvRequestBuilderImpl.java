@@ -17,10 +17,14 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.elasticsearch.action.DocWriteRequest;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.common.xcontent.XContentType;
@@ -32,8 +36,10 @@ import org.elasticsearch.search.sort.SortOrder;
 
 public class KvRequestBuilderImpl implements KvRequestBuilder {
 
-    public static final String STORAGE_INDEX = "storage-registry";
+    public static final String STORAGE_REGISTRY_INDEX = "storage-registry";
     public static final String STORAGE_TYPE = "_doc";
+    public static final String STORAGE_INDEX_PREFIX = "storage-";
+    public static final String HISTORY_INDEX_PREFIX = "history-storage-";
     private static final String ID_FIELD = "_id";
     private static final String ACCOUNT_FIELD = "account";
     private static final String TYPE_FIELD = "type";
@@ -44,8 +50,14 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     private static final ObjectMapper s_objectMapper = new ObjectMapper();
 
     @Override
+    public GetRequest getGetRequest(String storageId) {
+        GetRequest request = new GetRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storageId);
+        return request;
+    }
+
+    @Override
     public IndexRequest getCreateRequest(KvStorage storage) throws JsonProcessingException {
-        IndexRequest request = new IndexRequest(STORAGE_INDEX, STORAGE_TYPE, storage.getId());
+        IndexRequest request = new IndexRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId());
         request.source(s_objectMapper.writeValueAsString(storage), XContentType.JSON);
         request.opType(DocWriteRequest.OpType.CREATE);
         return request;
@@ -53,7 +65,7 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
 
     @Override
     public SearchRequest getSearchRequest(String accountUuid, int from, int size) {
-        SearchRequest searchRequest = new SearchRequest(STORAGE_INDEX);
+        SearchRequest searchRequest = new SearchRequest(STORAGE_REGISTRY_INDEX);
 
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
         sourceBuilder.from(from);
@@ -70,5 +82,24 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
 
         searchRequest.source(sourceBuilder);
         return searchRequest;
+    }
+
+    @Override
+    public DeleteStorageRequest getDeleteRequest(KvStorage storage) {
+        DeleteRequest registryRequest = new DeleteRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId());
+        DeleteIndexRequest storageIndexRequest = new DeleteIndexRequest(getStorageIndex(storage));
+        DeleteIndexRequest historyIndexRequest = null;
+        if (storage.getHistoryEnabled() != null && storage.getHistoryEnabled()) {
+            historyIndexRequest = new DeleteIndexRequest(getHistoryIndex(storage));
+        }
+        return new DeleteStorageRequest(registryRequest, storageIndexRequest, historyIndexRequest);
+    }
+
+    private String getStorageIndex(KvStorage storage) {
+        return STORAGE_INDEX_PREFIX + storage.getId();
+    }
+
+    private String getHistoryIndex(KvStorage storage) {
+        return HISTORY_INDEX_PREFIX + storage.getId();
     }
 }

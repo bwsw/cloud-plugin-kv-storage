@@ -24,6 +24,7 @@ import com.tngtech.java.junit.dataprovider.DataProviderRunner;
 import com.tngtech.java.junit.dataprovider.UseDataProvider;
 import org.apache.commons.io.IOUtils;
 import org.elasticsearch.action.DocWriteRequest;
+import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.common.xcontent.ToXContent;
@@ -62,13 +63,23 @@ public class KvRequestBuilderImplTest {
                         "{\"type\":\"TEMP\",\"ttl\":300000,\"history_enabled\":true,\"expiration_timestamp\":1527067849287}"}};
     }
 
+    @Test
+    public void testGetGetRequest() {
+        GetRequest request = _kvRequestBuilder.getGetRequest(UUID);
+
+        assertNotNull(request);
+        assertEquals(KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX, request.index());
+        assertEquals(KvRequestBuilderImpl.STORAGE_TYPE, request.type());
+        assertEquals(UUID, request.id());
+    }
+
     @UseDataProvider("storages")
     @Test
     public void testGetCreateRequest(KvStorage storage, String source) throws JsonProcessingException {
         IndexRequest request = _kvRequestBuilder.getCreateRequest(storage);
 
         assertNotNull(request);
-        assertEquals(KvRequestBuilderImpl.STORAGE_INDEX, request.index());
+        assertEquals(KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX, request.index());
         assertEquals(KvRequestBuilderImpl.STORAGE_TYPE, request.type());
         assertEquals(DocWriteRequest.OpType.CREATE, request.opType());
         assertEquals(storage.getId(), request.id());
@@ -80,7 +91,7 @@ public class KvRequestBuilderImplTest {
         SearchRequest request = _kvRequestBuilder.getSearchRequest(UUID, FROM, SIZE);
 
         assertNotNull(request);
-        assertArrayEquals(new String[] {KvRequestBuilderImpl.STORAGE_INDEX}, request.indices());
+        assertArrayEquals(new String[] {KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX}, request.indices());
 
         SearchSourceBuilder sourceBuilder = request.source();
         assertNotNull(sourceBuilder);

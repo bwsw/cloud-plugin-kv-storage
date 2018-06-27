@@ -17,10 +17,14 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.ResponseEntity;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.cloudstack.api.response.ListResponse;
+import org.elasticsearch.action.delete.DeleteResponse;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
@@ -36,6 +40,18 @@ import java.util.List;
 public class KvExecutorImpl implements KvExecutor {
 
     private final ObjectMapper _objectMapper = new ObjectMapper();
+
+    @Override
+    public <T extends ResponseEntity> T get(RestHighLevelClient client, GetRequest request, Class<T> elementClass) throws IOException {
+        GetResponse response = client.get(request);
+        if (!response.isExists()) {
+            return null;
+        }
+        if (response.isSourceEmpty()) {
+            throw new CloudRuntimeException("Empty result for get operation");
+        }
+        return parseResult(response.getSourceAsString(), elementClass, response.getId());
+    }
 
     @Override
     public void index(RestHighLevelClient client, IndexRequest request) throws IOException {
@@ -56,13 +72,27 @@ public class KvExecutorImpl implements KvExecutor {
         return results;
     }
 
+    @Override
+    public boolean delete(RestHighLevelClient client, DeleteStorageRequest request) throws IOException {
+        DeleteResponse registryResponse = client.delete(request.getRegistryRequest());
+        if (registryResponse.status() != RestStatus.OK && registryResponse.status() != RestStatus.NOT_FOUND) {
+            return false;
+        }
+        // TODO: delete storage and history indices
+        return true;
+    }
+
     private <T extends ResponseEntity> List<T> parseResults(SearchResponse response, Class<T> elementClass) throws IOException {
         List<T> results = new ArrayList<>();
         for (SearchHit searchHit : response.getHits()) {
-            T result = _objectMapper.readValue(searchHit.getSourceAsString(), elementClass);
-            result.setId(searchHit.getId());
-            results.add(result);
+            results.add(parseResult(searchHit.getSourceAsString(), elementClass, searchHit.getId()));
         }
         return results;
+    }
+
+    private <T extends ResponseEntity> T parseResult(String source, Class<T> elementClass, String id) throws IOException {
+        T result = _objectMapper.readValue(source, elementClass);
+        result.setId(id);
+        return result;
     }
 }

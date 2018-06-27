@@ -35,6 +35,7 @@ import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.http.HttpHost;
 import org.apache.log4j.Logger;
+import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.client.RestClient;
@@ -112,6 +113,32 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             s_logger.error("Unable to retrieve storage", e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to retrieve storages", e);
         }
+    }
+
+    @Override
+    public boolean deleteAccountStorage(Long accountId, String storageId) {
+        AccountVO accountVO = _accountDao.findById(accountId);
+        if (accountVO == null) {
+            throw new InvalidParameterValueException("Unable to find an account with the specified id");
+        }
+        if (storageId == null || storageId.isEmpty()) {
+            throw new InvalidParameterValueException("Invalid storage id");
+        }
+        GetRequest getRequest = _kvRequestBuilder.getGetRequest(storageId);
+        try {
+            KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
+            if (storage == null) {
+                return false;
+            }
+            if (!KvStorage.KvStorageType.ACCOUNT.equals(storage.getType()) || storage.getAccount() == null || !storage.getAccount().equals(accountVO.getUuid())) {
+                throw new InvalidParameterValueException("Storage does not belong to specified account");
+            }
+            // TODO: delete a record from the storage registry and indices
+        } catch (IOException e) {
+            s_logger.error("Unable to retrieve storage", e);
+            return false;
+        }
+        return true;
     }
 
     @Override
