@@ -18,6 +18,7 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.api.CreateAccountKvStorageCmd;
+import com.bwsw.cloudstack.storage.kv.api.DeleteAccountKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
@@ -171,6 +172,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         List<Class<?>> commands = new ArrayList<>();
         commands.add(ListAccountKvStoragesCmd.class);
         commands.add(CreateAccountKvStorageCmd.class);
+        commands.add(DeleteAccountKvStorageCmd.class);
         return commands;
     }
 
