@@ -17,7 +17,6 @@
 
 package com.bwsw.cloudstack.storage.kv.api;
 
-import com.bwsw.cloudstack.storage.kv.entity.EntityConstants;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.service.KvStorageManager;
 import com.cloud.exception.ConcurrentOperationException;
@@ -52,7 +51,8 @@ public class CreateAccountKvStorageCmd extends BaseCmd {
     @Parameter(name = ApiConstants.DESCRIPTION, type = CommandType.STRING, description = "the KV storage description")
     private String description;
 
-    @Parameter(name = EntityConstants.HISTORY_ENABLED, type = CommandType.BOOLEAN, description = "true if KV storage should keep an operation history, false otherwise")
+    @Parameter(name = com.bwsw.cloudstack.storage.kv.api.ApiConstants.HISTORY_ENABLED, type = CommandType.BOOLEAN,
+            description = "true if KV storage should keep an operation history, false otherwise")
     private Boolean historyEnabled;
 
     @Inject

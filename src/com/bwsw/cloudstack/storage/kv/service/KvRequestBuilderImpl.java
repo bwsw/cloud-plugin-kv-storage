@@ -18,6 +18,7 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
+import com.bwsw.cloudstack.storage.kv.entity.EntityConstants;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,7 +46,7 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     private static final String TYPE_FIELD = "type";
     private static final String NAME_FIELD = "name";
     private static final String DESCRIPTION_FIELD = "description";
-    private static final String[] FIELDS = {ID_FIELD, NAME_FIELD, DESCRIPTION_FIELD};
+    private static final String[] FIELDS = {ID_FIELD, NAME_FIELD, DESCRIPTION_FIELD, EntityConstants.HISTORY_ENABLED};
 
     private static final ObjectMapper s_objectMapper = new ObjectMapper();
 

@@ -84,7 +84,10 @@ public class KvExecutorImpl implements KvExecutor {
         if (!deleteIndex(client, request.getStorageIndexRequest())) {
             return false;
         }
-        return deleteIndex(client, request.getHistoryIndexRequest());
+        if (request.getHistoryIndexRequest() != null) {
+            return deleteIndex(client, request.getHistoryIndexRequest());
+        }
+        return true;
     }
 
     private <T extends ResponseEntity> List<T> parseResults(SearchResponse response, Class<T> elementClass) throws IOException {

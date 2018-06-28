@@ -47,8 +47,7 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
     @SerializedName(ApiConstants.DESCRIPTION)
     private String description;
 
-    @JsonProperty("history_enabled")
-    @SerializedName(EntityConstants.HISTORY_ENABLED)
+    @SerializedName(com.bwsw.cloudstack.storage.kv.api.ApiConstants.HISTORY_ENABLED)
     private Boolean historyEnabled;
 
     private Integer ttl;
@@ -120,6 +119,7 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
         this.description = description;
     }
 
+    @JsonProperty("history_enabled")
     public Boolean getHistoryEnabled() {
         return historyEnabled;
     }
