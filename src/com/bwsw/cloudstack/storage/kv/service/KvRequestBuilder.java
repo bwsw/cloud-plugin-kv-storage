@@ -30,7 +30,9 @@ public interface KvRequestBuilder {
 
     IndexRequest getCreateRequest(KvStorage storage) throws JsonProcessingException;
 
+    IndexRequest getUpdateRequest(KvStorage storage) throws JsonProcessingException;
+
     SearchRequest getSearchRequest(String accountUuid, int from, int size);
 
-    DeleteStorageRequest getDeleteRequest(KvStorage storage);
+    DeleteStorageRequest getDeleteRequest(KvStorage storage) throws JsonProcessingException;
 }

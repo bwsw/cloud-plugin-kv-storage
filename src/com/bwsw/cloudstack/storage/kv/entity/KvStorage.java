@@ -38,6 +38,9 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
 
     private KvStorageType type;
 
+    @SerializedName(EntityConstants.DELETED)
+    private Boolean deleted;
+
     @SerializedName(ApiConstants.ACCOUNT)
     private String account;
 
@@ -59,12 +62,14 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
     public KvStorage(String id, boolean historyEnabled) {
         this.id = id;
         this.type = KvStorageType.VM;
+        this.deleted = false;
         this.historyEnabled = historyEnabled;
     }
 
     public KvStorage(String id, String account, String name, String description, boolean historyEnabled) {
         this.id = id;
         this.type = KvStorageType.ACCOUNT;
+        this.deleted = false;
         this.account = account;
         this.name = name;
         this.description = description;
@@ -74,6 +79,7 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
     public KvStorage(String id, Integer ttl, Long expirationTimestamp) {
         this.id = id;
         this.type = KvStorageType.TEMP;
+        this.deleted = false;
         this.ttl = ttl;
         this.expirationTimestamp = expirationTimestamp;
         this.historyEnabled = false;
@@ -93,6 +99,14 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
 
     public void setType(KvStorageType type) {
         this.type = type;
+    }
+
+    public Boolean getDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(Boolean deleted) {
+        this.deleted = deleted;
     }
 
     public String getAccount() {

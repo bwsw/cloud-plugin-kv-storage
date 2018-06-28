@@ -129,7 +129,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         try {
             KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
             if (storage == null) {
-                return false;
+                throw new InvalidParameterValueException("The storage does not exist");
             }
             if (!KvStorage.KvStorageType.ACCOUNT.equals(storage.getType())) {
                 throw new InvalidParameterValueException("The storage type is not account");
@@ -137,6 +137,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             if (storage.getAccount() == null || !storage.getAccount().equals(accountVO.getUuid())) {
                 throw new InvalidParameterValueException("The storage does not belong to the specified account");
             }
+            storage.setDeleted(true);
             return _kvExecutor.delete(_restHighLevelClient, _kvRequestBuilder.getDeleteRequest(storage));
         } catch (IOException e) {
             s_logger.error("Unable to delete an account KV storage", e);

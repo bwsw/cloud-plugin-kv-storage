@@ -20,4 +20,5 @@ package com.bwsw.cloudstack.storage.kv.entity;
 public class EntityConstants {
 
     public static final String HISTORY_ENABLED = "history_enabled";
+    public static final String DELETED = "deleted";
 }

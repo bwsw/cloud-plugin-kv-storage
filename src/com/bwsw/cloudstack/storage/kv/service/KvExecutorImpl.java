@@ -77,17 +77,18 @@ public class KvExecutorImpl implements KvExecutor {
 
     @Override
     public boolean delete(RestHighLevelClient client, DeleteStorageRequest request) throws IOException {
-        DeleteResponse registryResponse = client.delete(request.getRegistryRequest());
-        if (registryResponse.status() != RestStatus.OK && registryResponse.status() != RestStatus.NOT_FOUND) {
+        IndexResponse registryUpdateResponse = client.index(request.getRegistryUpdateRequest());
+        if (registryUpdateResponse.status() != RestStatus.OK) {
             return false;
         }
         if (!deleteIndex(client, request.getStorageIndexRequest())) {
             return false;
         }
-        if (request.getHistoryIndexRequest() != null) {
-            return deleteIndex(client, request.getHistoryIndexRequest());
+        if (request.getHistoryIndexRequest() != null && !deleteIndex(client, request.getHistoryIndexRequest())) {
+            return false;
         }
-        return true;
+        DeleteResponse registryDeleteResponse = client.delete(request.getRegistryDeleteRequest());
+        return registryDeleteResponse.status() == RestStatus.OK || registryDeleteResponse.status() == RestStatus.NOT_FOUND;
     }
 
     private <T extends ResponseEntity> List<T> parseResults(SearchResponse response, Class<T> elementClass) throws IOException {

@@ -46,7 +46,7 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     private static final String TYPE_FIELD = "type";
     private static final String NAME_FIELD = "name";
     private static final String DESCRIPTION_FIELD = "description";
-    private static final String[] FIELDS = {ID_FIELD, NAME_FIELD, DESCRIPTION_FIELD, EntityConstants.HISTORY_ENABLED};
+    private static final String[] FIELDS = {ID_FIELD, NAME_FIELD, DESCRIPTION_FIELD, EntityConstants.HISTORY_ENABLED, EntityConstants.DELETED};
 
     private static final ObjectMapper s_objectMapper = new ObjectMapper();
 
@@ -58,10 +58,12 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
 
     @Override
     public IndexRequest getCreateRequest(KvStorage storage) throws JsonProcessingException {
-        IndexRequest request = new IndexRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId());
-        request.source(s_objectMapper.writeValueAsString(storage), XContentType.JSON);
-        request.opType(DocWriteRequest.OpType.CREATE);
-        return request;
+        return getIndexRequest(storage, DocWriteRequest.OpType.CREATE);
+    }
+
+    @Override
+    public IndexRequest getUpdateRequest(KvStorage storage) throws JsonProcessingException {
+        return getIndexRequest(storage, DocWriteRequest.OpType.INDEX);
     }
 
     @Override
@@ -86,14 +88,15 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     }
 
     @Override
-    public DeleteStorageRequest getDeleteRequest(KvStorage storage) {
-        DeleteRequest registryRequest = new DeleteRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId());
+    public DeleteStorageRequest getDeleteRequest(KvStorage storage) throws JsonProcessingException {
+        IndexRequest registryUpdateRequest = getUpdateRequest(storage);
+        DeleteRequest registryDeleteRequest = new DeleteRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId());
         DeleteIndexRequest storageIndexRequest = new DeleteIndexRequest(getStorageIndex(storage));
         DeleteIndexRequest historyIndexRequest = null;
         if (storage.getHistoryEnabled() != null && storage.getHistoryEnabled()) {
             historyIndexRequest = new DeleteIndexRequest(getHistoryIndex(storage));
         }
-        return new DeleteStorageRequest(registryRequest, storageIndexRequest, historyIndexRequest);
+        return new DeleteStorageRequest(registryUpdateRequest, registryDeleteRequest, storageIndexRequest, historyIndexRequest);
     }
 
     private String getStorageIndex(KvStorage storage) {
@@ -102,5 +105,12 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
 
     private String getHistoryIndex(KvStorage storage) {
         return HISTORY_INDEX_PREFIX + storage.getId();
+    }
+
+    private IndexRequest getIndexRequest(KvStorage storage, DocWriteRequest.OpType opType) throws JsonProcessingException {
+        IndexRequest request = new IndexRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId());
+        request.source(s_objectMapper.writeValueAsString(storage), XContentType.JSON);
+        request.opType(opType);
+        return request;
     }
 }

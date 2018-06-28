@@ -19,27 +19,37 @@ package com.bwsw.cloudstack.storage.kv.entity;
 
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.index.IndexRequest;
 
 public class DeleteStorageRequest {
 
-    private final DeleteRequest registryRequest;
+    private final IndexRequest registryUpdateRequest;
+    private final DeleteRequest registryDeleteRequest;
     private final DeleteIndexRequest storageIndexRequest;
     private final DeleteIndexRequest historyIndexRequest;
 
-    public DeleteStorageRequest(DeleteRequest registryRequest, DeleteIndexRequest storageIndexRequest, DeleteIndexRequest historyIndexRequest) {
-        if (registryRequest == null) {
-            throw new IllegalArgumentException("Null storage registry request");
+    public DeleteStorageRequest(IndexRequest registryUpdateRequest, DeleteRequest registryDeleteRequest, DeleteIndexRequest storageIndexRequest, DeleteIndexRequest historyIndexRequest) {
+        if (registryUpdateRequest == null) {
+            throw new IllegalArgumentException("Null registry update request");
+        }
+        if (registryDeleteRequest == null) {
+            throw new IllegalArgumentException("Null registry delete request");
         }
         if (storageIndexRequest == null) {
             throw new IllegalArgumentException("Null storage index request");
         }
-        this.registryRequest = registryRequest;
+        this.registryUpdateRequest = registryUpdateRequest;
+        this.registryDeleteRequest = registryDeleteRequest;
         this.storageIndexRequest = storageIndexRequest;
         this.historyIndexRequest = historyIndexRequest;
     }
 
-    public DeleteRequest getRegistryRequest() {
-        return registryRequest;
+    public IndexRequest getRegistryUpdateRequest() {
+        return registryUpdateRequest;
+    }
+
+    public DeleteRequest getRegistryDeleteRequest() {
+        return registryDeleteRequest;
     }
 
     public DeleteIndexRequest getStorageIndexRequest() {
