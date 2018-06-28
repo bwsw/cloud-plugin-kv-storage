@@ -22,6 +22,9 @@ import com.bwsw.cloudstack.storage.kv.entity.ResponseEntity;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.cloudstack.api.response.ListResponse;
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
@@ -78,8 +81,10 @@ public class KvExecutorImpl implements KvExecutor {
         if (registryResponse.status() != RestStatus.OK && registryResponse.status() != RestStatus.NOT_FOUND) {
             return false;
         }
-        // TODO: delete storage and history indices
-        return true;
+        if (!deleteIndex(client, request.getStorageIndexRequest())) {
+            return false;
+        }
+        return deleteIndex(client, request.getHistoryIndexRequest());
     }
 
     private <T extends ResponseEntity> List<T> parseResults(SearchResponse response, Class<T> elementClass) throws IOException {
@@ -94,5 +99,14 @@ public class KvExecutorImpl implements KvExecutor {
         T result = _objectMapper.readValue(source, elementClass);
         result.setId(id);
         return result;
+    }
+
+    private boolean deleteIndex(RestHighLevelClient client, DeleteIndexRequest request) throws IOException {
+        try {
+            DeleteIndexResponse storageIndexResponse = client.indices().delete(request);
+            return storageIndexResponse.isAcknowledged();
+        } catch (ElasticsearchException exception) {
+            return exception.status() == RestStatus.NOT_FOUND;
+        }
     }
 }
