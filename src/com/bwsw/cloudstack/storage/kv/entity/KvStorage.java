@@ -133,7 +133,7 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
         this.description = description;
     }
 
-    @JsonProperty("history_enabled")
+    @JsonProperty(EntityConstants.HISTORY_ENABLED)
     public Boolean getHistoryEnabled() {
         return historyEnabled;
     }
