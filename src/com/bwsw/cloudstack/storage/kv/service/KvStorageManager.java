@@ -17,7 +17,10 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.cloud.utils.component.PluggableService;
+import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.cloudstack.framework.config.ConfigKey;
 
 public interface KvStorageManager extends PluggableService {
@@ -32,9 +35,13 @@ public interface KvStorageManager extends PluggableService {
 
     ConfigKey<Integer> KvStorageMaxTtl = new ConfigKey<>("Advanced", Integer.class, "storage.kv.ttl.max", "3600000", "Max ttl in ms for temporal storages", true);
 
-    String createAccountStorage(Long accountId, String name, String description);
+    KvStorage createAccountStorage(Long accountId, String name, String description, Boolean historyEnabled);
+
+    ListResponse<KvStorageResponse> listAccountStorages(Long accountId, Long startIndex, Long pageSize);
+
+    boolean deleteAccountStorage(Long accountId, String storageId);
 
     String createTempStorage(Integer ttl);
 
-    String createVmStorage(Long vmId);
+    String createVmStorage(Long vmId, Boolean historyEnabled);
 }

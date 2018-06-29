@@ -18,48 +18,71 @@
 package com.bwsw.cloudstack.storage.kv.entity;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.gson.annotations.SerializedName;
+import org.apache.cloudstack.api.ApiConstants;
+import org.apache.cloudstack.api.BaseResponse;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class KvStorage {
+public class KvStorage extends BaseResponse implements ResponseEntity {
 
     @JsonFormat(shape = JsonFormat.Shape.STRING)
     public enum KvStorageType {
         ACCOUNT, VM, TEMP
     }
 
-    @JsonIgnore
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @SerializedName(ApiConstants.ID)
     private String id;
+
     private KvStorageType type;
+
+    @SerializedName(EntityConstants.DELETED)
+    private Boolean deleted;
+
+    @SerializedName(ApiConstants.ACCOUNT)
     private String account;
+
+    @SerializedName(ApiConstants.NAME)
     private String name;
+
+    @SerializedName(ApiConstants.DESCRIPTION)
     private String description;
+
+    @SerializedName(com.bwsw.cloudstack.storage.kv.api.ApiConstants.HISTORY_ENABLED)
+    private Boolean historyEnabled;
+
     private Integer ttl;
     private Long expirationTimestamp;
 
     public KvStorage() {
     }
 
-    public KvStorage(String id) {
+    public KvStorage(String id, boolean historyEnabled) {
         this.id = id;
         this.type = KvStorageType.VM;
+        this.deleted = false;
+        this.historyEnabled = historyEnabled;
     }
 
-    public KvStorage(String id, String account, String name, String description) {
+    public KvStorage(String id, String account, String name, String description, boolean historyEnabled) {
         this.id = id;
         this.type = KvStorageType.ACCOUNT;
+        this.deleted = false;
         this.account = account;
         this.name = name;
         this.description = description;
+        this.historyEnabled = historyEnabled;
     }
 
     public KvStorage(String id, Integer ttl, Long expirationTimestamp) {
         this.id = id;
         this.type = KvStorageType.TEMP;
+        this.deleted = false;
         this.ttl = ttl;
         this.expirationTimestamp = expirationTimestamp;
+        this.historyEnabled = false;
     }
 
     public String getId() {
@@ -76,6 +99,14 @@ public class KvStorage {
 
     public void setType(KvStorageType type) {
         this.type = type;
+    }
+
+    public Boolean getDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(Boolean deleted) {
+        this.deleted = deleted;
     }
 
     public String getAccount() {
@@ -100,6 +131,15 @@ public class KvStorage {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    @JsonProperty(EntityConstants.HISTORY_ENABLED)
+    public Boolean getHistoryEnabled() {
+        return historyEnabled;
+    }
+
+    public void setHistoryEnabled(Boolean historyEnabled) {
+        this.historyEnabled = historyEnabled;
     }
 
     public Integer getTtl() {

@@ -17,7 +17,11 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.api.CreateAccountKvStorageCmd;
+import com.bwsw.cloudstack.storage.kv.api.DeleteAccountKvStorageCmd;
+import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.bwsw.cloudstack.storage.kv.util.HttpUtils;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.user.AccountVO;
@@ -27,11 +31,14 @@ import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.ServerApiException;
+import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.http.HttpHost;
 import org.apache.log4j.Logger;
+import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.Strings;
@@ -63,7 +70,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     private RestHighLevelClient _restHighLevelClient;
 
     @Override
-    public String createAccountStorage(Long accountId, String name, String description) {
+    public KvStorage createAccountStorage(Long accountId, String name, String description, Boolean historyEnabled) {
         AccountVO accountVO = _accountDao.findById(accountId);
         if (accountVO == null) {
             throw new InvalidParameterValueException("Unable to find an account with the specified id");
@@ -79,8 +86,63 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         if (description != null && maxDescriptionLength != null && description.length() > maxDescriptionLength) {
             throw new InvalidParameterValueException("Invalid description, max length is " + maxDescriptionLength);
         }
-        KvStorage storage = new KvStorage(UUID.randomUUID().toString(), accountVO.getUuid(), name, description);
+        if (historyEnabled == null) {
+            historyEnabled = false;
+        }
+        KvStorage storage = new KvStorage(UUID.randomUUID().toString(), accountVO.getUuid(), name, description, historyEnabled);
         return createStorage(storage);
+    }
+
+    @Override
+    public ListResponse<KvStorageResponse> listAccountStorages(Long accountId, Long startIndex, Long pageSize) {
+        if (pageSize == null || pageSize < 1) {
+            throw new InvalidParameterValueException("Invalid page size");
+        }
+        if (startIndex == null) {
+            startIndex = 0L;
+        } else if (startIndex < 0) {
+            throw new InvalidParameterValueException("Invalid start index");
+        }
+        AccountVO accountVO = _accountDao.findById(accountId);
+        if (accountVO == null) {
+            throw new InvalidParameterValueException("Unable to find an account with the specified id");
+        }
+        SearchRequest searchRequest = _kvRequestBuilder.getSearchRequest(accountVO.getUuid(), startIndex.intValue(), pageSize.intValue());
+        try {
+            return _kvExecutor.search(_restHighLevelClient, searchRequest, KvStorageResponse.class);
+        } catch (IOException e) {
+            s_logger.error("Unable to retrieve storage", e);
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to retrieve storages", e);
+        }
+    }
+
+    @Override
+    public boolean deleteAccountStorage(Long accountId, String storageId) {
+        AccountVO accountVO = _accountDao.findById(accountId);
+        if (accountVO == null) {
+            throw new InvalidParameterValueException("Unable to find an account with the specified id");
+        }
+        if (storageId == null || storageId.isEmpty()) {
+            throw new InvalidParameterValueException("Invalid storage id");
+        }
+        GetRequest getRequest = _kvRequestBuilder.getGetRequest(storageId);
+        try {
+            KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
+            if (storage == null) {
+                throw new InvalidParameterValueException("The storage does not exist");
+            }
+            if (!KvStorage.KvStorageType.ACCOUNT.equals(storage.getType())) {
+                throw new InvalidParameterValueException("The storage type is not account");
+            }
+            if (storage.getAccount() == null || !storage.getAccount().equals(accountVO.getUuid())) {
+                throw new InvalidParameterValueException("The storage does not belong to the specified account");
+            }
+            storage.setDeleted(true);
+            return _kvExecutor.delete(_restHighLevelClient, _kvRequestBuilder.getDeleteRequest(storage));
+        } catch (IOException e) {
+            s_logger.error("Unable to delete an account KV storage", e);
+            return false;
+        }
     }
 
     @Override
@@ -93,22 +155,28 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             throw new InvalidParameterValueException("Invalid TTL");
         }
         KvStorage storage = new KvStorage(UUID.randomUUID().toString(), ttl, Instant.now().toEpochMilli() + ttl);
-        return createStorage(storage);
+        return createStorage(storage).getId();
     }
 
     @Override
-    public String createVmStorage(Long vmId) {
+    public String createVmStorage(Long vmId, Boolean historyEnabled) {
         VMInstanceVO vmInstanceVO = _vmInstanceDao.findById(vmId);
         if (vmInstanceVO == null) {
             throw new InvalidParameterValueException("Unable to find a virtual machine with specified id");
         }
-        KvStorage storage = new KvStorage(vmInstanceVO.getUuid());
-        return createStorage(storage);
+        if (historyEnabled == null) {
+            historyEnabled = false;
+        }
+        KvStorage storage = new KvStorage(vmInstanceVO.getUuid(), historyEnabled);
+        return createStorage(storage).getId();
     }
 
     @Override
     public List<Class<?>> getCommands() {
         List<Class<?>> commands = new ArrayList<>();
+        commands.add(ListAccountKvStoragesCmd.class);
+        commands.add(CreateAccountKvStorageCmd.class);
+        commands.add(DeleteAccountKvStorageCmd.class);
         return commands;
     }
 
@@ -133,7 +201,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         return true;
     }
 
-    private String createStorage(KvStorage storage) {
+    private KvStorage createStorage(KvStorage storage) {
         try {
             IndexRequest request = _kvRequestBuilder.getCreateRequest(storage);
             _kvExecutor.index(_restHighLevelClient, request);
@@ -141,6 +209,6 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             s_logger.error("Unable to create a storage", e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to create a storage", e);
         }
-        return storage.getId();
+        return storage;
     }
 }

@@ -17,11 +17,22 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
 
 public interface KvRequestBuilder {
 
+    GetRequest getGetRequest(String storageId);
+
     IndexRequest getCreateRequest(KvStorage storage) throws JsonProcessingException;
+
+    IndexRequest getUpdateRequest(KvStorage storage) throws JsonProcessingException;
+
+    SearchRequest getSearchRequest(String accountUuid, int from, int size);
+
+    DeleteStorageRequest getDeleteRequest(KvStorage storage) throws JsonProcessingException;
 }

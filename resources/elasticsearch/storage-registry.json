@@ -11,6 +11,12 @@
         "type": {
           "type": "keyword"
         },
+        "history_enabled": {
+          "type": "boolean"
+        },
+        "deleted": {
+          "type": "boolean"
+        },
         "account": {
           "type": "keyword"
         },
