@@ -17,6 +17,7 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tngtech.java.junit.dataprovider.DataProvider;
@@ -56,11 +57,11 @@ public class KvRequestBuilderImplTest {
 
     @DataProvider
     public static Object[][] storages() {
-        return new Object[][] {{get("id val", KvStorage.KvStorageType.ACCOUNT, "account val", "name val", "description val", null, null, true),
-                "{\"type\":\"ACCOUNT\",\"account\":\"account val\",\"name\":\"name val\",\"description\":\"description val\",\"history_enabled\":true}"},
-                {get("id val", KvStorage.KvStorageType.VM, null, null, null, null, null, true), "{\"type\":\"VM\",\"history_enabled\":true}"},
-                {get("id val", KvStorage.KvStorageType.TEMP, null, null, null, 300000, 1527067849287L, true),
-                        "{\"type\":\"TEMP\",\"ttl\":300000,\"history_enabled\":true,\"expiration_timestamp\":1527067849287}"}};
+        return new Object[][] {{get("id val", KvStorage.KvStorageType.ACCOUNT, "account val", "name val", "description val", null, null, true, false),
+                "{\"type\":\"ACCOUNT\",\"deleted\":false,\"account\":\"account val\",\"name\":\"name val\",\"description\":\"description val\",\"history_enabled\":true}"},
+                {get("id val", KvStorage.KvStorageType.VM, null, null, null, null, null, true, false), "{\"type\":\"VM\",\"deleted\":false,\"history_enabled\":true}"},
+                {get("id val", KvStorage.KvStorageType.TEMP, null, null, null, 300000, 1527067849287L, true, false),
+                        "{\"type\":\"TEMP\",\"deleted\":false,\"ttl\":300000,\"history_enabled\":true,\"expiration_timestamp\":1527067849287}"}};
     }
 
     @Test
@@ -86,6 +87,28 @@ public class KvRequestBuilderImplTest {
         assertEquals(source, request.source().utf8ToString());
     }
 
+    @UseDataProvider("storages")
+    @Test
+    public void testGetUpdateRequest(KvStorage storage, String source) throws JsonProcessingException {
+        IndexRequest request = _kvRequestBuilder.getUpdateRequest(storage);
+
+        checkUpdateRequest(request, storage, source);
+    }
+
+    @Test
+    public void testGetDeleteRequestHistoryEnabledStorage() throws JsonProcessingException {
+        KvStorage storage = new KvStorage(UUID, true);
+
+        testDeleteStorageRequest(storage, "{\"type\":\"VM\",\"deleted\":false,\"history_enabled\":true}");
+    }
+
+    @Test
+    public void testGetDeleteRequestHistoryDisabledStorage() throws JsonProcessingException {
+        KvStorage storage = new KvStorage(UUID, false);
+
+        testDeleteStorageRequest(storage, "{\"type\":\"VM\",\"deleted\":false,\"history_enabled\":false}");
+    }
+
     @Test
     public void testGetSearchRequest() throws IOException {
         SearchRequest request = _kvRequestBuilder.getSearchRequest(UUID, FROM, SIZE);
@@ -100,8 +123,36 @@ public class KvRequestBuilderImplTest {
         assertEquals(expectedQuery.trim(), sourceBuilder.toXContent(XContentFactory.jsonBuilder(), ToXContent.EMPTY_PARAMS).string());
     }
 
+    private void testDeleteStorageRequest(KvStorage storage, String source) throws JsonProcessingException {
+        DeleteStorageRequest request = _kvRequestBuilder.getDeleteRequest(storage);
+
+        assertNotNull(request);
+
+        checkUpdateRequest(request.getRegistryUpdateRequest(), storage, source);
+
+        assertNotNull(request.getRegistryDeleteRequest());
+        assertEquals(storage.getId(), request.getRegistryDeleteRequest().id());
+
+        assertNotNull(request.getStorageIndexRequest());
+        assertArrayEquals(new String[] {KvRequestBuilderImpl.STORAGE_INDEX_PREFIX + UUID}, request.getStorageIndexRequest().indices());
+
+        if (storage.getHistoryEnabled()) {
+            assertNotNull(request.getHistoryIndexRequest());
+            assertArrayEquals(new String[] {KvRequestBuilderImpl.HISTORY_INDEX_PREFIX + UUID}, request.getHistoryIndexRequest().indices());
+        }
+    }
+
+    private void checkUpdateRequest(IndexRequest request, KvStorage storage, String source) {
+        assertNotNull(request);
+        assertEquals(KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX, request.index());
+        assertEquals(KvRequestBuilderImpl.STORAGE_TYPE, request.type());
+        assertEquals(DocWriteRequest.OpType.INDEX, request.opType());
+        assertEquals(storage.getId(), request.id());
+        assertEquals(source, request.source().utf8ToString());
+    }
+
     private static KvStorage get(String id, KvStorage.KvStorageType type, String account, String name, String description, Integer ttl, Long expirationTimestamp,
-            boolean historyEnabled) {
+            boolean historyEnabled, boolean deleted) {
         KvStorage storage = new KvStorage();
         storage.setId(id);
         storage.setType(type);
@@ -109,6 +160,7 @@ public class KvRequestBuilderImplTest {
         storage.setName(name);
         storage.setDescription(description);
         storage.setHistoryEnabled(historyEnabled);
+        storage.setDeleted(deleted);
         storage.setTtl(ttl);
         storage.setExpirationTimestamp(expirationTimestamp);
         return storage;
