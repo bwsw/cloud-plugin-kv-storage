@@ -44,7 +44,7 @@ public class DeleteAccountKvStorageCmd extends BaseAsyncCmd {
 
     public static final String API_NAME = "deleteAccountKvStorage";
 
-    @Parameter(name = "storageid", type = CommandType.STRING, required = true, description = "the KV storage id")
+    @Parameter(name = com.bwsw.cloudstack.storage.kv.api.ApiConstants.STORAGE_ID, type = CommandType.STRING, required = true, description = "the KV storage id")
     private String storageId;
 
     @ACL(accessType = SecurityChecker.AccessType.OperateEntry)

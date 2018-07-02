@@ -21,6 +21,7 @@ import com.bwsw.cloudstack.storage.kv.api.CreateAccountKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.CreateTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteAccountKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
+import com.bwsw.cloudstack.storage.kv.api.UpdateTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.bwsw.cloudstack.storage.kv.util.HttpUtils;
@@ -148,15 +149,34 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     @Override
     public KvStorage createTempStorage(Integer ttl) {
-        if (ttl == null) {
-            throw new InvalidParameterValueException("Unspecified TTL");
-        }
-        Integer maxTtl = KvStorageMaxTtl.value();
-        if (ttl <= 0 || maxTtl != null && ttl > maxTtl) {
-            throw new InvalidParameterValueException("Invalid TTL");
-        }
+        checkTtl(ttl);
         KvStorage storage = new KvStorage(UUID.randomUUID().toString(), ttl, Instant.now().toEpochMilli() + ttl);
         return createStorage(storage);
+    }
+
+    @Override
+    public KvStorage updateTempStorage(String storageId, Integer ttl) {
+        if (storageId == null || storageId.isEmpty()) {
+            throw new InvalidParameterValueException("Invalid storage id");
+        }
+        checkTtl(ttl);
+        GetRequest getRequest = _kvRequestBuilder.getGetRequest(storageId);
+        try {
+            KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
+            if (storage == null) {
+                throw new InvalidParameterValueException("The storage does not exist");
+            }
+            if (!KvStorage.KvStorageType.TEMP.equals(storage.getType())) {
+                throw new InvalidParameterValueException("The storage type is not temp");
+            }
+            storage.setExpirationTimestamp(storage.getExpirationTimestamp() - storage.getTtl() + ttl);
+            storage.setTtl(ttl);
+            _kvExecutor.update(_restHighLevelClient, _kvRequestBuilder.getUpdateTTLRequest(storage));
+            return storage;
+        } catch (IOException e) {
+            s_logger.error("Unable to update a storage", e);
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to update the storages", e);
+        }
     }
 
     @Override
@@ -179,6 +199,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         commands.add(CreateAccountKvStorageCmd.class);
         commands.add(DeleteAccountKvStorageCmd.class);
         commands.add(CreateTempKvStorageCmd.class);
+        commands.add(UpdateTempKvStorageCmd.class);
         return commands;
     }
 
@@ -212,5 +233,15 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to create a storage", e);
         }
         return storage;
+    }
+
+    private void checkTtl(Integer ttl) {
+        if (ttl == null) {
+            throw new InvalidParameterValueException("Unspecified TTL");
+        }
+        Integer maxTtl = KvStorageMaxTtl.value();
+        if (ttl <= 0 || maxTtl != null && ttl > maxTtl) {
+            throw new InvalidParameterValueException("Invalid TTL");
+        }
     }
 }

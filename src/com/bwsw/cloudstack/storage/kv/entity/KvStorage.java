@@ -153,7 +153,7 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
         this.ttl = ttl;
     }
 
-    @JsonProperty("expiration_timestamp")
+    @JsonProperty(EntityConstants.EXPIRATION_TIMESTAMP)
     public Long getExpirationTimestamp() {
         return expirationTimestamp;
     }

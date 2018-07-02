@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.update.UpdateRequest;
 
 public interface KvRequestBuilder {
 
@@ -31,6 +32,8 @@ public interface KvRequestBuilder {
     IndexRequest getCreateRequest(KvStorage storage) throws JsonProcessingException;
 
     IndexRequest getUpdateRequest(KvStorage storage) throws JsonProcessingException;
+
+    UpdateRequest getUpdateTTLRequest(KvStorage storage);
 
     SearchRequest getSearchRequest(String accountUuid, int from, int size);
 

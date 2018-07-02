@@ -32,6 +32,8 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
@@ -60,6 +62,14 @@ public class KvExecutorImpl implements KvExecutor {
     public void index(RestHighLevelClient client, IndexRequest request) throws IOException {
         IndexResponse response = client.index(request);
         if (response.status() != RestStatus.CREATED && response.status() != RestStatus.OK) {
+            throw new CloudRuntimeException("Failed to execute create/update operation");
+        }
+    }
+
+    @Override
+    public void update(RestHighLevelClient client, UpdateRequest request) throws IOException {
+        UpdateResponse response = client.update(request);
+        if (response.status() != RestStatus.OK) {
             throw new CloudRuntimeException("Failed to execute create/update operation");
         }
     }
