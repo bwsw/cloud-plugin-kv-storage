@@ -70,7 +70,7 @@ public class KvExecutorImpl implements KvExecutor {
     public void update(RestHighLevelClient client, UpdateRequest request) throws IOException {
         UpdateResponse response = client.update(request);
         if (response.status() != RestStatus.OK) {
-            throw new CloudRuntimeException("Failed to execute create/update operation");
+            throw new CloudRuntimeException("Failed to execute update operation");
         }
     }
 
