@@ -35,7 +35,7 @@ Creates an account KV storage.
 
 **Response tags**
 
-See [Storage response tages](#storage-response-tags).
+See [storage response tages](#storage-response-tags).
 
 ## deleteAccountKvStorage
 
@@ -76,7 +76,7 @@ Creates a temporal KV storage.
 
 **Response tags**
 
-See [Storage response tages](#storage-response-tags).
+See [storage response tages](#storage-response-tags).
 
 ## updateTempKvStorage
 
@@ -91,7 +91,7 @@ Updates a temporal KV storage.
 
 **Response tags**
 
-See [Storage response tages](#storage-response-tags).
+See [storage response tages](#storage-response-tags).
 
 ## deleteTempKvStorage
 
