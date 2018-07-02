@@ -20,36 +20,28 @@ package com.bwsw.cloudstack.storage.kv.api;
 import com.bwsw.cloudstack.storage.kv.event.EventTypes;
 import com.bwsw.cloudstack.storage.kv.service.KvStorageManager;
 import com.cloud.exception.ConcurrentOperationException;
-import com.cloud.user.Account;
 import org.apache.cloudstack.acl.RoleType;
-import org.apache.cloudstack.acl.SecurityChecker;
-import org.apache.cloudstack.api.ACL;
 import org.apache.cloudstack.api.APICommand;
-import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.BaseAsyncCmd;
 import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ResponseObject;
 import org.apache.cloudstack.api.ServerApiException;
-import org.apache.cloudstack.api.response.AccountResponse;
 import org.apache.cloudstack.api.response.SuccessResponse;
+import org.apache.cloudstack.context.CallContext;
 
 import javax.inject.Inject;
 
-@APICommand(name = DeleteAccountKvStorageCmd.API_NAME, description = "Deletes an account KV storage", responseObject = SuccessResponse.class, requestHasSensitiveInfo = false,
+@APICommand(name = DeleteTempKvStorageCmd.API_NAME, description = "Deletes a temporal KV storage", responseObject = SuccessResponse.class, requestHasSensitiveInfo = false,
         responseHasSensitiveInfo = true, responseView = ResponseObject.ResponseView.Full,
-        authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User}, entityType = {Account.class})
-public class DeleteAccountKvStorageCmd extends BaseAsyncCmd {
+        authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User})
+public class DeleteTempKvStorageCmd extends BaseAsyncCmd {
 
-    public static final String API_NAME = "deleteAccountKvStorage";
+    public static final String API_NAME = "deleteTempKvStorage";
 
-    @Parameter(name = com.bwsw.cloudstack.storage.kv.api.ApiConstants.STORAGE_ID, type = CommandType.STRING, required = true, description = "the KV storage id")
+    @Parameter(name = com.bwsw.cloudstack.storage.kv.api.ApiConstants.STORAGE_ID, type = BaseCmd.CommandType.STRING, required = true, description = "the KV storage id")
     private String storageId;
-
-    @ACL(accessType = SecurityChecker.AccessType.OperateEntry)
-    @Parameter(name = ApiConstants.ACCOUNT_ID, type = CommandType.UUID, entityType = AccountResponse.class, required = true, description = "the ID of the account")
-    private Long accountId;
 
     @Inject
     private KvStorageManager _kvStorageManager;
@@ -58,28 +50,19 @@ public class DeleteAccountKvStorageCmd extends BaseAsyncCmd {
         return storageId;
     }
 
-    public Long getAccountId() {
-        return accountId;
-    }
-
     @Override
     public long getEntityOwnerId() {
-        Account account = _entityMgr.findById(Account.class, getAccountId());
-        if (account != null) {
-            return account.getAccountId();
-        }
-
-        return Account.ACCOUNT_ID_SYSTEM; // no account info given, parent this command to SYSTEM so ERROR events are tracked
+        return CallContext.current().getCallingAccount().getAccountId();
     }
 
     @Override
     public void execute() throws ServerApiException, ConcurrentOperationException {
-        boolean result = _kvStorageManager.deleteAccountStorage(getAccountId(), getStorageId());
+        boolean result = _kvStorageManager.deleteTempStorage(getStorageId());
         if (result) {
             SuccessResponse response = new SuccessResponse(getCommandName());
             setResponseObject(response);
         } else {
-            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to delete account KV storage");
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to delete temporal KV storage");
         }
     }
 
@@ -95,6 +78,7 @@ public class DeleteAccountKvStorageCmd extends BaseAsyncCmd {
 
     @Override
     public String getEventDescription() {
-        return "deleting account kv storage: " + getStorageId();
+        return "deleting temp kv storage: " + getStorageId();
     }
+
 }

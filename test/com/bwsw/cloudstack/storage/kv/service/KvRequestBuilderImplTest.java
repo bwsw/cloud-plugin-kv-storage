@@ -18,6 +18,7 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
+import com.bwsw.cloudstack.storage.kv.entity.EntityConstants;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tngtech.java.junit.dataprovider.DataProvider;
@@ -28,6 +29,7 @@ import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -38,6 +40,7 @@ import org.junit.runner.RunWith;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.Map;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -49,6 +52,8 @@ public class KvRequestBuilderImplTest {
     private static final String UUID = "61d12f36-0201-4035-b6fc-c7f768f583f1";
     private static final int FROM = 10;
     private static final int SIZE = 5;
+    private static final int TTL = 300000;
+    private static final long TIMESTAMP = System.currentTimeMillis();
 
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
@@ -121,6 +126,25 @@ public class KvRequestBuilderImplTest {
 
         String expectedQuery = IOUtils.resourceToString("search-account-storage-query.json", Charset.defaultCharset(), this.getClass().getClassLoader());
         assertEquals(expectedQuery.trim(), sourceBuilder.toXContent(XContentFactory.jsonBuilder(), ToXContent.EMPTY_PARAMS).string());
+    }
+
+    @Test
+    public void testGetUpdateTTLRequest() {
+        KvStorage storage = new KvStorage(UUID, TTL, TIMESTAMP);
+
+        UpdateRequest request = _kvRequestBuilder.getUpdateTTLRequest(storage);
+
+        assertNotNull(request);
+        assertEquals(KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX, request.index());
+        assertEquals(KvRequestBuilderImpl.STORAGE_TYPE, request.type());
+        assertEquals(storage.getId(), request.id());
+        IndexRequest indexRequest = request.doc();
+        assertNotNull(indexRequest);
+        Map<String, Object> fields = indexRequest.sourceAsMap();
+        assertNotNull(fields);
+        assertEquals(2, fields.size());
+        assertEquals(storage.getTtl(), fields.get("ttl"));
+        assertEquals(storage.getExpirationTimestamp(), fields.get(EntityConstants.EXPIRATION_TIMESTAMP));
     }
 
     private void testDeleteStorageRequest(KvStorage storage, String source) throws JsonProcessingException {

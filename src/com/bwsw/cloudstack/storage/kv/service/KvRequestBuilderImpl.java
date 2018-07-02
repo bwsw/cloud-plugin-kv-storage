@@ -28,12 +28,16 @@ import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.FieldSortBuilder;
 import org.elasticsearch.search.sort.SortOrder;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class KvRequestBuilderImpl implements KvRequestBuilder {
 
@@ -64,6 +68,14 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     @Override
     public IndexRequest getUpdateRequest(KvStorage storage) throws JsonProcessingException {
         return getIndexRequest(storage, DocWriteRequest.OpType.INDEX);
+    }
+
+    @Override
+    public UpdateRequest getUpdateTTLRequest(KvStorage storage) {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("ttl", storage.getTtl());
+        parameters.put(EntityConstants.EXPIRATION_TIMESTAMP, storage.getExpirationTimestamp());
+        return new UpdateRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId()).doc(parameters);
     }
 
     @Override

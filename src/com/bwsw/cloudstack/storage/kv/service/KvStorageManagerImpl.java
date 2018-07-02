@@ -18,8 +18,11 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.api.CreateAccountKvStorageCmd;
+import com.bwsw.cloudstack.storage.kv.api.CreateTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteAccountKvStorageCmd;
+import com.bwsw.cloudstack.storage.kv.api.DeleteTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
+import com.bwsw.cloudstack.storage.kv.api.UpdateTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.bwsw.cloudstack.storage.kv.util.HttpUtils;
@@ -50,6 +53,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvStorageManager, Configurable {
 
@@ -122,40 +126,55 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         if (accountVO == null) {
             throw new InvalidParameterValueException("Unable to find an account with the specified id");
         }
-        if (storageId == null || storageId.isEmpty()) {
-            throw new InvalidParameterValueException("Invalid storage id");
-        }
-        GetRequest getRequest = _kvRequestBuilder.getGetRequest(storageId);
-        try {
-            KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
-            if (storage == null) {
-                throw new InvalidParameterValueException("The storage does not exist");
-            }
+        return deleteStorage(storageId, storage -> {
             if (!KvStorage.KvStorageType.ACCOUNT.equals(storage.getType())) {
                 throw new InvalidParameterValueException("The storage type is not account");
             }
             if (storage.getAccount() == null || !storage.getAccount().equals(accountVO.getUuid())) {
                 throw new InvalidParameterValueException("The storage does not belong to the specified account");
             }
-            storage.setDeleted(true);
-            return _kvExecutor.delete(_restHighLevelClient, _kvRequestBuilder.getDeleteRequest(storage));
+        });
+    }
+
+    @Override
+    public KvStorage createTempStorage(Integer ttl) {
+        checkTtl(ttl);
+        KvStorage storage = new KvStorage(UUID.randomUUID().toString(), ttl, Instant.now().toEpochMilli() + ttl);
+        return createStorage(storage);
+    }
+
+    @Override
+    public KvStorage updateTempStorage(String storageId, Integer ttl) {
+        if (storageId == null || storageId.isEmpty()) {
+            throw new InvalidParameterValueException("Invalid storage id");
+        }
+        checkTtl(ttl);
+        GetRequest getRequest = _kvRequestBuilder.getGetRequest(storageId);
+        try {
+            KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
+            if (storage == null) {
+                throw new InvalidParameterValueException("The storage does not exist");
+            }
+            if (!KvStorage.KvStorageType.TEMP.equals(storage.getType())) {
+                throw new InvalidParameterValueException("The storage type is not temp");
+            }
+            storage.setExpirationTimestamp(storage.getExpirationTimestamp() - storage.getTtl() + ttl);
+            storage.setTtl(ttl);
+            _kvExecutor.update(_restHighLevelClient, _kvRequestBuilder.getUpdateTTLRequest(storage));
+            return storage;
         } catch (IOException e) {
-            s_logger.error("Unable to delete an account KV storage", e);
-            return false;
+            s_logger.error("Unable to update a storage", e);
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to update the storages", e);
         }
     }
 
     @Override
-    public String createTempStorage(Integer ttl) {
-        if (ttl == null) {
-            throw new InvalidParameterValueException("Unspecified TTL");
-        }
-        Integer maxTtl = KvStorageMaxTtl.value();
-        if (ttl <= 0 || maxTtl != null && ttl > maxTtl) {
-            throw new InvalidParameterValueException("Invalid TTL");
-        }
-        KvStorage storage = new KvStorage(UUID.randomUUID().toString(), ttl, Instant.now().toEpochMilli() + ttl);
-        return createStorage(storage).getId();
+    public boolean deleteTempStorage(String storageId) {
+        return deleteStorage(storageId, storage -> {
+            if (!KvStorage.KvStorageType.TEMP.equals(storage.getType())) {
+                throw new InvalidParameterValueException("The storage type is not temp");
+            }
+        });
     }
 
     @Override
@@ -177,6 +196,9 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         commands.add(ListAccountKvStoragesCmd.class);
         commands.add(CreateAccountKvStorageCmd.class);
         commands.add(DeleteAccountKvStorageCmd.class);
+        commands.add(CreateTempKvStorageCmd.class);
+        commands.add(UpdateTempKvStorageCmd.class);
+        commands.add(DeleteTempKvStorageCmd.class);
         return commands;
     }
 
@@ -210,5 +232,34 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to create a storage", e);
         }
         return storage;
+    }
+
+    private void checkTtl(Integer ttl) {
+        if (ttl == null) {
+            throw new InvalidParameterValueException("Unspecified TTL");
+        }
+        Integer maxTtl = KvStorageMaxTtl.value();
+        if (ttl <= 0 || maxTtl != null && ttl > maxTtl) {
+            throw new InvalidParameterValueException("Invalid TTL");
+        }
+    }
+
+    private boolean deleteStorage(String storageId, Consumer<KvStorage> validator) {
+        if (storageId == null || storageId.isEmpty()) {
+            throw new InvalidParameterValueException("Invalid storage id");
+        }
+        GetRequest getRequest = _kvRequestBuilder.getGetRequest(storageId);
+        try {
+            KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
+            if (storage == null) {
+                throw new InvalidParameterValueException("The storage does not exist");
+            }
+            validator.accept(storage);
+            storage.setDeleted(true);
+            return _kvExecutor.delete(_restHighLevelClient, _kvRequestBuilder.getDeleteRequest(storage));
+        } catch (IOException e) {
+            s_logger.error("Unable to delete the KV storage", e);
+            return false;
+        }
     }
 }

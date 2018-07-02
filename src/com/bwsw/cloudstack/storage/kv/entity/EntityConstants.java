@@ -21,4 +21,5 @@ public class EntityConstants {
 
     public static final String HISTORY_ENABLED = "history_enabled";
     public static final String DELETED = "deleted";
+    public static final String EXPIRATION_TIMESTAMP = "expiration_timestamp";
 }
