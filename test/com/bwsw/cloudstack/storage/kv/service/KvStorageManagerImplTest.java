@@ -362,7 +362,7 @@ public class KvStorageManagerImplTest {
     @Test
     public void testDeleteAccountStorageDeleteRequestException() throws IOException {
         setAccountExpectations();
-        setAccountStorageExpectations();
+        setDeleteAccountStorageExpectations();
         when(_kvExecutor.delete(_restHighLevelClient, _deleteStorageRequest)).thenThrow(new IOException());
 
         assertFalse(_kvStorageManager.deleteAccountStorage(ID, STORAGE_UUID));
@@ -371,7 +371,7 @@ public class KvStorageManagerImplTest {
     @Test
     public void testDeleteAccountStorage() throws IOException {
         setAccountExpectations();
-        setAccountStorageExpectations();
+        setDeleteAccountStorageExpectations();
         when(_kvExecutor.delete(_restHighLevelClient, _deleteStorageRequest)).thenReturn(true);
 
         assertTrue(_kvStorageManager.deleteAccountStorage(ID, STORAGE_UUID));
@@ -444,7 +444,7 @@ public class KvStorageManagerImplTest {
     @Test
     public void testUpdateTempStorageUpdateRequestException() throws IOException {
         setExceptionExpectation(ServerApiException.class, "storage");
-        setTempStorageExpectations(TTL, TIMESTAMP);
+        setUpdateTempStorageExpectations(TTL, TIMESTAMP);
         doThrow(new IOException()).when(_kvExecutor).update(_restHighLevelClient, _updateRequest);
 
         _kvStorageManager.updateTempStorage(STORAGE_UUID, TTL);
@@ -452,7 +452,7 @@ public class KvStorageManagerImplTest {
 
     @Test
     public void testUpdateTempStorage() throws IOException {
-        setTempStorageExpectations(TTL, TIMESTAMP);
+        setUpdateTempStorageExpectations(TTL, TIMESTAMP);
         doNothing().when(_kvExecutor).update(_restHighLevelClient, _updateRequest);
 
         KvStorage result = _kvStorageManager.updateTempStorage(STORAGE_UUID, TTL);
@@ -460,6 +460,65 @@ public class KvStorageManagerImplTest {
         assertEquals(STORAGE_UUID, result.getId());
         assertEquals(TTL, result.getTtl());
         assertEquals((Long)(TIMESTAMP + TTL), result.getExpirationTimestamp());
+    }
+
+    @Test
+    public void testDeleteTempStorageNullStorageId() {
+        setExceptionExpectation(InvalidParameterValueException.class, "storage");
+
+        _kvStorageManager.deleteTempStorage(null);
+    }
+
+    @Test
+    public void testDeleteTempStorageEmptyStorageId() {
+        setExceptionExpectation(InvalidParameterValueException.class, "storage");
+
+        _kvStorageManager.deleteTempStorage("");
+    }
+
+    @Test
+    public void testDeleteTempStorageGetRequestException() throws IOException {
+        when(_kvRequestBuilder.getGetRequest(STORAGE_UUID)).thenReturn(_getRequest);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenThrow(new IOException());
+
+        assertFalse(_kvStorageManager.deleteTempStorage(STORAGE_UUID));
+    }
+
+    @Test
+    public void testDeleteTempStorageNonexistentStorage() throws IOException {
+        setExceptionExpectation(InvalidParameterValueException.class, "storage");
+        when(_kvRequestBuilder.getGetRequest(STORAGE_UUID)).thenReturn(_getRequest);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(null);
+
+        _kvStorageManager.deleteTempStorage(STORAGE_UUID);
+    }
+
+    @Test
+    public void testDeleteTempStorageInvalidStorageType() throws IOException {
+        KvStorage storage = new KvStorage();
+        storage.setType(KvStorage.KvStorageType.ACCOUNT);
+
+        setExceptionExpectation(InvalidParameterValueException.class, "type");
+        when(_kvRequestBuilder.getGetRequest(STORAGE_UUID)).thenReturn(_getRequest);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(storage);
+
+        _kvStorageManager.deleteTempStorage(STORAGE_UUID);
+    }
+
+    @Test
+    public void testDeleteTempStorageDeleteRequestException() throws IOException {
+        setDeleteTempStorageExpectations();
+        when(_kvExecutor.delete(_restHighLevelClient, _deleteStorageRequest)).thenThrow(new IOException());
+
+        assertFalse(_kvStorageManager.deleteTempStorage(STORAGE_UUID));
+    }
+
+    @Test
+    public void testDeleteTempStorage() throws IOException {
+        setDeleteTempStorageExpectations();
+        when(_kvExecutor.delete(_restHighLevelClient, _deleteStorageRequest)).thenReturn(true);
+
+        assertTrue(_kvStorageManager.deleteTempStorage(STORAGE_UUID));
     }
 
     private void testCreateAccountStorageInvalidName(String name) {
@@ -547,13 +606,22 @@ public class KvStorageManagerImplTest {
         }))).thenReturn(_indexRequest);
     }
 
-    private void setAccountStorageExpectations() throws IOException {
+    private void setDeleteAccountStorageExpectations() throws IOException {
         KvStorage storage = new KvStorage();
         storage.setId(STORAGE_UUID);
         storage.setType(KvStorage.KvStorageType.ACCOUNT);
         storage.setAccount(UUID);
 
         setAccountExpectations();
+        setDeleteStorageExpectations(storage);
+    }
+
+    private void setDeleteTempStorageExpectations() throws IOException {
+        KvStorage storage = new KvStorage(STORAGE_UUID, TTL, TIMESTAMP);
+        setDeleteStorageExpectations(storage);
+    }
+
+    private void setDeleteStorageExpectations(KvStorage storage) throws IOException {
         when(_kvRequestBuilder.getGetRequest(STORAGE_UUID)).thenReturn(_getRequest);
         when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(storage);
         when(_kvRequestBuilder.getDeleteRequest(argThat(new CustomMatcher<KvStorage>("deleted storage") {
@@ -568,7 +636,7 @@ public class KvStorageManagerImplTest {
         }))).thenReturn(_deleteStorageRequest);
     }
 
-    private void setTempStorageExpectations(Integer ttl, long creationTimestamp) throws IOException {
+    private void setUpdateTempStorageExpectations(Integer ttl, long creationTimestamp) throws IOException {
         KvStorage storage = new KvStorage();
         storage.setId(STORAGE_UUID);
         storage.setType(KvStorage.KvStorageType.TEMP);

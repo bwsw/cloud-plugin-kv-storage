@@ -45,5 +45,7 @@ public interface KvStorageManager extends PluggableService {
 
     KvStorage updateTempStorage(String storageId, Integer ttl);
 
+    boolean deleteTempStorage(String storageId);
+
     String createVmStorage(Long vmId, Boolean historyEnabled);
 }
