@@ -20,7 +20,6 @@ package com.bwsw.cloudstack.storage.kv.api;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.service.KvStorageManager;
 import com.cloud.exception.ConcurrentOperationException;
-import com.cloud.user.Account;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.BaseCmd;
@@ -33,7 +32,7 @@ import javax.inject.Inject;
 
 @APICommand(name = UpdateTempKvStorageCmd.API_NAME, description = "Updates a temporal KV storage", responseObject = KvStorage.class, requestHasSensitiveInfo = false,
         responseHasSensitiveInfo = true, responseView = ResponseObject.ResponseView.Full,
-        authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User}, entityType = {Account.class})
+        authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User})
 public class UpdateTempKvStorageCmd extends BaseCmd {
 
     public static final String API_NAME = "updateTempKvStorage";

@@ -20,7 +20,6 @@ package com.bwsw.cloudstack.storage.kv.api;
 import com.bwsw.cloudstack.storage.kv.event.EventTypes;
 import com.bwsw.cloudstack.storage.kv.service.KvStorageManager;
 import com.cloud.exception.ConcurrentOperationException;
-import com.cloud.user.Account;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiErrorCode;
@@ -36,7 +35,7 @@ import javax.inject.Inject;
 
 @APICommand(name = DeleteTempKvStorageCmd.API_NAME, description = "Deletes a temporal KV storage", responseObject = SuccessResponse.class, requestHasSensitiveInfo = false,
         responseHasSensitiveInfo = true, responseView = ResponseObject.ResponseView.Full,
-        authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User}, entityType = {Account.class})
+        authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User})
 public class DeleteTempKvStorageCmd extends BaseAsyncCmd {
 
     public static final String API_NAME = "deleteTempKvStorage";
