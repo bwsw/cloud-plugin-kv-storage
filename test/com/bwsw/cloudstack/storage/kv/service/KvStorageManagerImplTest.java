@@ -231,9 +231,10 @@ public class KvStorageManagerImplTest {
             }
         }))).thenReturn(_indexRequest);
 
-        String result = _kvStorageManager.createTempStorage(TTL);
+        KvStorage result = _kvStorageManager.createTempStorage(TTL);
         assertNotNull(result);
-        assertTrue(result.matches(UUID_PATTERN));
+        assertNotNull(result.getId());
+        assertTrue(result.getId().matches(UUID_PATTERN));
     }
 
     @Test

@@ -53,7 +53,10 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
     @SerializedName(com.bwsw.cloudstack.storage.kv.api.ApiConstants.HISTORY_ENABLED)
     private Boolean historyEnabled;
 
+    @SerializedName(com.bwsw.cloudstack.storage.kv.api.ApiConstants.TTL)
     private Integer ttl;
+
+    @SerializedName(com.bwsw.cloudstack.storage.kv.api.ApiConstants.EXPIRATION_TIMESTAMP)
     private Long expirationTimestamp;
 
     public KvStorage() {

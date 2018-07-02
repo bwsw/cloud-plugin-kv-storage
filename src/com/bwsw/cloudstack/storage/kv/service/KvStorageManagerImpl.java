@@ -18,6 +18,7 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.api.CreateAccountKvStorageCmd;
+import com.bwsw.cloudstack.storage.kv.api.CreateTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteAccountKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
@@ -146,7 +147,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
-    public String createTempStorage(Integer ttl) {
+    public KvStorage createTempStorage(Integer ttl) {
         if (ttl == null) {
             throw new InvalidParameterValueException("Unspecified TTL");
         }
@@ -155,7 +156,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             throw new InvalidParameterValueException("Invalid TTL");
         }
         KvStorage storage = new KvStorage(UUID.randomUUID().toString(), ttl, Instant.now().toEpochMilli() + ttl);
-        return createStorage(storage).getId();
+        return createStorage(storage);
     }
 
     @Override
@@ -177,6 +178,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         commands.add(ListAccountKvStoragesCmd.class);
         commands.add(CreateAccountKvStorageCmd.class);
         commands.add(DeleteAccountKvStorageCmd.class);
+        commands.add(CreateTempKvStorageCmd.class);
         return commands;
     }
 
