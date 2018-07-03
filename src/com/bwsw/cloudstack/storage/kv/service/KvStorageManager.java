@@ -35,6 +35,9 @@ public interface KvStorageManager extends PluggableService {
 
     ConfigKey<Integer> KvStorageMaxTtl = new ConfigKey<>("Advanced", Integer.class, "storage.kv.ttl.max", "3600000", "Max ttl in ms for temporal storages", true);
 
+    ConfigKey<Boolean> KvStorageVmHistoryEnabled = new ConfigKey<>("Advanced", Boolean.class, "storage.kv.vm.history.enabled", "false",
+            "if VM storages should keep an operation history, false otherwise", true);
+
     KvStorage createAccountStorage(Long accountId, String name, String description, Boolean historyEnabled);
 
     ListResponse<KvStorageResponse> listAccountStorages(Long accountId, Long startIndex, Long pageSize);
@@ -47,5 +50,7 @@ public interface KvStorageManager extends PluggableService {
 
     boolean deleteTempStorage(String storageId);
 
-    String createVmStorage(Long vmId, Boolean historyEnabled);
+    KvStorage createVmStorage(String vmId);
+
+    boolean deleteVmStorage(String vmId);
 }
