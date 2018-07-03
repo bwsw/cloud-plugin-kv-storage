@@ -178,16 +178,30 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
-    public String createVmStorage(Long vmId, Boolean historyEnabled) {
-        VMInstanceVO vmInstanceVO = _vmInstanceDao.findById(vmId);
+    public KvStorage createVmStorage(String vmId) {
+        VMInstanceVO vmInstanceVO = _vmInstanceDao.findByUuid(vmId);
         if (vmInstanceVO == null) {
-            throw new InvalidParameterValueException("Unable to find a virtual machine with specified id");
+            throw new InvalidParameterValueException("Unable to find a VM with the specified id");
         }
+        Boolean historyEnabled = KvStorageVmHistoryEnabled.value();
         if (historyEnabled == null) {
             historyEnabled = false;
         }
         KvStorage storage = new KvStorage(vmInstanceVO.getUuid(), historyEnabled);
-        return createStorage(storage).getId();
+        return createStorage(storage);
+    }
+
+    @Override
+    public boolean deleteVmStorage(String vmId) {
+        VMInstanceVO vmInstanceVO = _vmInstanceDao.findByUuidIncludingRemoved(vmId);
+        if (vmInstanceVO == null) {
+            throw new InvalidParameterValueException("Unable to find a VM with the specified id");
+        }
+        return deleteStorage(vmId, storage -> {
+            if (!KvStorage.KvStorageType.VM.equals(storage.getType())) {
+                throw new InvalidParameterValueException("The storage type is not VM");
+            }
+        });
     }
 
     @Override
