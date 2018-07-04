@@ -1,0 +1,19 @@
+{
+  "settings": {
+    "index": {
+      "number_of_replicas": 2
+    }
+  },
+  "mapping": {
+    "_doc": {
+      "properties": {
+        "locked": {
+          "type": "boolean"
+        },
+        "timestamp": {
+          "type": "long"
+        }
+      }
+    }
+  }
+}

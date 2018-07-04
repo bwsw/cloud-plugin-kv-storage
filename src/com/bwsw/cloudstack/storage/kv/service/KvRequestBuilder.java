@@ -24,6 +24,9 @@ import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.client.Request;
+
+import java.io.IOException;
 
 public interface KvRequestBuilder {
 
@@ -38,4 +41,6 @@ public interface KvRequestBuilder {
     SearchRequest getSearchRequest(String accountUuid, int from, int size);
 
     DeleteStorageRequest getDeleteRequest(KvStorage storage) throws JsonProcessingException;
+
+    Request getExpireTempStorageRequest(long timestamp) throws IOException;
 }

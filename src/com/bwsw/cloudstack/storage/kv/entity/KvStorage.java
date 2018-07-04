@@ -24,6 +24,8 @@ import com.google.gson.annotations.SerializedName;
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseResponse;
 
+import java.time.Instant;
+
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class KvStorage extends BaseResponse implements ResponseEntity {
 
@@ -160,5 +162,9 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
 
     public void setExpirationTimestamp(Long expirationTimestamp) {
         this.expirationTimestamp = expirationTimestamp;
+    }
+
+    public static long getCurrentTimestamp() {
+        return Instant.now().toEpochMilli();
     }
 }

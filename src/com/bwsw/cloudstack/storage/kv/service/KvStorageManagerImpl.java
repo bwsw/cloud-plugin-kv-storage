@@ -24,6 +24,7 @@ import com.bwsw.cloudstack.storage.kv.api.DeleteTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
 import com.bwsw.cloudstack.storage.kv.api.UpdateTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.job.KvStorageJobManager;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.bwsw.cloudstack.storage.kv.util.HttpUtils;
 import com.cloud.exception.InvalidParameterValueException;
@@ -42,13 +43,15 @@ import org.apache.log4j.Logger;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.client.Request;
+import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.rest.RestStatus;
 
 import javax.inject.Inject;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -70,6 +73,9 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     @Inject
     private KvExecutor _kvExecutor;
+
+    @Inject
+    private KvStorageJobManager _kvStorageJobManager;
 
     private RestHighLevelClient _restHighLevelClient;
 
@@ -139,7 +145,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     @Override
     public KvStorage createTempStorage(Integer ttl) {
         checkTtl(ttl);
-        KvStorage storage = new KvStorage(UUID.randomUUID().toString(), ttl, Instant.now().toEpochMilli() + ttl);
+        KvStorage storage = new KvStorage(UUID.randomUUID().toString(), ttl, KvStorage.getCurrentTimestamp() + ttl);
         return createStorage(storage);
     }
 
@@ -175,6 +181,21 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
                 throw new InvalidParameterValueException("The storage type is not temp");
             }
         });
+    }
+
+    @Override
+    public void expireTempStorages() {
+        try {
+            Request request = _kvRequestBuilder.getExpireTempStorageRequest(KvStorage.getCurrentTimestamp());
+            Response response = _restHighLevelClient.getLowLevelClient().performRequest(request.getMethod(), request.getEndpoint(), request.getParameters(), request.getEntity());
+            if (response.getStatusLine().getStatusCode() == RestStatus.OK.getStatus()) {
+                s_logger.info("Temp storages have been expired");
+            } else {
+                s_logger.error("Unexpected status while expiring temp storages " + response.getStatusLine().getStatusCode());
+            }
+        } catch (IOException e) {
+            s_logger.error("Unable to expire temp storages", e);
+        }
     }
 
     @Override
@@ -234,6 +255,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             s_logger.error("Failed to create ElasticSearch client", e);
             return false;
         }
+        _kvStorageJobManager.init(this, _restHighLevelClient);
         return true;
     }
 
