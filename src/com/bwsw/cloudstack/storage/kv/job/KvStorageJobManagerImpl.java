@@ -46,10 +46,11 @@ public class KvStorageJobManagerImpl implements KvStorageJobManager {
     public Runnable getJob(JobType jobType, KvStorageManager storageManager, RestHighLevelClient client) {
         switch (jobType) {
         case TEMP_STORAGE_CLEANUP:
-            return () -> {
-                if (_kvStorageLockManager.acquireLock(jobType, client)) {
+            return new JobRunnable(jobType, _kvStorageLockManager, client) {
+
+                @Override
+                protected void doJob() {
                     storageManager.expireTempStorages();
-                    _kvStorageLockManager.releaseLock(jobType, client);
                 }
             };
 
