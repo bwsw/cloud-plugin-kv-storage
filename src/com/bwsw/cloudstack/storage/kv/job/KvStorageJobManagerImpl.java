@@ -37,7 +37,7 @@ public class KvStorageJobManagerImpl implements KvStorageJobManager {
         for (JobType jobType : JobType.values()) {
             Runnable job = getJob(jobType, storageManager, client);
             if (job != null) {
-                _executor.scheduleAtFixedRate(job, jobType.getInterval(), jobType.getInterval(), TimeUnit.MILLISECONDS);
+                _executor.scheduleAtFixedRate(job, 0, jobType.getInterval(), TimeUnit.MILLISECONDS);
             }
         }
     }
