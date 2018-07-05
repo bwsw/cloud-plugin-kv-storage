@@ -24,6 +24,7 @@ import com.bwsw.cloudstack.storage.kv.api.DeleteTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
 import com.bwsw.cloudstack.storage.kv.api.UpdateTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.job.KvStorageJobManager;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.bwsw.cloudstack.storage.kv.util.HttpUtils;
@@ -61,6 +62,9 @@ import java.util.function.Consumer;
 public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvStorageManager, Configurable {
 
     private static final Logger s_logger = Logger.getLogger(KvStorageManagerImpl.class);
+
+    private static final int DELETE_BATCH_SIZE = 100;
+    private static final int DELETE_BATCH_TIMEOUT = 120000; // 2 minutes
 
     @Inject
     private AccountDao _accountDao;
@@ -223,6 +227,24 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
                 throw new InvalidParameterValueException("The storage type is not VM");
             }
         });
+    }
+
+    @Override
+    public void cleanupStorages() {
+        SearchRequest searchRequest = _kvRequestBuilder.getDeletedStoragesRequest(DELETE_BATCH_SIZE, DELETE_BATCH_TIMEOUT);
+        try {
+            ScrollableListResponse<KvStorage> response = _kvExecutor.scroll(_restHighLevelClient, searchRequest, KvStorage.class);
+            while (response != null && response.getResults() != null && !response.getResults().isEmpty()) {
+                for (KvStorage storage : response.getResults()) {
+                    s_logger.info("Clean up the storage " + storage.getId());
+                    _kvExecutor.delete(_restHighLevelClient, _kvRequestBuilder.getDeleteRequest(storage));
+                }
+                response = _kvExecutor.scroll(_restHighLevelClient, _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
+            }
+        } catch (IOException e) {
+            s_logger.error("Unable to cleanup storages", e);
+        }
+
     }
 
     @Override

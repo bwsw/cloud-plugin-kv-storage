@@ -19,6 +19,7 @@ package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.ResponseEntity;
+import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.cloudstack.api.response.ListResponse;
@@ -32,6 +33,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.RestHighLevelClient;
@@ -86,6 +88,16 @@ public class KvExecutorImpl implements KvExecutor {
     }
 
     @Override
+    public <T extends ResponseEntity> ScrollableListResponse<T> scroll(RestHighLevelClient client, SearchRequest request, Class<T> elementClass) throws IOException {
+        return parseScroll(client.search(request), elementClass);
+    }
+
+    @Override
+    public <T extends ResponseEntity> ScrollableListResponse<T> scroll(RestHighLevelClient client, SearchScrollRequest request, Class<T> elementClass) throws IOException {
+        return parseScroll(client.searchScroll(request), elementClass);
+    }
+
+    @Override
     public boolean delete(RestHighLevelClient client, DeleteStorageRequest request) throws IOException {
         IndexResponse registryUpdateResponse = client.index(request.getRegistryUpdateRequest());
         if (registryUpdateResponse.status() != RestStatus.OK) {
@@ -107,6 +119,13 @@ public class KvExecutorImpl implements KvExecutor {
             results.add(parseResult(searchHit.getSourceAsString(), elementClass, searchHit.getId()));
         }
         return results;
+    }
+
+    private <T extends ResponseEntity> ScrollableListResponse<T> parseScroll(SearchResponse response, Class<T> elementClass) throws IOException {
+        if (response.status() != RestStatus.OK || response.getHits() == null) {
+            throw new CloudRuntimeException("Failed to execute search operation");
+        }
+        return new ScrollableListResponse<>(response.getScrollId(), parseResults(response, elementClass));
     }
 
     private <T extends ResponseEntity> T parseResult(String source, Class<T> elementClass, String id) throws IOException {

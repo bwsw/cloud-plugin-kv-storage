@@ -30,8 +30,10 @@ import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Request;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -60,7 +62,7 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     private static final String TYPE_FIELD = "type";
     private static final String NAME_FIELD = "name";
     private static final String DESCRIPTION_FIELD = "description";
-    private static final String[] FIELDS = {ID_FIELD, NAME_FIELD, DESCRIPTION_FIELD, EntityConstants.HISTORY_ENABLED, EntityConstants.DELETED};
+    private static final String[] FIELDS = {ID_FIELD, TYPE_FIELD, NAME_FIELD, DESCRIPTION_FIELD, EntityConstants.HISTORY_ENABLED, EntityConstants.DELETED};
     private static final String EXPIRE_TEMP_STORAGE_SCRIPT = "ctx._source.deleted = true";
 
     private static final ObjectMapper s_objectMapper = new ObjectMapper();
@@ -108,6 +110,27 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
 
         searchRequest.source(sourceBuilder);
         return searchRequest;
+    }
+
+    @Override
+    public SearchRequest getDeletedStoragesRequest(int size, int scrollTimeout) {
+        SearchRequest searchRequest = new SearchRequest(STORAGE_REGISTRY_INDEX);
+        searchRequest.scroll(TimeValue.timeValueMillis(scrollTimeout));
+
+        SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
+        sourceBuilder.size(size);
+        sourceBuilder.fetchSource(FIELDS, null);
+        sourceBuilder.query(QueryBuilders.termQuery(EntityConstants.DELETED, true));
+
+        searchRequest.source(sourceBuilder);
+        return searchRequest;
+    }
+
+    @Override
+    public SearchScrollRequest getScrollRequest(String scrollId, int scrollTimeout) {
+        SearchScrollRequest request = new SearchScrollRequest(scrollId);
+        request.scroll(TimeValue.timeValueMillis(scrollTimeout));
+        return request;
     }
 
     @Override

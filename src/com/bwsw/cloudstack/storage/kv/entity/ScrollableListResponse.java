@@ -15,22 +15,25 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.bwsw.cloudstack.storage.kv.job;
+package com.bwsw.cloudstack.storage.kv.entity;
 
-public enum JobType {
+import java.util.List;
 
-    TEMP_STORAGE_CLEANUP(60000),
-    STORAGE_CLEANUP(3600000);
+public class ScrollableListResponse<T> {
 
-    // _interval in ms
-    private final int _interval;
+    private final String scrollId;
+    private final List<T> results;
 
-    JobType(int interval) {
-        this._interval = interval;
+    public ScrollableListResponse(String scrollId, List<T> results) {
+        this.scrollId = scrollId;
+        this.results = results;
     }
 
-    public int getInterval() {
-        return _interval;
+    public String getScrollId() {
+        return scrollId;
     }
 
+    public List<T> getResults() {
+        return results;
+    }
 }

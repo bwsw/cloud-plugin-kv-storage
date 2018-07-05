@@ -53,7 +53,13 @@ public class KvStorageJobManagerImpl implements KvStorageJobManager {
                     storageManager.expireTempStorages();
                 }
             };
-
+        case STORAGE_CLEANUP:
+            return new JobRunnable(jobType, _kvStorageLockManager, client) {
+                @Override
+                protected void doJob() {
+                    storageManager.cleanupStorages();
+                }
+            };
         }
         return null;
     }
