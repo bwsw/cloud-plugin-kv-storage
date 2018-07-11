@@ -36,7 +36,7 @@ public class KvStorageLockManagerImpl implements KvStorageLockManager {
 
     private static final Logger s_logger = Logger.getLogger(KvStorageLockManagerImpl.class);
 
-    private static final String LOCK_INDEX = "registry-storage-lock";
+    private static final String LOCK_INDEX = "storage-registry-lock";
     private static final String LOCK_TYPE = "_doc";
     private static final String ACQUIRE_SCRIPT = "if (ctx._source.locked == false || params.timestamp - ctx._source.timestamp > params.interval ) "
             + "{ ctx._source.locked = true; ctx._source.timestamp = params.timestamp } else { ctx.op='noop'}";
