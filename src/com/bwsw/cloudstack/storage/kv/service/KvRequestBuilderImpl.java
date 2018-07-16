@@ -55,8 +55,8 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
 
     public static final String STORAGE_REGISTRY_INDEX = "storage-registry";
     public static final String STORAGE_TYPE = "_doc";
-    public static final String STORAGE_INDEX_PREFIX = "storage-";
-    public static final String HISTORY_INDEX_PREFIX = "history-storage-";
+    public static final String STORAGE_INDEX_PREFIX = "storage-data-";
+    public static final String HISTORY_INDEX_PREFIX = "storage-history-";
     private static final String ID_FIELD = "_id";
     private static final String ACCOUNT_FIELD = "account";
     private static final String TYPE_FIELD = "type";
