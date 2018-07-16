@@ -1,0 +1,1 @@
+{"size":5,"query":{"term":{"deleted":{"value":true,"boost":1.0}}},"_source":{"includes":["_id","type","name","description","history_enabled","deleted"],"excludes":[]}}
