@@ -150,7 +150,7 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
         Map<String, String> params = new HashMap<>();
         params.put("conflicts", "proceed");
 
-        Script script = new Script(ScriptType.INLINE, "painless", EXPIRE_TEMP_STORAGE_SCRIPT, Collections.singletonMap("timestamp", timestamp));
+        Script script = new Script(ScriptType.INLINE, "painless", EXPIRE_TEMP_STORAGE_SCRIPT, Collections.emptyMap());
 
         BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery();
         queryBuilder.filter(QueryBuilders.termQuery("type", KvStorage.KvStorageType.TEMP.name()));
