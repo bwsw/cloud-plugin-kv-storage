@@ -2,6 +2,7 @@ package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.user.AccountVO;
@@ -13,10 +14,18 @@ import com.google.common.base.Strings;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpStatus;
+import org.apache.http.HttpVersion;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.message.BasicStatusLine;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.client.Request;
+import org.elasticsearch.client.Response;
+import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.hamcrest.CustomMatcher;
 import org.junit.Rule;
@@ -29,12 +38,18 @@ import org.mockito.runners.MockitoJUnitRunner;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Collections;
 
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.argThat;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.intThat;
+import static org.mockito.Matchers.longThat;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -75,6 +90,9 @@ public class KvStorageManagerImplTest {
     private RestHighLevelClient _restHighLevelClient;
 
     @Mock
+    private RestClient _restClient;
+
+    @Mock
     private IndexRequest _indexRequest;
 
     @Mock
@@ -85,6 +103,9 @@ public class KvStorageManagerImplTest {
 
     @Mock
     private UpdateRequest _updateRequest;
+
+    @Mock
+    private Response _response;
 
     @Mock
     private VMInstanceVO _vmInstanceVO;
@@ -577,6 +598,33 @@ public class KvStorageManagerImplTest {
         when(_kvExecutor.delete(_restHighLevelClient, _deleteStorageRequest)).thenReturn(true);
 
         assertTrue(_kvStorageManager.deleteVmStorage(UUID));
+    }
+
+    @Test
+    public void testExpireTempStorages() throws IOException {
+        Request request = new Request("POST", "http://localhost:9200", Collections.emptyMap(), new StringEntity("body"));
+        when(_kvRequestBuilder.getExpireTempStorageRequest(longThat(greaterThanOrEqualTo(KvStorage.getCurrentTimestamp())))).thenReturn(request);
+        when(_restHighLevelClient.getLowLevelClient()).thenReturn(_restClient);
+        when(_restClient.performRequest(request.getMethod(), request.getEndpoint(), request.getParameters(), request.getEntity())).thenReturn(_response);
+        when(_response.getStatusLine()).thenReturn(new BasicStatusLine(HttpVersion.HTTP_1_1, HttpStatus.SC_OK, null));
+
+        _kvStorageManager.expireTempStorages();
+    }
+
+    @Test
+    public void testCleanupStorages() throws IOException {
+        when(_kvRequestBuilder.getDeletedStoragesRequest(intThat(greaterThan(0)), intThat(greaterThan(0)))).thenReturn(_searchRequest);
+        ScrollableListResponse<KvStorage> response = new ScrollableListResponse<>("scrollId", Collections.singletonList(new KvStorage()));
+        when(_kvExecutor.scroll(_restHighLevelClient, _searchRequest, KvStorage.class)).thenReturn(response);
+        for (KvStorage storage : response.getResults()) {
+            when(_kvRequestBuilder.getDeleteRequest(storage)).thenReturn(_deleteStorageRequest);
+            when(_kvExecutor.delete(_restHighLevelClient, _deleteStorageRequest)).thenReturn(true);
+        }
+        SearchScrollRequest scrollRequest = new SearchScrollRequest();
+        when(_kvRequestBuilder.getScrollRequest(eq(response.getScrollId()), intThat(greaterThan(0)))).thenReturn(scrollRequest);
+        when(_kvExecutor.scroll(_restHighLevelClient, scrollRequest, KvStorage.class)).thenReturn(new ScrollableListResponse<>("id", null));
+
+        _kvStorageManager.cleanupStorages();
     }
 
     private void testCreateAccountStorageInvalidName(String name) {

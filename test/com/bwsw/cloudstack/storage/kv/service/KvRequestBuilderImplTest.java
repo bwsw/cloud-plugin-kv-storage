@@ -21,15 +21,20 @@ import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.EntityConstants;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.collect.ImmutableMap;
 import com.tngtech.java.junit.dataprovider.DataProvider;
 import com.tngtech.java.junit.dataprovider.DataProviderRunner;
 import com.tngtech.java.junit.dataprovider.UseDataProvider;
 import org.apache.commons.io.IOUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.entity.ContentType;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.client.Request;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -54,6 +59,7 @@ public class KvRequestBuilderImplTest {
     private static final int SIZE = 5;
     private static final int TTL = 300000;
     private static final long TIMESTAMP = System.currentTimeMillis();
+    private static final String SCROLL_ID = "scrollId";
 
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
@@ -145,6 +151,51 @@ public class KvRequestBuilderImplTest {
         assertEquals(2, fields.size());
         assertEquals(storage.getTtl(), fields.get("ttl"));
         assertEquals(storage.getExpirationTimestamp(), fields.get(EntityConstants.EXPIRATION_TIMESTAMP));
+    }
+
+    @Test
+    public void testGetDeletedStoragesRequest() throws IOException {
+        SearchRequest request = _kvRequestBuilder.getDeletedStoragesRequest(SIZE, TTL);
+
+        assertNotNull(request);
+        assertNotNull(request.scroll());
+        assertNotNull(request.scroll().keepAlive());
+        assertEquals(TTL, request.scroll().keepAlive().getMillis());
+
+        SearchSourceBuilder sourceBuilder = request.source();
+        assertNotNull(sourceBuilder);
+
+        String expectedQuery = IOUtils.resourceToString("search-deleted-storages-query.json", Charset.defaultCharset(), this.getClass().getClassLoader());
+        assertEquals(expectedQuery.trim(), sourceBuilder.toXContent(XContentFactory.jsonBuilder(), ToXContent.EMPTY_PARAMS).string());
+    }
+
+    @Test
+    public void testGetScrollRequest() {
+        SearchScrollRequest request = _kvRequestBuilder.getScrollRequest(SCROLL_ID, TTL);
+
+        assertNotNull(request);
+        assertEquals(SCROLL_ID, request.scrollId());
+        assertNotNull(request.scroll());
+        assertNotNull(request.scroll().keepAlive());
+        assertEquals(TTL, request.scroll().keepAlive().getMillis());
+    }
+
+    @Test
+    public void testGetExpireTempStorageRequest() throws IOException {
+        Request request = _kvRequestBuilder.getExpireTempStorageRequest(TIMESTAMP);
+
+        assertNotNull(request);
+
+        assertEquals("POST", request.getMethod());
+        assertEquals(KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX + "/_update_by_query", request.getEndpoint());
+        assertEquals(ImmutableMap.of("conflicts", "proceed"), request.getParameters());
+
+        HttpEntity entity = request.getEntity();
+        assertNotNull(entity);
+        assertEquals(ContentType.APPLICATION_JSON.toString(), entity.getContentType().getValue());
+        String expectedQuery = IOUtils.resourceToString("expire-temp-storages-query.json", Charset.defaultCharset(), this.getClass().getClassLoader());
+        expectedQuery = expectedQuery.replace("%TIMESTAMP%", String.valueOf(TIMESTAMP));
+        assertEquals(expectedQuery.trim(), IOUtils.toString(request.getEntity().getContent(), Charset.defaultCharset()));
     }
 
     private void testDeleteStorageRequest(KvStorage storage, String source) throws JsonProcessingException {

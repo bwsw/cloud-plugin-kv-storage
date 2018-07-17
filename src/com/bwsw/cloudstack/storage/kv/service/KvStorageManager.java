@@ -38,19 +38,28 @@ public interface KvStorageManager extends PluggableService {
     ConfigKey<Boolean> KvStorageVmHistoryEnabled = new ConfigKey<>("Advanced", Boolean.class, "storage.kv.vm.history.enabled", "false",
             "if VM storages should keep an operation history, false otherwise", true);
 
+    // account storages
     KvStorage createAccountStorage(Long accountId, String name, String description, Boolean historyEnabled);
 
     ListResponse<KvStorageResponse> listAccountStorages(Long accountId, Long startIndex, Long pageSize);
 
     boolean deleteAccountStorage(Long accountId, String storageId);
 
+    // temp storages
     KvStorage createTempStorage(Integer ttl);
 
     KvStorage updateTempStorage(String storageId, Integer ttl);
 
     boolean deleteTempStorage(String storageId);
 
+    void expireTempStorages();
+
+    // vm storages
     KvStorage createVmStorage(String vmId);
 
     boolean deleteVmStorage(String vmId);
+
+    // utilities
+
+    void cleanupStorages();
 }

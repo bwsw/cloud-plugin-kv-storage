@@ -24,6 +24,8 @@ import com.bwsw.cloudstack.storage.kv.api.DeleteTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
 import com.bwsw.cloudstack.storage.kv.api.UpdateTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
+import com.bwsw.cloudstack.storage.kv.job.KvStorageJobManager;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.bwsw.cloudstack.storage.kv.util.HttpUtils;
 import com.cloud.exception.InvalidParameterValueException;
@@ -42,13 +44,15 @@ import org.apache.log4j.Logger;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.client.Request;
+import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.rest.RestStatus;
 
 import javax.inject.Inject;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +62,9 @@ import java.util.function.Consumer;
 public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvStorageManager, Configurable {
 
     private static final Logger s_logger = Logger.getLogger(KvStorageManagerImpl.class);
+
+    private static final int DELETE_BATCH_SIZE = 100;
+    private static final int DELETE_BATCH_TIMEOUT = 120000; // 2 minutes
 
     @Inject
     private AccountDao _accountDao;
@@ -70,6 +77,9 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     @Inject
     private KvExecutor _kvExecutor;
+
+    @Inject
+    private KvStorageJobManager _kvStorageJobManager;
 
     private RestHighLevelClient _restHighLevelClient;
 
@@ -139,7 +149,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     @Override
     public KvStorage createTempStorage(Integer ttl) {
         checkTtl(ttl);
-        KvStorage storage = new KvStorage(UUID.randomUUID().toString(), ttl, Instant.now().toEpochMilli() + ttl);
+        KvStorage storage = new KvStorage(UUID.randomUUID().toString(), ttl, KvStorage.getCurrentTimestamp() + ttl);
         return createStorage(storage);
     }
 
@@ -178,6 +188,21 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
+    public void expireTempStorages() {
+        try {
+            Request request = _kvRequestBuilder.getExpireTempStorageRequest(KvStorage.getCurrentTimestamp());
+            Response response = _restHighLevelClient.getLowLevelClient().performRequest(request.getMethod(), request.getEndpoint(), request.getParameters(), request.getEntity());
+            if (response.getStatusLine().getStatusCode() == RestStatus.OK.getStatus()) {
+                s_logger.info("Temp storages have been expired");
+            } else {
+                s_logger.error("Unexpected status while expiring temp storages " + response.getStatusLine().getStatusCode());
+            }
+        } catch (IOException e) {
+            s_logger.error("Unable to expire temp storages", e);
+        }
+    }
+
+    @Override
     public KvStorage createVmStorage(String vmId) {
         VMInstanceVO vmInstanceVO = _vmInstanceDao.findByUuid(vmId);
         if (vmInstanceVO == null) {
@@ -202,6 +227,24 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
                 throw new InvalidParameterValueException("The storage type is not VM");
             }
         });
+    }
+
+    @Override
+    public void cleanupStorages() {
+        SearchRequest searchRequest = _kvRequestBuilder.getDeletedStoragesRequest(DELETE_BATCH_SIZE, DELETE_BATCH_TIMEOUT);
+        try {
+            ScrollableListResponse<KvStorage> response = _kvExecutor.scroll(_restHighLevelClient, searchRequest, KvStorage.class);
+            while (response != null && response.getResults() != null && !response.getResults().isEmpty()) {
+                for (KvStorage storage : response.getResults()) {
+                    s_logger.info("Clean up the storage " + storage.getId());
+                    _kvExecutor.delete(_restHighLevelClient, _kvRequestBuilder.getDeleteRequest(storage));
+                }
+                response = _kvExecutor.scroll(_restHighLevelClient, _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
+            }
+        } catch (IOException e) {
+            s_logger.error("Unable to cleanup storages", e);
+        }
+
     }
 
     @Override
@@ -234,6 +277,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             s_logger.error("Failed to create ElasticSearch client", e);
             return false;
         }
+        _kvStorageJobManager.init(this, _restHighLevelClient);
         return true;
     }
 
