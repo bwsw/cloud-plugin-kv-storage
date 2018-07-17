@@ -19,7 +19,6 @@ package com.bwsw.cloudstack.storage.kv.job;
 
 import com.bwsw.cloudstack.storage.kv.entity.Lock;
 import org.apache.log4j.Logger;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
@@ -28,7 +27,6 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptType;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -57,7 +55,7 @@ public class KvStorageLockManagerImpl implements KvStorageLockManager {
             UpdateResponse response = client.update(request);
             return (response.status() == RestStatus.OK && response.getResult() == DocWriteResponse.Result.UPDATED) || (response.status() == RestStatus.CREATED
                     && response.getResult() == DocWriteResponse.Result.CREATED);
-        } catch (IOException | ElasticsearchException e) {
+        } catch (Exception e) {
             s_logger.error("Unable to acquire the lock " + lock.getId(), e);
             return false;
         }
@@ -73,7 +71,7 @@ public class KvStorageLockManagerImpl implements KvStorageLockManager {
         UpdateRequest request = getUpdateRequest(lock.getId(), RELEASE_SCRIPT, params);
         try {
             client.update(request);
-        } catch (IOException e) {
+        } catch (Exception e) {
             s_logger.error("Unable to release the lock " + lock.getId(), e);
         }
     }

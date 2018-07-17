@@ -205,7 +205,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             } else {
                 s_logger.error("Unexpected status while expiring temp storages " + response.getStatusLine().getStatusCode());
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             s_logger.error("Unable to expire temp storages", e);
         }
     }
@@ -281,7 +281,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
                 }
                 response = _kvExecutor.scroll(_restHighLevelClient, _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             s_logger.error("Unable to cleanup storages", e);
         }
 
