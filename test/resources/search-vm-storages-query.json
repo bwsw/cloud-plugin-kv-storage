@@ -1,0 +1,1 @@
+{"size":5,"query":{"bool":{"filter":[{"term":{"type":{"value":"VM","boost":1.0}}},{"term":{"deleted":{"value":false,"boost":1.0}}}],"adjust_pure_negative":true,"boost":1.0}},"_source":{"includes":["_id","type","name","description","history_enabled","deleted"],"excludes":[]}}

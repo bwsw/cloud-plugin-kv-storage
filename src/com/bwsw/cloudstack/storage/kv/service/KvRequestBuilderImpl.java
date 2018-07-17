@@ -39,6 +39,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptType;
@@ -114,16 +115,16 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
 
     @Override
     public SearchRequest getDeletedStoragesRequest(int size, int scrollTimeout) {
-        SearchRequest searchRequest = new SearchRequest(STORAGE_REGISTRY_INDEX);
-        searchRequest.scroll(TimeValue.timeValueMillis(scrollTimeout));
+        return getSearchRequest(size, scrollTimeout, QueryBuilders.termQuery(EntityConstants.DELETED, true));
+    }
 
-        SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
-        sourceBuilder.size(size);
-        sourceBuilder.fetchSource(FIELDS, null);
-        sourceBuilder.query(QueryBuilders.termQuery(EntityConstants.DELETED, true));
+    @Override
+    public SearchRequest getVmStoragesRequest(int size, int scrollTimeout) {
+        BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery();
+        queryBuilder.filter(QueryBuilders.termQuery(TYPE_FIELD, KvStorage.KvStorageType.VM.toString()));
+        queryBuilder.filter(QueryBuilders.termQuery(EntityConstants.DELETED, false));
 
-        searchRequest.source(sourceBuilder);
-        return searchRequest;
+        return getSearchRequest(size, scrollTimeout, queryBuilder);
     }
 
     @Override
@@ -143,6 +144,13 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
             historyIndexRequest = new DeleteIndexRequest(getHistoryIndex(storage));
         }
         return new DeleteStorageRequest(registryUpdateRequest, registryDeleteRequest, storageIndexRequest, historyIndexRequest);
+    }
+
+    @Override
+    public UpdateRequest getMarkDeletedRequest(KvStorage storage) {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(EntityConstants.DELETED, true);
+        return new UpdateRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId()).doc(parameters);
     }
 
     @Override
@@ -182,5 +190,19 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
         request.source(s_objectMapper.writeValueAsString(storage), XContentType.JSON);
         request.opType(opType);
         return request;
+    }
+
+    private SearchRequest getSearchRequest(int size, int scrollTimeout, QueryBuilder queryBuilder) {
+        SearchRequest searchRequest = new SearchRequest(STORAGE_REGISTRY_INDEX);
+        searchRequest.scroll(TimeValue.timeValueMillis(scrollTimeout));
+
+        SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
+        sourceBuilder.size(size);
+        sourceBuilder.fetchSource(FIELDS, null);
+        sourceBuilder.query(queryBuilder);
+
+        searchRequest.source(sourceBuilder);
+        return searchRequest;
+
     }
 }

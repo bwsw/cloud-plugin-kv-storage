@@ -140,33 +140,19 @@ public class KvRequestBuilderImplTest {
 
         UpdateRequest request = _kvRequestBuilder.getUpdateTTLRequest(storage);
 
-        assertNotNull(request);
-        assertEquals(KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX, request.index());
-        assertEquals(KvRequestBuilderImpl.STORAGE_TYPE, request.type());
-        assertEquals(storage.getId(), request.id());
-        IndexRequest indexRequest = request.doc();
-        assertNotNull(indexRequest);
-        Map<String, Object> fields = indexRequest.sourceAsMap();
-        assertNotNull(fields);
-        assertEquals(2, fields.size());
-        assertEquals(storage.getTtl(), fields.get("ttl"));
-        assertEquals(storage.getExpirationTimestamp(), fields.get(EntityConstants.EXPIRATION_TIMESTAMP));
+        checkUpdateRequest(request, storage, ImmutableMap.of("ttl", storage.getTtl(), EntityConstants.EXPIRATION_TIMESTAMP, storage.getExpirationTimestamp()));
     }
 
     @Test
     public void testGetDeletedStoragesRequest() throws IOException {
         SearchRequest request = _kvRequestBuilder.getDeletedStoragesRequest(SIZE, TTL);
+        checkSearchRequest(request, TTL, "search-deleted-storages-query.json");
+    }
 
-        assertNotNull(request);
-        assertNotNull(request.scroll());
-        assertNotNull(request.scroll().keepAlive());
-        assertEquals(TTL, request.scroll().keepAlive().getMillis());
-
-        SearchSourceBuilder sourceBuilder = request.source();
-        assertNotNull(sourceBuilder);
-
-        String expectedQuery = IOUtils.resourceToString("search-deleted-storages-query.json", Charset.defaultCharset(), this.getClass().getClassLoader());
-        assertEquals(expectedQuery.trim(), sourceBuilder.toXContent(XContentFactory.jsonBuilder(), ToXContent.EMPTY_PARAMS).string());
+    @Test
+    public void testGetVmStoragesRequest() throws IOException {
+        SearchRequest request = _kvRequestBuilder.getVmStoragesRequest(SIZE, TTL);
+        checkSearchRequest(request, TTL, "search-vm-storages-query.json");
     }
 
     @Test
@@ -198,6 +184,15 @@ public class KvRequestBuilderImplTest {
         assertEquals(expectedQuery.trim(), IOUtils.toString(request.getEntity().getContent(), Charset.defaultCharset()));
     }
 
+    @Test
+    public void testGetMarkDeletedRequest() {
+        KvStorage storage = new KvStorage(UUID, TTL, TIMESTAMP);
+
+        UpdateRequest request = _kvRequestBuilder.getMarkDeletedRequest(storage);
+
+        checkUpdateRequest(request, storage, ImmutableMap.of(EntityConstants.DELETED, true));
+    }
+
     private void testDeleteStorageRequest(KvStorage storage, String source) throws JsonProcessingException {
         DeleteStorageRequest request = _kvRequestBuilder.getDeleteRequest(storage);
 
@@ -224,6 +219,29 @@ public class KvRequestBuilderImplTest {
         assertEquals(DocWriteRequest.OpType.INDEX, request.opType());
         assertEquals(storage.getId(), request.id());
         assertEquals(source, request.source().utf8ToString());
+    }
+
+    private void checkUpdateRequest(UpdateRequest request, KvStorage storage, Map<String, Object> parameters) {
+        assertNotNull(request);
+        assertEquals(KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX, request.index());
+        assertEquals(KvRequestBuilderImpl.STORAGE_TYPE, request.type());
+        assertEquals(storage.getId(), request.id());
+        IndexRequest indexRequest = request.doc();
+        assertNotNull(indexRequest);
+        assertEquals(parameters, indexRequest.sourceAsMap());
+    }
+
+    private void checkSearchRequest(SearchRequest request, int ttl, String requestResource) throws IOException {
+        assertNotNull(request);
+        assertNotNull(request.scroll());
+        assertNotNull(request.scroll().keepAlive());
+        assertEquals(ttl, request.scroll().keepAlive().getMillis());
+
+        SearchSourceBuilder sourceBuilder = request.source();
+        assertNotNull(sourceBuilder);
+
+        String expectedQuery = IOUtils.resourceToString(requestResource, Charset.defaultCharset(), this.getClass().getClassLoader());
+        assertEquals(expectedQuery.trim(), sourceBuilder.toXContent(XContentFactory.jsonBuilder(), ToXContent.EMPTY_PARAMS).string());
     }
 
     private static KvStorage get(String id, KvStorage.KvStorageType type, String account, String name, String description, Integer ttl, Long expirationTimestamp,
