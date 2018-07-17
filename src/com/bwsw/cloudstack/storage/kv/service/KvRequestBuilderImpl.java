@@ -17,6 +17,7 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.EntityConstants;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
@@ -25,6 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.elasticsearch.action.DocWriteRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.GetRequest;
@@ -75,8 +77,14 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     }
 
     @Override
-    public IndexRequest getCreateRequest(KvStorage storage) throws JsonProcessingException {
-        return getIndexRequest(storage, DocWriteRequest.OpType.CREATE);
+    public CreateStorageRequest getCreateRequest(KvStorage storage) throws JsonProcessingException {
+        IndexRequest registryRequest = getIndexRequest(storage, DocWriteRequest.OpType.CREATE);
+        CreateIndexRequest storageIndexRequest = new CreateIndexRequest(getStorageIndex(storage));
+        CreateIndexRequest historyIndexRequest = null;
+        if (storage.getHistoryEnabled() != null && storage.getHistoryEnabled()) {
+            historyIndexRequest = new CreateIndexRequest(getHistoryIndex(storage));
+        }
+        return new CreateStorageRequest(registryRequest, storageIndexRequest, historyIndexRequest);
     }
 
     @Override

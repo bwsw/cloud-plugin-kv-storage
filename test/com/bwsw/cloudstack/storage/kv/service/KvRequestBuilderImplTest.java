@@ -17,6 +17,7 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.EntityConstants;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
@@ -29,6 +30,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
 import org.elasticsearch.action.DocWriteRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
@@ -88,14 +90,22 @@ public class KvRequestBuilderImplTest {
     @UseDataProvider("storages")
     @Test
     public void testGetCreateRequest(KvStorage storage, String source) throws JsonProcessingException {
-        IndexRequest request = _kvRequestBuilder.getCreateRequest(storage);
+        CreateStorageRequest request = _kvRequestBuilder.getCreateRequest(storage);
 
         assertNotNull(request);
-        assertEquals(KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX, request.index());
-        assertEquals(KvRequestBuilderImpl.STORAGE_TYPE, request.type());
-        assertEquals(DocWriteRequest.OpType.CREATE, request.opType());
-        assertEquals(storage.getId(), request.id());
-        assertEquals(source, request.source().utf8ToString());
+        IndexRequest registryRequest = request.getRegistryRequest();
+        assertNotNull(registryRequest);
+        assertEquals(KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX, registryRequest.index());
+        assertEquals(KvRequestBuilderImpl.STORAGE_TYPE, registryRequest.type());
+        assertEquals(DocWriteRequest.OpType.CREATE, registryRequest.opType());
+        assertEquals(storage.getId(), registryRequest.id());
+        assertEquals(source, registryRequest.source().utf8ToString());
+
+        checkCreateIndexRequest(request.getStorageIndexRequest(), KvRequestBuilderImpl.STORAGE_INDEX_PREFIX + storage.getId());
+
+        if (storage.getHistoryEnabled() != null && storage.getHistoryEnabled()) {
+            checkCreateIndexRequest(request.getHistoryIndexRequest(), KvRequestBuilderImpl.HISTORY_INDEX_PREFIX + storage.getId());
+        }
     }
 
     @UseDataProvider("storages")
@@ -242,6 +252,11 @@ public class KvRequestBuilderImplTest {
 
         String expectedQuery = IOUtils.resourceToString(requestResource, Charset.defaultCharset(), this.getClass().getClassLoader());
         assertEquals(expectedQuery.trim(), sourceBuilder.toXContent(XContentFactory.jsonBuilder(), ToXContent.EMPTY_PARAMS).string());
+    }
+
+    private void checkCreateIndexRequest(CreateIndexRequest request, String index) {
+        assertNotNull(request);
+        assertEquals(index, request.index());
     }
 
     private static KvStorage get(String id, KvStorage.KvStorageType type, String account, String name, String description, Integer ttl, Long expirationTimestamp,

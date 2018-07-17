@@ -1,5 +1,6 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
@@ -109,6 +110,9 @@ public class KvStorageManagerImplTest {
     private DeleteStorageRequest _deleteStorageRequest;
 
     @Mock
+    private CreateStorageRequest _createStorageRequest;
+
+    @Mock
     private UpdateRequest _updateRequest;
 
     @Mock
@@ -164,7 +168,7 @@ public class KvStorageManagerImplTest {
 
         setAccountExpectations();
         setAccountRequestExpectations(UUID, NAME, DESCRIPTION, HISTORY_ENABLED);
-        doThrow(new IOException()).when(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+        doThrow(new IOException()).when(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
 
         _kvStorageManager.createAccountStorage(ID, NAME, DESCRIPTION, HISTORY_ENABLED);
     }
@@ -173,22 +177,22 @@ public class KvStorageManagerImplTest {
     public void testCreateAccountStorage() throws IOException {
         setAccountExpectations();
         setAccountRequestExpectations(UUID, NAME, DESCRIPTION, HISTORY_ENABLED);
-        doNothing().when(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+        doNothing().when(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
 
         _kvStorageManager.createAccountStorage(ID, NAME, DESCRIPTION, HISTORY_ENABLED);
 
-        verify(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+        verify(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
     }
 
     @Test
     public void testCreateAccountStorageDefaultHistorySettings() throws IOException {
         setAccountExpectations();
         setAccountRequestExpectations(UUID, NAME, DESCRIPTION, false);
-        doNothing().when(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+        doNothing().when(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
 
         _kvStorageManager.createAccountStorage(ID, NAME, DESCRIPTION, null);
 
-        verify(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+        verify(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
     }
 
     @Test
@@ -206,7 +210,7 @@ public class KvStorageManagerImplTest {
 
         setVmExpectations();
         setVmRequestExpectations();
-        doThrow(new IOException()).when(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+        doThrow(new IOException()).when(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
 
         _kvStorageManager.createVmStorage(UUID);
     }
@@ -215,11 +219,11 @@ public class KvStorageManagerImplTest {
     public void testCreateVmStorage() throws IOException {
         setVmExpectations();
         setVmRequestExpectations();
-        doNothing().when(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+        doNothing().when(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
 
         _kvStorageManager.createVmStorage(UUID);
 
-        verify(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+        verify(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
     }
 
     @Test
@@ -243,7 +247,7 @@ public class KvStorageManagerImplTest {
     }
 
     @Test
-    public void testCreateTempStorage() throws JsonProcessingException {
+    public void testCreateTempStorage() throws IOException {
         when(_kvRequestBuilder.getCreateRequest(argThat(new CustomMatcher<KvStorage>("temp storage") {
             @Override
             public boolean matches(Object o) {
@@ -265,12 +269,15 @@ public class KvStorageManagerImplTest {
                 }
                 return true;
             }
-        }))).thenReturn(_indexRequest);
+        }))).thenReturn(_createStorageRequest);
+        doNothing().when(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
 
         KvStorage result = _kvStorageManager.createTempStorage(TTL);
         assertNotNull(result);
         assertNotNull(result.getId());
         assertTrue(result.getId().matches(UUID_PATTERN));
+
+        verify(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
     }
 
     @Test
@@ -735,7 +742,7 @@ public class KvStorageManagerImplTest {
                 }
                 return true;
             }
-        }))).thenReturn(_indexRequest);
+        }))).thenReturn(_createStorageRequest);
     }
 
     private void setVmRequestExpectations() throws JsonProcessingException {
@@ -748,7 +755,7 @@ public class KvStorageManagerImplTest {
                 KvStorage storage = (KvStorage)o;
                 return UUID.equals(storage.getId()) && (storage.getHistoryEnabled() != null && !storage.getHistoryEnabled());
             }
-        }))).thenReturn(_indexRequest);
+        }))).thenReturn(_createStorageRequest);
     }
 
     private void setDeleteAccountStorageExpectations() throws IOException {

@@ -23,6 +23,7 @@ import com.bwsw.cloudstack.storage.kv.api.DeleteAccountKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
 import com.bwsw.cloudstack.storage.kv.api.UpdateTempKvStorageCmd;
+import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.job.KvStorageJobManager;
@@ -44,7 +45,6 @@ import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.http.HttpHost;
 import org.apache.log4j.Logger;
 import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
@@ -326,8 +326,8 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     private KvStorage createStorage(KvStorage storage) {
         try {
-            IndexRequest request = _kvRequestBuilder.getCreateRequest(storage);
-            _kvExecutor.index(_restHighLevelClient, request);
+            CreateStorageRequest request = _kvRequestBuilder.getCreateRequest(storage);
+            _kvExecutor.create(_restHighLevelClient, request);
         } catch (IOException e) {
             s_logger.error("Unable to create a storage", e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to create a storage", e);

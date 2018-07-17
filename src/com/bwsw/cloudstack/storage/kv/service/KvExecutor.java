@@ -17,6 +17,7 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.ResponseEntity;
 import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
@@ -43,6 +44,8 @@ public interface KvExecutor {
     <T extends ResponseEntity> ScrollableListResponse<T> scroll(RestHighLevelClient client, SearchRequest request, Class<T> elementClass) throws IOException;
 
     <T extends ResponseEntity> ScrollableListResponse<T> scroll(RestHighLevelClient client, SearchScrollRequest request, Class<T> elementClass) throws IOException;
+
+    void create(RestHighLevelClient client, CreateStorageRequest request) throws IOException;
 
     boolean delete(RestHighLevelClient client, DeleteStorageRequest request) throws IOException;
 }
