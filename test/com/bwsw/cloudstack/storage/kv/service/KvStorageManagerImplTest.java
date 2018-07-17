@@ -7,6 +7,8 @@ import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.user.AccountVO;
 import com.cloud.user.dao.AccountDao;
+import com.cloud.utils.db.SearchBuilder;
+import com.cloud.utils.db.SearchCriteria;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.dao.VMInstanceDao;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -39,6 +41,8 @@ import org.mockito.runners.MockitoJUnitRunner;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -46,12 +50,15 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.intThat;
 import static org.mockito.Matchers.longThat;
+import static org.mockito.Matchers.same;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -109,6 +116,9 @@ public class KvStorageManagerImplTest {
 
     @Mock
     private VMInstanceVO _vmInstanceVO;
+
+    @Mock
+    private SearchBuilder<VMInstanceVO> _searchBuilder;
 
     @InjectMocks
     private KvStorageManagerImpl _kvStorageManager = new KvStorageManagerImpl();
@@ -625,6 +635,34 @@ public class KvStorageManagerImplTest {
         when(_kvExecutor.scroll(_restHighLevelClient, scrollRequest, KvStorage.class)).thenReturn(new ScrollableListResponse<>("id", null));
 
         _kvStorageManager.cleanupStorages();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testDeleteExpungedVmStorages() throws IOException {
+        ScrollableListResponse<KvStorage> response = new ScrollableListResponse<>("scrollId", Collections.singletonList(new KvStorage()));
+        List<VMInstanceVO> vmInstanceVOList = response.getResults().stream().map(storage -> {
+            VMInstanceVO vm = mock(VMInstanceVO.class);
+            when(vm.getUuid()).thenReturn(storage.getId());
+            when(vm.isRemoved()).thenReturn(true);
+            return vm;
+        }).collect(Collectors.toList());
+        SearchCriteria<VMInstanceVO> searchCriteria = mock(SearchCriteria.class);
+
+        when(_kvRequestBuilder.getVmStoragesRequest(intThat(greaterThan(0)), intThat(greaterThan(0)))).thenReturn(_searchRequest);
+        when(_kvExecutor.scroll(_restHighLevelClient, _searchRequest, KvStorage.class)).thenReturn(response);
+        when(_searchBuilder.create()).thenReturn(searchCriteria);
+        doNothing().when(searchCriteria).setParameters(anyString(), eq(response.getResults().stream().map(KvStorage::getId).toArray()));
+        when(_vmInstanceDao.searchIncludingRemoved(same(searchCriteria), eq(null), eq(null), eq(false))).thenReturn(vmInstanceVOList);
+        for (KvStorage storage : response.getResults()) {
+            when(_kvRequestBuilder.getMarkDeletedRequest(storage)).thenReturn(_updateRequest);
+            doNothing().when(_kvExecutor).update(_restHighLevelClient, _updateRequest);
+        }
+        SearchScrollRequest scrollRequest = new SearchScrollRequest();
+        when(_kvRequestBuilder.getScrollRequest(eq(response.getScrollId()), intThat(greaterThan(0)))).thenReturn(scrollRequest);
+        when(_kvExecutor.scroll(_restHighLevelClient, scrollRequest, KvStorage.class)).thenReturn(new ScrollableListResponse<>("id", null));
+
+        _kvStorageManager.deleteExpungedVmStorages();
     }
 
     private void testCreateAccountStorageInvalidName(String name) {

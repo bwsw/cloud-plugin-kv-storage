@@ -43,9 +43,13 @@ public interface KvRequestBuilder {
 
     SearchRequest getDeletedStoragesRequest(int size, int scrollTimeout);
 
+    SearchRequest getVmStoragesRequest(int size, int scrollTimeout);
+
     SearchScrollRequest getScrollRequest(String scrollId, int scrollTimeout);
 
     DeleteStorageRequest getDeleteRequest(KvStorage storage) throws JsonProcessingException;
+
+    UpdateRequest getMarkDeletedRequest(KvStorage storage);
 
     Request getExpireTempStorageRequest(long timestamp) throws IOException;
 }

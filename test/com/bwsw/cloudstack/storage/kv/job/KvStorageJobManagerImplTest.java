@@ -57,6 +57,11 @@ public class KvStorageJobManagerImplTest {
         testGetJob(JobType.STORAGE_CLEANUP, manager -> doNothing().when(manager).cleanupStorages(), manager -> verify(manager).cleanupStorages());
     }
 
+    @Test
+    public void testGetJobVmStorageCleanup() {
+        testGetJob(JobType.VM_STORAGE_CLEANUP, manager -> doNothing().when(manager).deleteExpungedVmStorages(), manager -> verify(manager).deleteExpungedVmStorages());
+    }
+
     private void testGetJob(JobType jobType, Consumer<KvStorageManager> expectSetter, Consumer<KvStorageManager> verifier) {
         Runnable job = _kvStorageJobManager.getJob(jobType, _kvStorageManager, _restHighLevelClient);
 

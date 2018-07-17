@@ -32,6 +32,8 @@ import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.user.AccountVO;
 import com.cloud.user.dao.AccountDao;
 import com.cloud.utils.component.ComponentLifecycleBase;
+import com.cloud.utils.db.SearchBuilder;
+import com.cloud.utils.db.SearchCriteria;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.ApiErrorCode;
@@ -54,17 +56,21 @@ import org.elasticsearch.rest.RestStatus;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvStorageManager, Configurable {
 
     private static final Logger s_logger = Logger.getLogger(KvStorageManagerImpl.class);
 
     private static final int DELETE_BATCH_SIZE = 100;
-    private static final int DELETE_BATCH_TIMEOUT = 120000; // 2 minutes
+    private static final int DELETE_BATCH_TIMEOUT = 300000; // 5 minutes
+    private static final String UUID_IN_CONDITION = "uuid_in";
 
     @Inject
     private AccountDao _accountDao;
@@ -82,6 +88,8 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     private KvStorageJobManager _kvStorageJobManager;
 
     private RestHighLevelClient _restHighLevelClient;
+
+    private SearchBuilder<VMInstanceVO> _vmInstanceVOSearchBuilder;
 
     @Override
     public KvStorage createAccountStorage(Long accountId, String name, String description, Boolean historyEnabled) {
@@ -230,6 +238,38 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
+    public void deleteExpungedVmStorages() {
+        SearchRequest searchRequest = _kvRequestBuilder.getVmStoragesRequest(DELETE_BATCH_SIZE, DELETE_BATCH_TIMEOUT);
+        try {
+            ScrollableListResponse<KvStorage> response = _kvExecutor.scroll(_restHighLevelClient, searchRequest, KvStorage.class);
+            while (response != null && response.getResults() != null && !response.getResults().isEmpty()) {
+
+                SearchCriteria<VMInstanceVO> searchCriteria = _vmInstanceVOSearchBuilder.create();
+                searchCriteria.setParameters(UUID_IN_CONDITION, response.getResults().stream().map(KvStorage::getId).toArray());
+                List<VMInstanceVO> vmInstanceVOList = _vmInstanceDao.searchIncludingRemoved(searchCriteria, null, null, false);
+                Map<String, VMInstanceVO> vmByUuid;
+                if (vmInstanceVOList != null) {
+                    vmByUuid = vmInstanceVOList.stream().collect(Collectors.toMap(VMInstanceVO::getUuid, Function.identity()));
+                } else {
+                    vmByUuid = new HashMap<>();
+                }
+
+                for (KvStorage storage : response.getResults()) {
+                    VMInstanceVO vmInstanceVO = vmByUuid.get(storage.getId());
+                    if (vmInstanceVO == null || vmInstanceVO.isRemoved()) {
+                        s_logger.info("Delete the storage for the expunged VM " + storage.getId());
+                        storage.setDeleted(true);
+                        _kvExecutor.update(_restHighLevelClient, _kvRequestBuilder.getMarkDeletedRequest(storage));
+                    }
+                }
+                response = _kvExecutor.scroll(_restHighLevelClient, _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
+            }
+        } catch (Exception e) {
+            s_logger.error("Unable to delete storages for expunged VMs", e);
+        }
+    }
+
+    @Override
     public void cleanupStorages() {
         SearchRequest searchRequest = _kvRequestBuilder.getDeletedStoragesRequest(DELETE_BATCH_SIZE, DELETE_BATCH_TIMEOUT);
         try {
@@ -278,6 +318,9 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             return false;
         }
         _kvStorageJobManager.init(this, _restHighLevelClient);
+
+        _vmInstanceVOSearchBuilder = _vmInstanceDao.createSearchBuilder();
+        _vmInstanceVOSearchBuilder.and(UUID_IN_CONDITION, _vmInstanceVOSearchBuilder.entity().getUuid(), SearchCriteria.Op.IN);
         return true;
     }
 
