@@ -9,12 +9,12 @@ API
 
 The plugin provides following API commands to view virtual machine logs:
 
-* [createAccountKvStorage](#createaccountkvstorage)
+* [createAccountKvStorage (A)](#createaccountkvstorage)
 * [deleteAccountKvStorage (A)](#deleteaccountkvstorage)
 * [listAccountKvStorages](#listaccountkvstorages)
-* [createTempKvStorage](#createtempkvstorage)
+* [createTempKvStorage (A)](#createtempkvstorage)
 * [updateTempKvStorage](#updatetempkvstorage)
-* [deleteTempKvStorage](#deletetempkvstorage)
+* [deleteTempKvStorage (A)](#deletetempkvstorage)
 
 (A) implies that the command is asynchronous.
 
@@ -59,6 +59,8 @@ Lists storages associated with the account.
 | Parameter Name | Description | Required |
 | -------------- | ----------- | -------- |
 | accountid | the ID of the account associated with the storage | true |
+| page | the page number of results | false |
+| pagesize | the number of results returned in the page | false |
 
 **Response tags**
 
@@ -86,7 +88,7 @@ Updates a temporal KV storage.
 
 | Parameter Name | Description | Required |
 | -------------- | ----------- | -------- |
- storageid | the ID of the storage to update | true |
+| storageid | the ID of the storage to update | true |
 | ttl | TTL in milliseconds | true |
 
 **Response tags**
