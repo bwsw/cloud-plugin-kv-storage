@@ -370,7 +370,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             storage.setDeleted(true);
             return _kvExecutor.delete(_restHighLevelClient, _kvRequestBuilder.getDeleteRequest(storage));
         } catch (IOException e) {
-            s_logger.error("Unable to delete the KV storage", e);
+            s_logger.error("Unable to delete the KV storage " + storageId, e);
             return false;
         }
     }
