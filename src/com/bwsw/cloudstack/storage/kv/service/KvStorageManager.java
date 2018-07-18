@@ -39,8 +39,6 @@ public interface KvStorageManager extends PluggableService {
     ConfigKey<Integer> KvStorageMaxDescriptionLength = new ConfigKey<>("Advanced", Integer.class, "storage.kv.description.length.max", "1024",
             "Max description length for account storages", true);
 
-    ConfigKey<Integer> KvStorageMaxTtl = new ConfigKey<>("Advanced", Integer.class, "storage.kv.ttl.max", "3600000", "Max ttl in ms for temporal storages", true);
-
     ConfigKey<Boolean> KvStorageVmHistoryEnabled = new ConfigKey<>("Advanced", Boolean.class, "storage.kv.vm.history.enabled", "false",
             "if VM storages should keep an operation history, false otherwise", true);
 
