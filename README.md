@@ -1,13 +1,16 @@
 Apache CloudStack Plugin for key/value storage
 ==============
 
-This project provides API plugin for Apache CloudStack to manage key/value storages.
+This project provides API plugin for Apache CloudStack to manage [key/value storages](https://git.bw-sw.com/cloudstack-ecosystem/cs-kv-storage).
 The version of the plugin matches Apache CloudStack version that it is build for.
 
-API
----
+* [API](#api)
+* [Plugin settings](#plugin-settings)
+* [Deployment](#deployment)
 
-The plugin provides following API commands to view virtual machine logs:
+# API
+
+The plugin provides following API commands to manage key/value storages:
 
 * [createAccountKvStorage (A)](#createaccountkvstorage)
 * [deleteAccountKvStorage (A)](#deleteaccountkvstorage)
@@ -18,9 +21,9 @@ The plugin provides following API commands to view virtual machine logs:
 
 (A) implies that the command is asynchronous.
 
-# Commands
+## Commands
 
-## createAccountKvStorage
+### createAccountKvStorage
 
 Creates an account KV storage.
 
@@ -37,7 +40,7 @@ Creates an account KV storage.
 
 See [storage response tages](#storage-response-tags).
 
-## deleteAccountKvStorage
+### deleteAccountKvStorage
 
 Deletes an account KV storage.
 
@@ -52,7 +55,7 @@ Deletes an account KV storage.
 
 See [async command response tags](#async-command-response-tags).
 
-## listAccountKvStorages
+### listAccountKvStorages
 
 Lists storages associated with the account.
 
@@ -66,7 +69,7 @@ Lists storages associated with the account.
 
 See [storage response tages](#storage-response-tags).
 
-## createTempKvStorage
+### createTempKvStorage
 
 Creates a temporal KV storage.
 
@@ -80,7 +83,7 @@ Creates a temporal KV storage.
 
 See [storage response tages](#storage-response-tags).
 
-## updateTempKvStorage
+### updateTempKvStorage
 
 Updates a temporal KV storage.
 
@@ -95,7 +98,7 @@ Updates a temporal KV storage.
 
 See [storage response tages](#storage-response-tags).
 
-## deleteTempKvStorage
+### deleteTempKvStorage
 
 Deletes a temporal KV storage.
 
@@ -109,9 +112,9 @@ Deletes a temporal KV storage.
 
 See [async command response tags](#async-command-response-tags).
 
-# Response tags
+## Response tags
 
-## Storage response tags
+### Storage response tags
 
 | Response Name | Description |
 | -------------- | ---------- |
@@ -123,9 +126,28 @@ See [async command response tags](#async-command-response-tags).
 | description | the description of the storage |
 | historyenabled | true if the storage should keep an operation history, false otherwise |
 
-## Async command response tags
+### Async command response tags
 
 | Response Name | Description |
 | -------------- | ---------- |
 | displaytext | any text associated with success or failure |
 | success | true if operation is executed successfully |
+
+# Plugin settings
+
+| Name | Description | Default value |
+| -------------- | ----------- | -------- |
+| storage.kv.elasticsearch.list | comma separated list of Elasticsearch HTTP hosts; e.g. http://localhost,http://localhost:9201 | |
+| storage.kv.elasticsearch.username | Elasticsearch username for authentication; should be empty if authentication is disabled | |
+| storage.kv.elasticsearch.password | Elasticsearch password for authentication; should be empty if authentication is disabled | |
+| storage.kv.name.length.max | max name length for account storages | 256 |
+| storage.kv.description.length.max | max description length for account storages | 1024 |
+| storage.kv.vm.history.enabled | true if VM storages should keep an operation history, false otherwise | false |
+
+# Deployment
+
+Following components should be deployed:
+
+* cs-kv-storage
+
+The documentation can be found at https://git.bw-sw.com/cloudstack-ecosystem/cs-kv-storage
