@@ -26,7 +26,7 @@ import org.apache.cloudstack.framework.config.ConfigKey;
 public interface KvStorageManager extends PluggableService {
 
     ConfigKey<String> KvStorageElasticsearchList = new ConfigKey<>("Advanced", String.class, "storage.kv.elasticsearch.list", null,
-            "Comma separated list of ElasticSearch HTTP hosts; e.g. http://localhost,http://localhost:9201", false);
+            "Comma separated list of Elasticsearch HTTP hosts; e.g. http://localhost,http://localhost:9201", false);
 
     ConfigKey<String> KvStorageElasticsearchUsername = new ConfigKey<>("Advanced", String.class, "storage.kv.elasticsearch.username", null,
             "Elasticsearch username for authentication", false);
@@ -40,7 +40,7 @@ public interface KvStorageManager extends PluggableService {
             "Max description length for account storages", true);
 
     ConfigKey<Boolean> KvStorageVmHistoryEnabled = new ConfigKey<>("Advanced", Boolean.class, "storage.kv.vm.history.enabled", "false",
-            "if VM storages should keep an operation history, false otherwise", true);
+            "true if VM storages should keep an operation history, false otherwise", true);
 
     // account storages
     KvStorage createAccountStorage(Long accountId, String name, String description, Boolean historyEnabled);
