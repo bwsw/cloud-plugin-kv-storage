@@ -311,8 +311,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     @Override
     public ConfigKey<?>[] getConfigKeys() {
-        return new ConfigKey[] {KvStorageElasticsearchList, KvStorageElasticsearchUsername, KvStorageElasticsearchPassword, KvStorageMaxNameLength, KvStorageMaxDescriptionLength,
-                KvStorageMaxTtl};
+        return new ConfigKey[] {KvStorageElasticsearchList, KvStorageElasticsearchUsername, KvStorageElasticsearchPassword, KvStorageMaxNameLength, KvStorageMaxDescriptionLength};
     }
 
     @Override
@@ -352,8 +351,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         if (ttl == null) {
             throw new InvalidParameterValueException("Unspecified TTL");
         }
-        Integer maxTtl = KvStorageMaxTtl.value();
-        if (ttl <= 0 || maxTtl != null && ttl > maxTtl) {
+        if (ttl <= 0) {
             throw new InvalidParameterValueException("Invalid TTL");
         }
     }

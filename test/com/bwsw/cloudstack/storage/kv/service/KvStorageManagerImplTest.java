@@ -259,11 +259,6 @@ public class KvStorageManagerImplTest {
     }
 
     @Test
-    public void testCreateTempStorageBigTtl() {
-        testCreateTempStorageInvalidTtl(KvStorageManager.KvStorageMaxTtl.value() + 1);
-    }
-
-    @Test
     public void testCreateTempStorage() throws IOException {
         when(_kvRequestBuilder.getCreateRequest(argThat(new CustomMatcher<KvStorage>("temp storage") {
             @Override
@@ -459,11 +454,6 @@ public class KvStorageManagerImplTest {
     @Test
     public void testUpdateTempStorageZeroTtl() {
         testUpdateTempStorageInvalidTtl(0);
-    }
-
-    @Test
-    public void testUpdateTempStorageBigTtl() {
-        testUpdateTempStorageInvalidTtl(KvStorageManager.KvStorageMaxTtl.value() + 1);
     }
 
     @Test
