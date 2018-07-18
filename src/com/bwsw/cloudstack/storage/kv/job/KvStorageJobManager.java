@@ -15,13 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.bwsw.cloudstack.storage.kv.response;
+package com.bwsw.cloudstack.storage.kv.job;
 
-import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.service.KvStorageManager;
+import org.elasticsearch.client.RestHighLevelClient;
 
-public class KvStorageResponse extends KvStorage {
+public interface KvStorageJobManager {
 
-    public KvStorageResponse() {
-        setObjectName("kvstorage");
-    }
+    void init(KvStorageManager storageManager, RestHighLevelClient client);
+
+    Runnable getJob(JobType jobType, KvStorageManager storageManager, RestHighLevelClient client);
+
 }

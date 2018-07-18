@@ -28,7 +28,8 @@ public class DeleteStorageRequest {
     private final DeleteIndexRequest storageIndexRequest;
     private final DeleteIndexRequest historyIndexRequest;
 
-    public DeleteStorageRequest(IndexRequest registryUpdateRequest, DeleteRequest registryDeleteRequest, DeleteIndexRequest storageIndexRequest, DeleteIndexRequest historyIndexRequest) {
+    public DeleteStorageRequest(IndexRequest registryUpdateRequest, DeleteRequest registryDeleteRequest, DeleteIndexRequest storageIndexRequest,
+            DeleteIndexRequest historyIndexRequest) {
         if (registryUpdateRequest == null) {
             throw new IllegalArgumentException("Null registry update request");
         }

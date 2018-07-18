@@ -18,10 +18,12 @@
 package com.bwsw.cloudstack.storage.kv.api;
 
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.event.EventTypes;
 import com.bwsw.cloudstack.storage.kv.service.KvStorageManager;
 import com.cloud.exception.ConcurrentOperationException;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
+import org.apache.cloudstack.api.BaseAsyncCmd;
 import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ResponseObject;
@@ -33,7 +35,7 @@ import javax.inject.Inject;
 @APICommand(name = CreateTempKvStorageCmd.API_NAME, description = "Creates a temporal KV storage", responseObject = KvStorage.class, requestHasSensitiveInfo = false,
         responseHasSensitiveInfo = true, responseView = ResponseObject.ResponseView.Full,
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User})
-public class CreateTempKvStorageCmd extends BaseCmd {
+public class CreateTempKvStorageCmd extends BaseAsyncCmd {
 
     public static final String API_NAME = "createTempKvStorage";
 
@@ -63,5 +65,15 @@ public class CreateTempKvStorageCmd extends BaseCmd {
     @Override
     public long getEntityOwnerId() {
         return CallContext.current().getCallingAccount().getAccountId();
+    }
+
+    @Override
+    public String getEventType() {
+        return EventTypes.EVENT_KV_STORAGE_CREATE;
+    }
+
+    @Override
+    public String getEventDescription() {
+        return "creating a temporal kv storage";
     }
 }

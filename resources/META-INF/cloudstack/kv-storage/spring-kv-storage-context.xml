@@ -26,4 +26,13 @@
     <bean id="kvExecutor" class="com.bwsw.cloudstack.storage.kv.service.KvExecutorImpl"/>
 
     <bean id="kvStorageManager" class="com.bwsw.cloudstack.storage.kv.service.KvStorageManagerImpl"/>
+
+    <bean id="eventSubscriberFactory" class="com.bwsw.cloudstack.storage.kv.event.EventSubscriberFactoryImpl"/>
+
+    <bean id="vmEventSubscriber" factory-bean="eventSubscriberFactory" factory-method="getVmEventSubscriber"/>
+
+    <bean id="kvStorageLockManager" class="com.bwsw.cloudstack.storage.kv.job.KvStorageLockManagerImpl"/>
+
+    <bean id="kvStorageJobManager" class="com.bwsw.cloudstack.storage.kv.job.KvStorageJobManagerImpl"/>
+
 </beans>

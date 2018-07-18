@@ -25,27 +25,47 @@ import org.apache.cloudstack.framework.config.ConfigKey;
 
 public interface KvStorageManager extends PluggableService {
 
-    ConfigKey<String> KvStorageElasticSearchList = new ConfigKey<>("Advanced", String.class, "storage.kv.elasticsearch.list", null,
+    ConfigKey<String> KvStorageElasticsearchList = new ConfigKey<>("Advanced", String.class, "storage.kv.elasticsearch.list", null,
             "Comma separated list of ElasticSearch HTTP hosts; e.g. http://localhost,http://localhost:9201", false);
+
+    ConfigKey<String> KvStorageElasticsearchUsername = new ConfigKey<>("Advanced", String.class, "storage.kv.elasticsearch.username", null,
+            "Elasticsearch username for authentication", false);
+
+    ConfigKey<String> KvStorageElasticsearchPassword = new ConfigKey<>("Advanced", String.class, "storage.kv.elasticsearch.password", null,
+            "Elasticsearch password for authentication", false);
 
     ConfigKey<Integer> KvStorageMaxNameLength = new ConfigKey<>("Advanced", Integer.class, "storage.kv.name.length.max", "256", "Max name length for account storages", true);
 
     ConfigKey<Integer> KvStorageMaxDescriptionLength = new ConfigKey<>("Advanced", Integer.class, "storage.kv.description.length.max", "1024",
             "Max description length for account storages", true);
 
-    ConfigKey<Integer> KvStorageMaxTtl = new ConfigKey<>("Advanced", Integer.class, "storage.kv.ttl.max", "3600000", "Max ttl in ms for temporal storages", true);
+    ConfigKey<Boolean> KvStorageVmHistoryEnabled = new ConfigKey<>("Advanced", Boolean.class, "storage.kv.vm.history.enabled", "false",
+            "if VM storages should keep an operation history, false otherwise", true);
 
+    // account storages
     KvStorage createAccountStorage(Long accountId, String name, String description, Boolean historyEnabled);
 
     ListResponse<KvStorageResponse> listAccountStorages(Long accountId, Long startIndex, Long pageSize);
 
     boolean deleteAccountStorage(Long accountId, String storageId);
 
+    // temp storages
     KvStorage createTempStorage(Integer ttl);
 
     KvStorage updateTempStorage(String storageId, Integer ttl);
 
     boolean deleteTempStorage(String storageId);
 
-    String createVmStorage(Long vmId, Boolean historyEnabled);
+    void expireTempStorages();
+
+    // vm storages
+    KvStorage createVmStorage(String vmId);
+
+    boolean deleteVmStorage(String vmId);
+
+    void deleteExpungedVmStorages();
+
+    // utilities
+
+    void cleanupStorages();
 }

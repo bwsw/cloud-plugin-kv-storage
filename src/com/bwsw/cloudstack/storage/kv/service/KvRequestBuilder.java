@@ -17,19 +17,24 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.client.Request;
+
+import java.io.IOException;
 
 public interface KvRequestBuilder {
 
     GetRequest getGetRequest(String storageId);
 
-    IndexRequest getCreateRequest(KvStorage storage) throws JsonProcessingException;
+    CreateStorageRequest getCreateRequest(KvStorage storage) throws JsonProcessingException;
 
     IndexRequest getUpdateRequest(KvStorage storage) throws JsonProcessingException;
 
@@ -37,5 +42,15 @@ public interface KvRequestBuilder {
 
     SearchRequest getSearchRequest(String accountUuid, int from, int size);
 
+    SearchRequest getDeletedStoragesRequest(int size, int scrollTimeout);
+
+    SearchRequest getVmStoragesRequest(int size, int scrollTimeout);
+
+    SearchScrollRequest getScrollRequest(String scrollId, int scrollTimeout);
+
     DeleteStorageRequest getDeleteRequest(KvStorage storage) throws JsonProcessingException;
+
+    UpdateRequest getMarkDeletedRequest(KvStorage storage);
+
+    Request getExpireTempStorageRequest(long timestamp) throws IOException;
 }

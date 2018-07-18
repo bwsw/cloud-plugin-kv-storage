@@ -15,13 +15,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.bwsw.cloudstack.storage.kv.response;
+package com.bwsw.cloudstack.storage.kv.job;
 
-import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import org.elasticsearch.client.RestHighLevelClient;
 
-public class KvStorageResponse extends KvStorage {
+public interface KvStorageLockManager {
 
-    public KvStorageResponse() {
-        setObjectName("kvstorage");
-    }
+    boolean acquireLock(JobType jobType, RestHighLevelClient client);
+
+    void releaseLock(JobType jobType, RestHighLevelClient client);
 }

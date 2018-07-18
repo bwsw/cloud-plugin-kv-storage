@@ -19,5 +19,6 @@ package com.bwsw.cloudstack.storage.kv.event;
 
 public class EventTypes {
 
+    public static final String EVENT_KV_STORAGE_CREATE = "STORAGE.KV.CREATE";
     public static final String EVENT_KV_STORAGE_DELETE = "STORAGE.KV.DELETE";
 }

@@ -1,11 +1,32 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.user.AccountVO;
 import com.cloud.user.dao.AccountDao;
+import com.cloud.utils.db.SearchBuilder;
+import com.cloud.utils.db.SearchCriteria;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.dao.VMInstanceDao;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -13,10 +34,18 @@ import com.google.common.base.Strings;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpStatus;
+import org.apache.http.HttpVersion;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.message.BasicStatusLine;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.client.Request;
+import org.elasticsearch.client.Response;
+import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.hamcrest.CustomMatcher;
 import org.junit.Rule;
@@ -29,14 +58,25 @@ import org.mockito.runners.MockitoJUnitRunner;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.argThat;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.intThat;
+import static org.mockito.Matchers.longThat;
+import static org.mockito.Matchers.same;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -75,6 +115,9 @@ public class KvStorageManagerImplTest {
     private RestHighLevelClient _restHighLevelClient;
 
     @Mock
+    private RestClient _restClient;
+
+    @Mock
     private IndexRequest _indexRequest;
 
     @Mock
@@ -84,10 +127,19 @@ public class KvStorageManagerImplTest {
     private DeleteStorageRequest _deleteStorageRequest;
 
     @Mock
+    private CreateStorageRequest _createStorageRequest;
+
+    @Mock
     private UpdateRequest _updateRequest;
 
     @Mock
+    private Response _response;
+
+    @Mock
     private VMInstanceVO _vmInstanceVO;
+
+    @Mock
+    private SearchBuilder<VMInstanceVO> _searchBuilder;
 
     @InjectMocks
     private KvStorageManagerImpl _kvStorageManager = new KvStorageManagerImpl();
@@ -133,7 +185,7 @@ public class KvStorageManagerImplTest {
 
         setAccountExpectations();
         setAccountRequestExpectations(UUID, NAME, DESCRIPTION, HISTORY_ENABLED);
-        doThrow(new IOException()).when(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+        doThrow(new IOException()).when(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
 
         _kvStorageManager.createAccountStorage(ID, NAME, DESCRIPTION, HISTORY_ENABLED);
     }
@@ -142,31 +194,31 @@ public class KvStorageManagerImplTest {
     public void testCreateAccountStorage() throws IOException {
         setAccountExpectations();
         setAccountRequestExpectations(UUID, NAME, DESCRIPTION, HISTORY_ENABLED);
-        doNothing().when(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+        doNothing().when(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
 
         _kvStorageManager.createAccountStorage(ID, NAME, DESCRIPTION, HISTORY_ENABLED);
 
-        verify(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+        verify(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
     }
 
     @Test
     public void testCreateAccountStorageDefaultHistorySettings() throws IOException {
         setAccountExpectations();
         setAccountRequestExpectations(UUID, NAME, DESCRIPTION, false);
-        doNothing().when(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+        doNothing().when(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
 
         _kvStorageManager.createAccountStorage(ID, NAME, DESCRIPTION, null);
 
-        verify(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+        verify(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
     }
 
     @Test
     public void testCreateVmStorageInvalidVm() {
-        setExceptionExpectation(InvalidParameterValueException.class, "virtual machine");
+        setExceptionExpectation(InvalidParameterValueException.class, "VM");
 
-        when(_vmInstanceDao.findById(ID)).thenReturn(null);
+        when(_vmInstanceDao.findByUuid(UUID)).thenReturn(null);
 
-        _kvStorageManager.createVmStorage(ID, HISTORY_ENABLED);
+        _kvStorageManager.createVmStorage(UUID);
     }
 
     @Test
@@ -175,20 +227,20 @@ public class KvStorageManagerImplTest {
 
         setVmExpectations();
         setVmRequestExpectations();
-        doThrow(new IOException()).when(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+        doThrow(new IOException()).when(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
 
-        _kvStorageManager.createVmStorage(ID, HISTORY_ENABLED);
+        _kvStorageManager.createVmStorage(UUID);
     }
 
     @Test
-    public void testCreateVm() throws IOException {
+    public void testCreateVmStorage() throws IOException {
         setVmExpectations();
         setVmRequestExpectations();
-        doNothing().when(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+        doNothing().when(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
 
-        _kvStorageManager.createVmStorage(ID, HISTORY_ENABLED);
+        _kvStorageManager.createVmStorage(UUID);
 
-        verify(_kvExecutor).index(_restHighLevelClient, _indexRequest);
+        verify(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
     }
 
     @Test
@@ -207,12 +259,7 @@ public class KvStorageManagerImplTest {
     }
 
     @Test
-    public void testCreateTempStorageBigTtl() {
-        testCreateTempStorageInvalidTtl(KvStorageManager.KvStorageMaxTtl.value() + 1);
-    }
-
-    @Test
-    public void testCreateTempStorage() throws JsonProcessingException {
+    public void testCreateTempStorage() throws IOException {
         when(_kvRequestBuilder.getCreateRequest(argThat(new CustomMatcher<KvStorage>("temp storage") {
             @Override
             public boolean matches(Object o) {
@@ -234,12 +281,15 @@ public class KvStorageManagerImplTest {
                 }
                 return true;
             }
-        }))).thenReturn(_indexRequest);
+        }))).thenReturn(_createStorageRequest);
+        doNothing().when(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
 
         KvStorage result = _kvStorageManager.createTempStorage(TTL);
         assertNotNull(result);
         assertNotNull(result.getId());
         assertTrue(result.getId().matches(UUID_PATTERN));
+
+        verify(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
     }
 
     @Test
@@ -407,11 +457,6 @@ public class KvStorageManagerImplTest {
     }
 
     @Test
-    public void testUpdateTempStorageBigTtl() {
-        testUpdateTempStorageInvalidTtl(KvStorageManager.KvStorageMaxTtl.value() + 1);
-    }
-
-    @Test
     public void testUpdateTempStorageGetRequestException() throws IOException {
         setExceptionExpectation(ServerApiException.class, "storage");
         when(_kvRequestBuilder.getGetRequest(STORAGE_UUID)).thenReturn(_getRequest);
@@ -521,6 +566,119 @@ public class KvStorageManagerImplTest {
         assertTrue(_kvStorageManager.deleteTempStorage(STORAGE_UUID));
     }
 
+    @Test
+    public void testDeleteVmStorageInvalidVm() {
+        setExceptionExpectation(InvalidParameterValueException.class, "VM");
+        when(_vmInstanceDao.findByUuidIncludingRemoved(UUID)).thenReturn(null);
+
+        _kvStorageManager.deleteVmStorage(UUID);
+    }
+
+    @Test
+    public void testDeleteVmStorageGetRequestException() throws IOException {
+        setVmExpectations();
+        when(_kvRequestBuilder.getGetRequest(UUID)).thenReturn(_getRequest);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenThrow(new IOException());
+
+        assertFalse(_kvStorageManager.deleteVmStorage(UUID));
+    }
+
+    @Test
+    public void testDeleteVmStorageNonexistentStorage() throws IOException {
+        setExceptionExpectation(InvalidParameterValueException.class, "storage");
+        setVmExpectations();
+        when(_kvRequestBuilder.getGetRequest(UUID)).thenReturn(_getRequest);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(null);
+
+        _kvStorageManager.deleteVmStorage(UUID);
+    }
+
+    @Test
+    public void testDeleteVmStorageInvalidStorageType() throws IOException {
+        KvStorage storage = new KvStorage();
+        storage.setType(KvStorage.KvStorageType.TEMP);
+
+        setExceptionExpectation(InvalidParameterValueException.class, "type");
+        setVmExpectations();
+        when(_kvRequestBuilder.getGetRequest(UUID)).thenReturn(_getRequest);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(storage);
+
+        _kvStorageManager.deleteVmStorage(UUID);
+    }
+
+    @Test
+    public void testDeleteVmStorageDeleteRequestException() throws IOException {
+        setVmExpectations();
+        setDeleteVmStorageExpectations();
+        when(_kvExecutor.delete(_restHighLevelClient, _deleteStorageRequest)).thenThrow(new IOException());
+
+        assertFalse(_kvStorageManager.deleteVmStorage(UUID));
+    }
+
+    @Test
+    public void testDeleteVmStorage() throws IOException {
+        setVmExpectations();
+        setDeleteVmStorageExpectations();
+        when(_kvExecutor.delete(_restHighLevelClient, _deleteStorageRequest)).thenReturn(true);
+
+        assertTrue(_kvStorageManager.deleteVmStorage(UUID));
+    }
+
+    @Test
+    public void testExpireTempStorages() throws IOException {
+        Request request = new Request("POST", "http://localhost:9200", Collections.emptyMap(), new StringEntity("body"));
+        when(_kvRequestBuilder.getExpireTempStorageRequest(longThat(greaterThanOrEqualTo(KvStorage.getCurrentTimestamp())))).thenReturn(request);
+        when(_restHighLevelClient.getLowLevelClient()).thenReturn(_restClient);
+        when(_restClient.performRequest(request.getMethod(), request.getEndpoint(), request.getParameters(), request.getEntity())).thenReturn(_response);
+        when(_response.getStatusLine()).thenReturn(new BasicStatusLine(HttpVersion.HTTP_1_1, HttpStatus.SC_OK, null));
+
+        _kvStorageManager.expireTempStorages();
+    }
+
+    @Test
+    public void testCleanupStorages() throws IOException {
+        when(_kvRequestBuilder.getDeletedStoragesRequest(intThat(greaterThan(0)), intThat(greaterThan(0)))).thenReturn(_searchRequest);
+        ScrollableListResponse<KvStorage> response = new ScrollableListResponse<>("scrollId", Collections.singletonList(new KvStorage()));
+        when(_kvExecutor.scroll(_restHighLevelClient, _searchRequest, KvStorage.class)).thenReturn(response);
+        for (KvStorage storage : response.getResults()) {
+            when(_kvRequestBuilder.getDeleteRequest(storage)).thenReturn(_deleteStorageRequest);
+            when(_kvExecutor.delete(_restHighLevelClient, _deleteStorageRequest)).thenReturn(true);
+        }
+        SearchScrollRequest scrollRequest = new SearchScrollRequest();
+        when(_kvRequestBuilder.getScrollRequest(eq(response.getScrollId()), intThat(greaterThan(0)))).thenReturn(scrollRequest);
+        when(_kvExecutor.scroll(_restHighLevelClient, scrollRequest, KvStorage.class)).thenReturn(new ScrollableListResponse<>("id", null));
+
+        _kvStorageManager.cleanupStorages();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testDeleteExpungedVmStorages() throws IOException {
+        ScrollableListResponse<KvStorage> response = new ScrollableListResponse<>("scrollId", Collections.singletonList(new KvStorage()));
+        List<VMInstanceVO> vmInstanceVOList = response.getResults().stream().map(storage -> {
+            VMInstanceVO vm = mock(VMInstanceVO.class);
+            when(vm.getUuid()).thenReturn(storage.getId());
+            when(vm.isRemoved()).thenReturn(true);
+            return vm;
+        }).collect(Collectors.toList());
+        SearchCriteria<VMInstanceVO> searchCriteria = mock(SearchCriteria.class);
+
+        when(_kvRequestBuilder.getVmStoragesRequest(intThat(greaterThan(0)), intThat(greaterThan(0)))).thenReturn(_searchRequest);
+        when(_kvExecutor.scroll(_restHighLevelClient, _searchRequest, KvStorage.class)).thenReturn(response);
+        when(_searchBuilder.create()).thenReturn(searchCriteria);
+        doNothing().when(searchCriteria).setParameters(anyString(), eq(response.getResults().stream().map(KvStorage::getId).toArray()));
+        when(_vmInstanceDao.searchIncludingRemoved(same(searchCriteria), eq(null), eq(null), eq(false))).thenReturn(vmInstanceVOList);
+        for (KvStorage storage : response.getResults()) {
+            when(_kvRequestBuilder.getMarkDeletedRequest(storage)).thenReturn(_updateRequest);
+            doNothing().when(_kvExecutor).update(_restHighLevelClient, _updateRequest);
+        }
+        SearchScrollRequest scrollRequest = new SearchScrollRequest();
+        when(_kvRequestBuilder.getScrollRequest(eq(response.getScrollId()), intThat(greaterThan(0)))).thenReturn(scrollRequest);
+        when(_kvExecutor.scroll(_restHighLevelClient, scrollRequest, KvStorage.class)).thenReturn(new ScrollableListResponse<>("id", null));
+
+        _kvStorageManager.deleteExpungedVmStorages();
+    }
+
     private void testCreateAccountStorageInvalidName(String name) {
         setExceptionExpectation(InvalidParameterValueException.class, "name");
 
@@ -562,7 +720,8 @@ public class KvStorageManagerImplTest {
 
     private void setVmExpectations() {
         when(_vmInstanceVO.getUuid()).thenReturn(UUID);
-        when(_vmInstanceDao.findById(ID)).thenReturn(_vmInstanceVO);
+        when(_vmInstanceDao.findByUuid(UUID)).thenReturn(_vmInstanceVO);
+        when(_vmInstanceDao.findByUuidIncludingRemoved(UUID)).thenReturn(_vmInstanceVO);
     }
 
     private void setAccountRequestExpectations(String uuid, String name, String description, Boolean historyEnabled) throws JsonProcessingException {
@@ -590,7 +749,7 @@ public class KvStorageManagerImplTest {
                 }
                 return true;
             }
-        }))).thenReturn(_indexRequest);
+        }))).thenReturn(_createStorageRequest);
     }
 
     private void setVmRequestExpectations() throws JsonProcessingException {
@@ -601,9 +760,9 @@ public class KvStorageManagerImplTest {
                     return false;
                 }
                 KvStorage storage = (KvStorage)o;
-                return UUID.equals(storage.getId()) && HISTORY_ENABLED.equals(storage.getHistoryEnabled());
+                return UUID.equals(storage.getId()) && (storage.getHistoryEnabled() != null && !storage.getHistoryEnabled());
             }
-        }))).thenReturn(_indexRequest);
+        }))).thenReturn(_createStorageRequest);
     }
 
     private void setDeleteAccountStorageExpectations() throws IOException {
@@ -621,9 +780,13 @@ public class KvStorageManagerImplTest {
         setDeleteStorageExpectations(storage);
     }
 
-    private void setDeleteStorageExpectations(KvStorage storage) throws IOException {
-        when(_kvRequestBuilder.getGetRequest(STORAGE_UUID)).thenReturn(_getRequest);
-        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(storage);
+    private void setDeleteVmStorageExpectations() throws IOException {
+        setDeleteStorageExpectations(new KvStorage(UUID, KvStorageManager.KvStorageVmHistoryEnabled.value()));
+    }
+
+    private void setDeleteStorageExpectations(KvStorage expected) throws IOException {
+        when(_kvRequestBuilder.getGetRequest(expected.getId())).thenReturn(_getRequest);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(expected);
         when(_kvRequestBuilder.getDeleteRequest(argThat(new CustomMatcher<KvStorage>("deleted storage") {
             @Override
             public boolean matches(Object o) {
@@ -631,7 +794,7 @@ public class KvStorageManagerImplTest {
                     return false;
                 }
                 KvStorage storage = (KvStorage)o;
-                return STORAGE_UUID.equals(storage.getId()) && storage.getDeleted() != null && storage.getDeleted();
+                return expected.getId().equals(storage.getId()) && storage.getDeleted() != null && storage.getDeleted();
             }
         }))).thenReturn(_deleteStorageRequest);
     }

@@ -15,13 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.bwsw.cloudstack.storage.kv.response;
+package com.bwsw.cloudstack.storage.kv.event;
 
-import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import org.apache.cloudstack.framework.events.EventBusException;
 
-public class KvStorageResponse extends KvStorage {
+public interface EventSubscriberFactory {
 
-    public KvStorageResponse() {
-        setObjectName("kvstorage");
-    }
+    VmEventSubscriber getVmEventSubscriber() throws EventBusException;
+
 }

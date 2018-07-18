@@ -15,13 +15,21 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.bwsw.cloudstack.storage.kv.response;
+package com.bwsw.cloudstack.storage.kv.job;
 
-import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+public enum JobType {
 
-public class KvStorageResponse extends KvStorage {
+    TEMP_STORAGE_CLEANUP(60000), STORAGE_CLEANUP(3600000), VM_STORAGE_CLEANUP(3600000);
 
-    public KvStorageResponse() {
-        setObjectName("kvstorage");
+    // _interval in ms
+    private final int _interval;
+
+    JobType(int interval) {
+        this._interval = interval;
     }
+
+    public int getInterval() {
+        return _interval;
+    }
+
 }

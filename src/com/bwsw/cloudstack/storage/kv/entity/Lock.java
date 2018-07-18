@@ -17,11 +17,39 @@
 
 package com.bwsw.cloudstack.storage.kv.entity;
 
-import org.apache.cloudstack.api.ResponseObject;
+import com.bwsw.cloudstack.storage.kv.job.JobType;
 
-public interface ResponseEntity extends ResponseObject {
+import java.time.Instant;
 
-    String getId();
+public class Lock {
 
-    void setId(String id);
+    private final String id;
+    private final boolean locked;
+    private final long timestamp;
+
+    private Lock(JobType jobType, boolean locked, long timestamp) {
+        this.id = jobType.name();
+        this.locked = locked;
+        this.timestamp = timestamp;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public boolean isLocked() {
+        return locked;
+    }
+
+    public long getTimestamp() {
+        return timestamp;
+    }
+
+    public static Lock getAcquiredLock(JobType jobType) {
+        return new Lock(jobType, true, Instant.now().toEpochMilli());
+    }
+
+    public static Lock getReleasedLock(JobType jobType) {
+        return new Lock(jobType, false, 0);
+    }
 }

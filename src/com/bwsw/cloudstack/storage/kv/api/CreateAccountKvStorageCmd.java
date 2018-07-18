@@ -18,6 +18,7 @@
 package com.bwsw.cloudstack.storage.kv.api;
 
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.event.EventTypes;
 import com.bwsw.cloudstack.storage.kv.service.KvStorageManager;
 import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.user.Account;
@@ -26,6 +27,7 @@ import org.apache.cloudstack.acl.SecurityChecker;
 import org.apache.cloudstack.api.ACL;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.ApiConstants;
+import org.apache.cloudstack.api.BaseAsyncCmd;
 import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ResponseObject;
@@ -37,7 +39,7 @@ import javax.inject.Inject;
 @APICommand(name = CreateAccountKvStorageCmd.API_NAME, description = "Creates an account KV storage", responseObject = KvStorage.class, requestHasSensitiveInfo = false,
         responseHasSensitiveInfo = true, responseView = ResponseObject.ResponseView.Full,
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User}, entityType = {Account.class})
-public class CreateAccountKvStorageCmd extends BaseCmd {
+public class CreateAccountKvStorageCmd extends BaseAsyncCmd {
 
     public static final String API_NAME = "createAccountKvStorage";
 
@@ -95,5 +97,15 @@ public class CreateAccountKvStorageCmd extends BaseCmd {
     @Override
     public String getCommandName() {
         return API_NAME.toLowerCase() + BaseCmd.RESPONSE_SUFFIX;
+    }
+
+    @Override
+    public String getEventType() {
+        return EventTypes.EVENT_KV_STORAGE_CREATE;
+    }
+
+    @Override
+    public String getEventDescription() {
+        return "creating an account kv storage";
     }
 }

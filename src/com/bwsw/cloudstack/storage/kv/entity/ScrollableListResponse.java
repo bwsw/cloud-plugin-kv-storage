@@ -15,13 +15,25 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.bwsw.cloudstack.storage.kv.response;
+package com.bwsw.cloudstack.storage.kv.entity;
 
-import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import java.util.List;
 
-public class KvStorageResponse extends KvStorage {
+public class ScrollableListResponse<T> {
 
-    public KvStorageResponse() {
-        setObjectName("kvstorage");
+    private final String scrollId;
+    private final List<T> results;
+
+    public ScrollableListResponse(String scrollId, List<T> results) {
+        this.scrollId = scrollId;
+        this.results = results;
+    }
+
+    public String getScrollId() {
+        return scrollId;
+    }
+
+    public List<T> getResults() {
+        return results;
     }
 }

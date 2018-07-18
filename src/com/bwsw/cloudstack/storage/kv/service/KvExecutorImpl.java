@@ -17,12 +17,16 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.ResponseEntity;
+import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.cloudstack.api.response.ListResponse;
+import org.apache.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.delete.DeleteResponse;
@@ -32,6 +36,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.RestHighLevelClient;
@@ -43,6 +48,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class KvExecutorImpl implements KvExecutor {
+
+    private static final Logger s_logger = Logger.getLogger(KvExecutorImpl.class);
 
     private final ObjectMapper _objectMapper = new ObjectMapper();
 
@@ -86,6 +93,25 @@ public class KvExecutorImpl implements KvExecutor {
     }
 
     @Override
+    public <T extends ResponseEntity> ScrollableListResponse<T> scroll(RestHighLevelClient client, SearchRequest request, Class<T> elementClass) throws IOException {
+        return parseScroll(client.search(request), elementClass);
+    }
+
+    @Override
+    public <T extends ResponseEntity> ScrollableListResponse<T> scroll(RestHighLevelClient client, SearchScrollRequest request, Class<T> elementClass) throws IOException {
+        return parseScroll(client.searchScroll(request), elementClass);
+    }
+
+    @Override
+    public void create(RestHighLevelClient client, CreateStorageRequest request) throws IOException {
+        index(client, request.getRegistryRequest());
+        createIndex(client, request.getStorageIndexRequest());
+        if (request.getHistoryIndexRequest() != null) {
+            createIndex(client, request.getHistoryIndexRequest());
+        }
+    }
+
+    @Override
     public boolean delete(RestHighLevelClient client, DeleteStorageRequest request) throws IOException {
         IndexResponse registryUpdateResponse = client.index(request.getRegistryUpdateRequest());
         if (registryUpdateResponse.status() != RestStatus.OK) {
@@ -109,6 +135,13 @@ public class KvExecutorImpl implements KvExecutor {
         return results;
     }
 
+    private <T extends ResponseEntity> ScrollableListResponse<T> parseScroll(SearchResponse response, Class<T> elementClass) throws IOException {
+        if (response.status() != RestStatus.OK || response.getHits() == null) {
+            throw new CloudRuntimeException("Failed to execute search operation");
+        }
+        return new ScrollableListResponse<>(response.getScrollId(), parseResults(response, elementClass));
+    }
+
     private <T extends ResponseEntity> T parseResult(String source, Class<T> elementClass, String id) throws IOException {
         T result = _objectMapper.readValue(source, elementClass);
         result.setId(id);
@@ -121,6 +154,14 @@ public class KvExecutorImpl implements KvExecutor {
             return storageIndexResponse.isAcknowledged();
         } catch (ElasticsearchException exception) {
             return exception.status() == RestStatus.NOT_FOUND;
+        }
+    }
+
+    private void createIndex(RestHighLevelClient client, CreateIndexRequest request) {
+        try {
+            client.indices().create(request);
+        } catch (IOException e) {
+            s_logger.error("Unabled to create an index: " + request.index(), e);
         }
     }
 }
