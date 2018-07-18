@@ -25,8 +25,14 @@ import org.apache.cloudstack.framework.config.ConfigKey;
 
 public interface KvStorageManager extends PluggableService {
 
-    ConfigKey<String> KvStorageElasticSearchList = new ConfigKey<>("Advanced", String.class, "storage.kv.elasticsearch.list", null,
+    ConfigKey<String> KvStorageElasticsearchList = new ConfigKey<>("Advanced", String.class, "storage.kv.elasticsearch.list", null,
             "Comma separated list of ElasticSearch HTTP hosts; e.g. http://localhost,http://localhost:9201", false);
+
+    ConfigKey<String> KvStorageElasticsearchUsername = new ConfigKey<>("Advanced", String.class, "storage.kv.elasticsearch.username", null,
+            "Elasticsearch username for authentication", false);
+
+    ConfigKey<String> KvStorageElasticsearchPassword = new ConfigKey<>("Advanced", String.class, "storage.kv.elasticsearch.password", null,
+            "Elasticsearch password for authentication", false);
 
     ConfigKey<Integer> KvStorageMaxNameLength = new ConfigKey<>("Advanced", Integer.class, "storage.kv.name.length.max", "256", "Max name length for account storages", true);
 
