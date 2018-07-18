@@ -17,6 +17,7 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -33,7 +34,7 @@ public interface KvRequestBuilder {
 
     GetRequest getGetRequest(String storageId);
 
-    IndexRequest getCreateRequest(KvStorage storage) throws JsonProcessingException;
+    CreateStorageRequest getCreateRequest(KvStorage storage) throws JsonProcessingException;
 
     IndexRequest getUpdateRequest(KvStorage storage) throws JsonProcessingException;
 
