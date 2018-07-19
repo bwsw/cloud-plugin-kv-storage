@@ -142,6 +142,9 @@ See [async command response tags](#async-command-response-tags).
 | storage.kv.elasticsearch.password | Elasticsearch password for authentication; should be empty if authentication is disabled | |
 | storage.kv.vm.history.enabled | true if VM storages should keep an operation history, false otherwise | false |
 
+*default.page.size* is used as a default value for pagesize parameter in [listAccountKvStorages](#listaccountkvstorages) command. Its value should be less or equal to Elasticsearch 
+*index.max_result_window* otherwise listAccountKvStorages requests without pagesize parameter will fail.
+
 # Deployment
 
 Following components should be deployed:
