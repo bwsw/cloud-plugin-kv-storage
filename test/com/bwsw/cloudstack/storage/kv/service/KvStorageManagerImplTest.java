@@ -264,6 +264,9 @@ public class KvStorageManagerImplTest {
                 if (storage.getHistoryEnabled() == null || storage.getHistoryEnabled()) {
                     return false;
                 }
+                if (storage.getDeleted() == null || storage.getDeleted()) {
+                    return false;
+                }
                 return true;
             }
         }))).thenReturn(_createStorageRequest);
@@ -455,6 +458,18 @@ public class KvStorageManagerImplTest {
         setExceptionExpectation(InvalidParameterValueException.class, "storage");
         when(_kvRequestBuilder.getGetRequest(STORAGE_UUID)).thenReturn(_getRequest);
         when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(null);
+
+        _kvStorageManager.updateTempStorage(STORAGE_UUID, TTL);
+    }
+
+    @Test
+    public void testUpdateTempStorageDeletedStorage() throws IOException {
+        KvStorage storage = new KvStorage();
+        storage.setDeleted(true);
+
+        setExceptionExpectation(InvalidParameterValueException.class, "storage");
+        when(_kvRequestBuilder.getGetRequest(STORAGE_UUID)).thenReturn(_getRequest);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(storage);
 
         _kvStorageManager.updateTempStorage(STORAGE_UUID, TTL);
     }
@@ -732,6 +747,9 @@ public class KvStorageManagerImplTest {
                 if (!historyEnabled.equals(storage.getHistoryEnabled())) {
                     return false;
                 }
+                if (storage.getDeleted() == null || storage.getDeleted()) {
+                    return false;
+                }
                 return true;
             }
         }))).thenReturn(_createStorageRequest);
@@ -745,7 +763,8 @@ public class KvStorageManagerImplTest {
                     return false;
                 }
                 KvStorage storage = (KvStorage)o;
-                return UUID.equals(storage.getId()) && (storage.getHistoryEnabled() != null && !storage.getHistoryEnabled());
+                return UUID.equals(storage.getId()) && (storage.getHistoryEnabled() != null && !storage.getHistoryEnabled()) && (storage.getDeleted() != null && !storage
+                        .getDeleted());
             }
         }))).thenReturn(_createStorageRequest);
     }
