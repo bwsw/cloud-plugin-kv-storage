@@ -63,9 +63,6 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     private static final String ID_FIELD = "_id";
     private static final String ACCOUNT_FIELD = "account";
     private static final String TYPE_FIELD = "type";
-    private static final String NAME_FIELD = "name";
-    private static final String DESCRIPTION_FIELD = "description";
-    private static final String[] FIELDS = {ID_FIELD, TYPE_FIELD, NAME_FIELD, DESCRIPTION_FIELD, EntityConstants.HISTORY_ENABLED, EntityConstants.DELETED};
     private static final String EXPIRE_TEMP_STORAGE_SCRIPT = "ctx._source.deleted = true";
 
     private static final ObjectMapper s_objectMapper = new ObjectMapper();
@@ -107,8 +104,6 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
         sourceBuilder.from(from);
         sourceBuilder.size(size);
-
-        sourceBuilder.fetchSource(FIELDS, null);
 
         BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery();
         queryBuilder.filter(QueryBuilders.termQuery(ACCOUNT_FIELD, accountUuid));
@@ -206,7 +201,6 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
 
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
         sourceBuilder.size(size);
-        sourceBuilder.fetchSource(FIELDS, null);
         sourceBuilder.query(queryBuilder);
 
         searchRequest.source(sourceBuilder);
