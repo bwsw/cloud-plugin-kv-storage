@@ -311,7 +311,8 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     @Override
     public ConfigKey<?>[] getConfigKeys() {
-        return new ConfigKey[] {KvStorageElasticsearchList, KvStorageElasticsearchUsername, KvStorageElasticsearchPassword, KvStorageMaxNameLength, KvStorageMaxDescriptionLength};
+        return new ConfigKey[] {KvStorageElasticsearchList, KvStorageElasticsearchUsername, KvStorageElasticsearchPassword, KvStorageVmHistoryEnabled, KvStorageMaxNameLength,
+                KvStorageMaxDescriptionLength};
     }
 
     @Override
