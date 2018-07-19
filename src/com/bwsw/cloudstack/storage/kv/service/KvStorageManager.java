@@ -34,11 +34,6 @@ public interface KvStorageManager extends PluggableService {
     ConfigKey<String> KvStorageElasticsearchPassword = new ConfigKey<>("Advanced", String.class, "storage.kv.elasticsearch.password", null,
             "Elasticsearch password for authentication", false);
 
-    ConfigKey<Integer> KvStorageMaxNameLength = new ConfigKey<>("Advanced", Integer.class, "storage.kv.name.length.max", "256", "Max name length for account storages", true);
-
-    ConfigKey<Integer> KvStorageMaxDescriptionLength = new ConfigKey<>("Advanced", Integer.class, "storage.kv.description.length.max", "1024",
-            "Max description length for account storages", true);
-
     ConfigKey<Boolean> KvStorageVmHistoryEnabled = new ConfigKey<>("Advanced", Boolean.class, "storage.kv.vm.history.enabled", "false",
             "true if VM storages should keep an operation history, false otherwise", true);
 

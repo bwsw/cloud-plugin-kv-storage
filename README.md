@@ -140,8 +140,6 @@ See [async command response tags](#async-command-response-tags).
 | storage.kv.elasticsearch.list | comma separated list of Elasticsearch HTTP hosts; e.g. http://localhost,http://localhost:9201 | |
 | storage.kv.elasticsearch.username | Elasticsearch username for authentication; should be empty if authentication is disabled | |
 | storage.kv.elasticsearch.password | Elasticsearch password for authentication; should be empty if authentication is disabled | |
-| storage.kv.name.length.max | max name length for account storages | 256 |
-| storage.kv.description.length.max | max description length for account storages | 1024 |
 | storage.kv.vm.history.enabled | true if VM storages should keep an operation history, false otherwise | false |
 
 # Deployment

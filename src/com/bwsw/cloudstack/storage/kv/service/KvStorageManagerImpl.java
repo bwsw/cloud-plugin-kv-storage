@@ -105,14 +105,6 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         if (Strings.isNullOrEmpty(name)) {
             throw new InvalidParameterValueException("Unspecified name");
         }
-        Integer maxNameLength = KvStorageMaxNameLength.value();
-        if (maxNameLength != null && name.length() > maxNameLength) {
-            throw new InvalidParameterValueException("Invalid name, max length is " + maxNameLength);
-        }
-        Integer maxDescriptionLength = KvStorageMaxDescriptionLength.value();
-        if (description != null && maxDescriptionLength != null && description.length() > maxDescriptionLength) {
-            throw new InvalidParameterValueException("Invalid description, max length is " + maxDescriptionLength);
-        }
         if (historyEnabled == null) {
             historyEnabled = false;
         }
@@ -311,8 +303,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     @Override
     public ConfigKey<?>[] getConfigKeys() {
-        return new ConfigKey[] {KvStorageElasticsearchList, KvStorageElasticsearchUsername, KvStorageElasticsearchPassword, KvStorageVmHistoryEnabled, KvStorageMaxNameLength,
-                KvStorageMaxDescriptionLength};
+        return new ConfigKey[] {KvStorageElasticsearchList, KvStorageElasticsearchUsername, KvStorageElasticsearchPassword, KvStorageVmHistoryEnabled};
     }
 
     @Override

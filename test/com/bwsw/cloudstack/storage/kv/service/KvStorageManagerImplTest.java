@@ -33,7 +33,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Strings;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.ListResponse;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
 import org.apache.http.HttpVersion;
 import org.apache.http.entity.StringEntity;
@@ -163,20 +162,6 @@ public class KvStorageManagerImplTest {
     @Test
     public void testCreateAccountStorageEmptyName() {
         testCreateAccountStorageInvalidName("");
-    }
-
-    @Test
-    public void testCreateAccountStorageLongName() {
-        testCreateAccountStorageInvalidName(StringUtils.repeat("A", KvStorageManager.KvStorageMaxNameLength.value() + 1));
-    }
-
-    @Test
-    public void testCreateAccountStorageLongDescription() {
-        setExceptionExpectation(InvalidParameterValueException.class, "description");
-
-        setAccountExpectations();
-
-        _kvStorageManager.createAccountStorage(ID, NAME, StringUtils.repeat("A", KvStorageManager.KvStorageMaxDescriptionLength.value() + 1), HISTORY_ENABLED);
     }
 
     @Test
