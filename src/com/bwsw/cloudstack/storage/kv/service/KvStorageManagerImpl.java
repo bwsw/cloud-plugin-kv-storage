@@ -167,7 +167,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         GetRequest getRequest = _kvRequestBuilder.getGetRequest(storageId);
         try {
             KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
-            if (storage == null) {
+            if (storage == null || storage.getDeleted() != null && storage.getDeleted()) {
                 throw new InvalidParameterValueException("The storage does not exist");
             }
             if (!KvStorage.KvStorageType.TEMP.equals(storage.getType())) {

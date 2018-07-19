@@ -460,6 +460,18 @@ public class KvStorageManagerImplTest {
     }
 
     @Test
+    public void testUpdateTempStorageDeletedStorage() throws IOException {
+        KvStorage storage = new KvStorage();
+        storage.setDeleted(true);
+
+        setExceptionExpectation(InvalidParameterValueException.class, "storage");
+        when(_kvRequestBuilder.getGetRequest(STORAGE_UUID)).thenReturn(_getRequest);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(storage);
+
+        _kvStorageManager.updateTempStorage(STORAGE_UUID, TTL);
+    }
+
+    @Test
     public void testUpdateTempStorageInvalidStorageType() throws IOException {
         KvStorage storage = new KvStorage();
         storage.setType(KvStorage.KvStorageType.ACCOUNT);
