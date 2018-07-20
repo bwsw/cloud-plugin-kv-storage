@@ -222,6 +222,21 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
+    public KvStorage getOrCreateVmStorage(String vmId) {
+        GetRequest getRequest = _kvRequestBuilder.getGetRequest(vmId);
+        try {
+            KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
+            if (storage == null) {
+                storage = createVmStorage(vmId);
+            }
+            return storage;
+        } catch (IOException e) {
+            s_logger.error("Unable to get/create a storage for VM " + vmId, e);
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to get/create a storage for VM " + vmId, e);
+        }
+    }
+
+    @Override
     public boolean deleteVmStorage(String vmId) {
         VMInstanceVO vmInstanceVO = _vmInstanceDao.findByUuidIncludingRemoved(vmId);
         if (vmInstanceVO == null) {
