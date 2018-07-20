@@ -66,6 +66,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.argThat;
@@ -224,6 +225,31 @@ public class KvStorageManagerImplTest {
         doNothing().when(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
 
         _kvStorageManager.createVmStorage(UUID);
+
+        verify(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
+    }
+
+    @Test
+    public void testGetOrCreateVmStorageExistentStorage() throws IOException {
+        KvStorage storage = new KvStorage();
+
+        when(_kvRequestBuilder.getGetRequest(UUID)).thenReturn(_getRequest);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(storage);
+
+        KvStorage result = _kvStorageManager.getOrCreateVmStorage(UUID);
+
+        assertSame(storage, result);
+    }
+
+    @Test
+    public void testGetOrCreateVmStorage() throws IOException {
+        setVmExpectations();
+        setVmRequestExpectations();
+        when(_kvRequestBuilder.getGetRequest(UUID)).thenReturn(_getRequest);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(null);
+        doNothing().when(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
+
+        _kvStorageManager.getOrCreateVmStorage(UUID);
 
         verify(_kvExecutor).create(_restHighLevelClient, _createStorageRequest);
     }

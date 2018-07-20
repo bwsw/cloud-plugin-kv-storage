@@ -54,7 +54,7 @@ public class VmEventSubscriber implements EventSubscriber {
     }
 
     public static String[] getEventTypes() {
-        return new String[] {EventTypes.EVENT_VM_CREATE, EventTypes.EVENT_VM_EXPUNGE};
+        return new String[] {EventTypes.EVENT_VM_CREATE, EventTypes.EVENT_VM_EXPUNGE, EventTypes.EVENT_VM_START};
     }
 
     public static String getResourceType() {
@@ -82,6 +82,13 @@ public class VmEventSubscriber implements EventSubscriber {
                     }
                 } catch (Exception e) {
                     s_logger.error("Unable to delete the KV storage for VM " + event.getResourceUUID(), e);
+                }
+            } else if (EventTypes.EVENT_VM_START.equals(event.getEventType()) && isExecutionRequired(event)) {
+                try {
+                    _kvStorageManager.getOrCreateVmStorage(event.getResourceUUID());
+                    s_logger.info("The KV storage for VM " + event.getResourceUUID() + " has been created");
+                } catch (Exception e) {
+                    s_logger.error("Unable to get or create the KV storage for VM " + event.getResourceUUID(), e);
                 }
             }
         }

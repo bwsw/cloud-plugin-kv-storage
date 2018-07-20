@@ -33,6 +33,8 @@ import java.util.UUID;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -71,5 +73,7 @@ public class EventSubscriberFactoryImplTest {
 
         assertNotNull(subscriber);
         assertSame(_kvStorageManager, ReflectionTestUtils.getField(subscriber, "_kvStorageManager"));
+
+        verify(_eventBus, times(VmEventSubscriber.getEventTypes().length)).subscribe(any(EventTopic.class), any(VmEventSubscriber.class));
     }
 }
