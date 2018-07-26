@@ -10,7 +10,7 @@ variables:
   MAVEN_CLI_OPTS: "-s .m2/settings.xml"
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
   GIT_SUBMODULE_STRATEGY: recursive
-  CLOUDSTACK_VERSION: "4.11.0.0"
+  CLOUDSTACK_VERSION: "4.11.1.0"
 
 cache:
   paths:
@@ -21,7 +21,7 @@ prepare:
   stage: prepare
   before_script:
     - cd cloudstack
-    - git checkout "$CLOUDSTACK_VERSION"
+    - git checkout "$CLOUDSTACK_VERSION"~1
   script:
     - cd .. && mvn $MAVEN_CLI_OPTS help:evaluate -Dexpression=project.version -q -DforceStdout || (cd cloudstack && mvn -Pdeveloper -DskipTests clean install)
   tags:
