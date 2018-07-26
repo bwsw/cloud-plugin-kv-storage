@@ -30,11 +30,53 @@
     <groupId>com.bwsw</groupId>
     <artifactId>cloud-plugin-kv-storage</artifactId>
     <name>Apache CloudStack Plugin - KV storage</name>
+    <description>API plugin for Apache CloudStack to manage key/value storages</description>
+    <url>https://git.bw-sw.com/cloudstack-ecosystem/cloud-plugin-kv-storage</url>
+
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <organization>
+        <name>Bitworks Software, Ltd.</name>
+        <url>http://bitworks.software/</url>
+    </organization>
+
+    <developers>
+        <developer>
+            <name>bitworks</name>
+            <email>bitworks@bw-sw.com</email>
+            <organization>Bitworks Software, Ltd.</organization>
+            <organizationUrl>http://bitworks.software/</organizationUrl>
+        </developer>
+    </developers>
+
+    <mailingLists/>
+
+    <scm>
+        <connection>scm:git:https://git.bw-sw.com/cloudstack-ecosystem/cloud-plugin-kv-storage.git</connection>
+        <developerConnection>scm:git:git@git.bw-sw.com:2222/cloudstack-ecosystem/cloud-plugin-kv-storage.git</developerConnection>
+        <url>https://git.bw-sw.com/cloudstack-ecosystem/cloud-plugin-kv-storage</url>
+    </scm>
 
     <properties>
         <elasticsearch.version>6.2.4</elasticsearch.version>
         <jackson.version>2.9.5</jackson.version>
     </properties>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
 
     <dependencies>
         <dependency>
