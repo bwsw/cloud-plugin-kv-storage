@@ -4,9 +4,48 @@ Apache CloudStack Plugin for key/value storage
 This project provides API plugin for Apache CloudStack to manage [key/value storages](https://git.bw-sw.com/cloudstack-ecosystem/cs-kv-storage).
 The version of the plugin matches Apache CloudStack version that it is build for.
 
-* [API](#api)
+The plugin is developed and tested only with Apache CloudStack 4.11.1.
+
+* [Installing into CloudStack](#installing-into-cloudstack)
 * [Plugin settings](#plugin-settings)
 * [Deployment](#deployment)
+* [API](#api)
+
+# Installing into CloudStack
+
+Create lib directory in your ACS management server hierarchy. In Ubuntu installation which is based on deb package:
+
+```
+mkdir -p /usr/share/cloudstack-management/webapp/WEB-INF/lib
+cd /usr/share/cloudstack-management/webapp/WEB-INF/lib
+```
+
+Download the plugin jar with dependencies file from OSS Nexus (https://oss.sonatype.org/content/groups/public/com/bwsw/cloud-plugin-kv-storage/) which corresponds to your ACS version (e.g. 4.11.1.0). 
+
+E.g
+```
+cloud-plugin-kv-storage-4.11.1.0-20180730.023532-3-jar-with-dependencies.jar
+```
+
+# Plugin settings
+
+| Name | Description | Default value |
+| -------------- | ----------- | -------- |
+| storage.kv.elasticsearch.list | comma separated list of Elasticsearch HTTP hosts; e.g. http://localhost,http://localhost:9201 | |
+| storage.kv.elasticsearch.username | Elasticsearch username for authentication; should be empty if authentication is disabled | |
+| storage.kv.elasticsearch.password | Elasticsearch password for authentication; should be empty if authentication is disabled | |
+| storage.kv.vm.history.enabled | true if VM storages should keep an operation history, false otherwise | false |
+
+*default.page.size* is used as a default value for pagesize parameter in [listAccountKvStorages](#listaccountkvstorages) command. Its value should be less or equal to Elasticsearch 
+*index.max_result_window* otherwise listAccountKvStorages requests without pagesize parameter will fail.
+
+# Deployment
+
+Following components should be deployed:
+
+* cs-kv-storage
+
+The documentation can be found at https://git.bw-sw.com/cloudstack-ecosystem/cs-kv-storage
 
 # API
 
@@ -132,23 +171,3 @@ See [async command response tags](#async-command-response-tags).
 | -------------- | ---------- |
 | displaytext | any text associated with success or failure |
 | success | true if operation is executed successfully |
-
-# Plugin settings
-
-| Name | Description | Default value |
-| -------------- | ----------- | -------- |
-| storage.kv.elasticsearch.list | comma separated list of Elasticsearch HTTP hosts; e.g. http://localhost,http://localhost:9201 | |
-| storage.kv.elasticsearch.username | Elasticsearch username for authentication; should be empty if authentication is disabled | |
-| storage.kv.elasticsearch.password | Elasticsearch password for authentication; should be empty if authentication is disabled | |
-| storage.kv.vm.history.enabled | true if VM storages should keep an operation history, false otherwise | false |
-
-*default.page.size* is used as a default value for pagesize parameter in [listAccountKvStorages](#listaccountkvstorages) command. Its value should be less or equal to Elasticsearch 
-*index.max_result_window* otherwise listAccountKvStorages requests without pagesize parameter will fail.
-
-# Deployment
-
-Following components should be deployed:
-
-* cs-kv-storage
-
-The documentation can be found at https://git.bw-sw.com/cloudstack-ecosystem/cs-kv-storage
