@@ -13,18 +13,14 @@ The plugin is developed and tested only with Apache CloudStack 4.11.1.
 
 # Installing into CloudStack
 
-Create lib directory in your ACS management server hierarchy. In Ubuntu installation which is based on deb package:
+Download the plugin jar with dependencies file from OSS Nexus (https://oss.sonatype.org/content/groups/public/com/bwsw/cloud-plugin-kv-storage/) which corresponds to your ACS 
+version (e.g. 4.11.1.0), put it to lib directory and restart Management server. In Ubuntu installation which is based on deb package:
 
 ```
-mkdir -p /usr/share/cloudstack-management/webapp/WEB-INF/lib
-cd /usr/share/cloudstack-management/webapp/WEB-INF/lib
-```
-
-Download the plugin jar with dependencies file from OSS Nexus (https://oss.sonatype.org/content/groups/public/com/bwsw/cloud-plugin-kv-storage/) which corresponds to your ACS version (e.g. 4.11.1.0). 
-
-E.g
-```
-cloud-plugin-kv-storage-4.11.1.0-20180730.023532-3-jar-with-dependencies.jar
+cd /usr/share/cloudstack-management/lib/
+wget --trust-server-names "https://oss.sonatype.org/service/local/artifact/maven/redirect?r=snapshots&g=com.bwsw&a=cloud-plugin-kv-storage&c=jar-with-dependencies&v=4.11.1.0-SNAPSHOT"
+service cloudstack-management stop
+service cloudstack-management start
 ```
 
 # Plugin settings
