@@ -23,6 +23,8 @@ service cloudstack-management stop
 service cloudstack-management start
 ```
 
+Event bus should be configured in CloudStack. The documentation can be found at http://docs.cloudstack.apache.org/projects/cloudstack-administration/en/4.11/events.html
+
 # Plugin settings
 
 | Name | Description | Default value |
