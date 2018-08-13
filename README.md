@@ -24,6 +24,8 @@ service cloudstack-management start
 ```
 
 Event bus should be configured in CloudStack. The documentation can be found at http://docs.cloudstack.apache.org/projects/cloudstack-administration/en/4.11/events.html
+Recommended event buses are InMemoryEventBus (built-in) and [HybridEventBus](https://github.com/bwsw/cloud-plugin-event-bus-hybrid).
+The plugin does not work with built-in KafkaEventBus and RabbitMQEventBus.  
 
 # Plugin settings
 
