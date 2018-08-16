@@ -152,6 +152,32 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
+    public void deleteAccountStorages(String accountUuid) {
+        AccountVO accountVO = _accountDao.findByUuidIncludingRemoved(accountUuid);
+        if (accountVO == null) {
+            throw new InvalidParameterValueException("Unable to find an account with the specified id");
+        }
+        SearchRequest searchRequest = _kvRequestBuilder.getAccountStoragesRequest(accountVO.getUuid(), DELETE_BATCH_SIZE, DELETE_BATCH_TIMEOUT);
+        try {
+            ScrollableListResponse<KvStorage> response = _kvExecutor.scroll(_restHighLevelClient, searchRequest, KvStorage.class);
+            while (response != null && response.getResults() != null && !response.getResults().isEmpty()) {
+                for (KvStorage storage : response.getResults()) {
+                    storage.setDeleted(true);
+                    s_logger.info("Deleting the KV storage " + storage.getId() + "for the account " + storage.getAccount());
+                    if (!_kvExecutor.delete(_restHighLevelClient, _kvRequestBuilder.getDeleteRequest(storage))) {
+                        s_logger.error("Unable to delete account KV storage " + storage.getId());
+                    } else {
+                        s_logger.info("The KV storage " + storage.getId() + "for the account " + storage.getAccount() + " has been deleted");
+                    }
+                }
+                response = _kvExecutor.scroll(_restHighLevelClient, _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
+            }
+        } catch (Exception e) {
+            s_logger.error("Failed to delete storages for an account " + accountVO.getUuid(), e);
+        }
+    }
+
+    @Override
     public KvStorage createTempStorage(Integer ttl) {
         checkTtl(ttl);
         KvStorage storage = new KvStorage(UUID.randomUUID().toString(), ttl, KvStorage.getCurrentTimestamp() + ttl);

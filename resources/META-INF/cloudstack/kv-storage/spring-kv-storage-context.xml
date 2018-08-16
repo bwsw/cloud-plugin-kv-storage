@@ -31,6 +31,8 @@
 
     <bean id="vmEventSubscriber" factory-bean="eventSubscriberFactory" factory-method="getVmEventSubscriber"/>
 
+    <bean id="accountEventSubscriber" factory-bean="eventSubscriberFactory" factory-method="getAccountEventSubscriber"/>
+
     <bean id="kvStorageLockManager" class="com.bwsw.cloudstack.storage.kv.job.KvStorageLockManagerImpl"/>
 
     <bean id="kvStorageJobManager" class="com.bwsw.cloudstack.storage.kv.job.KvStorageJobManagerImpl"/>
