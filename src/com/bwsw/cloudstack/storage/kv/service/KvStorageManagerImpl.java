@@ -96,6 +96,8 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     private SearchBuilder<VMInstanceVO> _vmInstanceVOSearchBuilder;
 
+    private SearchBuilder<AccountVO> _accountVOSearchBuilder;
+
     @Override
     public KvStorage createAccountStorage(Long accountId, String name, String description, Boolean historyEnabled) {
         AccountVO accountVO = _accountDao.findById(accountId);
@@ -174,6 +176,38 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             }
         } catch (Exception e) {
             s_logger.error("Failed to delete storages for an account " + accountVO.getUuid(), e);
+        }
+    }
+
+    @Override
+    public void deleteAccountStorageForRemovedAccounts() {
+        SearchRequest searchRequest = _kvRequestBuilder.getAccountStoragesRequest(DELETE_BATCH_SIZE, DELETE_BATCH_TIMEOUT);
+        try {
+            ScrollableListResponse<KvStorage> response = _kvExecutor.scroll(_restHighLevelClient, searchRequest, KvStorage.class);
+            while (response != null && response.getResults() != null && !response.getResults().isEmpty()) {
+
+                SearchCriteria<AccountVO> searchCriteria = _accountVOSearchBuilder.create();
+                searchCriteria.setParameters(UUID_IN_CONDITION, response.getResults().stream().map(KvStorage::getId).toArray());
+                List<AccountVO> vmInstanceVOList = _accountDao.searchIncludingRemoved(searchCriteria, null, null, false);
+                Map<String, AccountVO> accountByUuid;
+                if (vmInstanceVOList != null) {
+                    accountByUuid = vmInstanceVOList.stream().collect(Collectors.toMap(AccountVO::getUuid, Function.identity()));
+                } else {
+                    accountByUuid = new HashMap<>();
+                }
+
+                for (KvStorage storage : response.getResults()) {
+                    AccountVO accountVO = accountByUuid.get(storage.getId());
+                    if (accountVO == null || accountVO.getRemoved() != null) {
+                        s_logger.info("Delete the storage for the removed account " + storage.getId());
+                        storage.setDeleted(true);
+                        _kvExecutor.update(_restHighLevelClient, _kvRequestBuilder.getMarkDeletedRequest(storage));
+                    }
+                }
+                response = _kvExecutor.scroll(_restHighLevelClient, _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
+            }
+        } catch (Exception e) {
+            s_logger.error("Unable to delete storages for removed accounts", e);
         }
     }
 
@@ -366,6 +400,9 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
         _vmInstanceVOSearchBuilder = _vmInstanceDao.createSearchBuilder();
         _vmInstanceVOSearchBuilder.and(UUID_IN_CONDITION, _vmInstanceVOSearchBuilder.entity().getUuid(), SearchCriteria.Op.IN);
+
+        _accountVOSearchBuilder = _accountDao.createSearchBuilder();
+        _accountVOSearchBuilder.and(UUID_IN_CONDITION, _accountVOSearchBuilder.entity().getUuid(), SearchCriteria.Op.IN);
         return true;
     }
 

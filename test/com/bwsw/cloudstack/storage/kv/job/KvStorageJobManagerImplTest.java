@@ -58,8 +58,14 @@ public class KvStorageJobManagerImplTest {
     }
 
     @Test
-    public void testGetJobVmStorageCleanup() {
-        testGetJob(JobType.VM_STORAGE_CLEANUP, manager -> doNothing().when(manager).deleteExpungedVmStorages(), manager -> verify(manager).deleteExpungedVmStorages());
+    public void testGetJobVmAccountStorageCleanup() {
+        testGetJob(JobType.VM_ACCOUNT_STORAGE_CLEANUP, manager -> {
+            doNothing().when(manager).deleteExpungedVmStorages();
+            doNothing().when(manager).deleteAccountStorageForRemovedAccounts();
+        }, manager -> {
+            verify(manager).deleteExpungedVmStorages();
+            verify(manager).deleteAccountStorageForRemovedAccounts();
+        });
     }
 
     private void testGetJob(JobType jobType, Consumer<KvStorageManager> expectSetter, Consumer<KvStorageManager> verifier) {

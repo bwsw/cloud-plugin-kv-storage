@@ -46,6 +46,8 @@ public interface KvRequestBuilder {
 
     SearchRequest getVmStoragesRequest(int size, int scrollTimeout);
 
+    SearchRequest getAccountStoragesRequest(int size, int scrollTimeout);
+
     SearchRequest getAccountStoragesRequest(String accountUuid, int size, int scrollTimeout);
 
     SearchScrollRequest getScrollRequest(String scrollId, int scrollTimeout);

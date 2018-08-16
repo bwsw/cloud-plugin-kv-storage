@@ -60,11 +60,12 @@ public class KvStorageJobManagerImpl implements KvStorageJobManager {
                     storageManager.cleanupStorages();
                 }
             };
-        case VM_STORAGE_CLEANUP:
+        case VM_ACCOUNT_STORAGE_CLEANUP:
             return new JobRunnable(jobType, _kvStorageLockManager, client) {
                 @Override
                 protected void doJob() {
                     storageManager.deleteExpungedVmStorages();
+                    storageManager.deleteAccountStorageForRemovedAccounts();
                 }
             };
         }

@@ -131,6 +131,15 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     }
 
     @Override
+    public SearchRequest getAccountStoragesRequest(int size, int scrollTimeout) {
+        BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery();
+        queryBuilder.filter(QueryBuilders.termQuery(TYPE_FIELD, KvStorage.KvStorageType.ACCOUNT.toString()));
+        queryBuilder.filter(QueryBuilders.termQuery(EntityConstants.DELETED, false));
+
+        return getSearchRequest(size, scrollTimeout, queryBuilder);
+    }
+
+    @Override
     public SearchRequest getAccountStoragesRequest(String accountUuid, int size, int scrollTimeout) {
         BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery();
         queryBuilder.filter(QueryBuilders.termQuery(TYPE_FIELD, KvStorage.KvStorageType.ACCOUNT.toString()));
