@@ -19,7 +19,7 @@ package com.bwsw.cloudstack.storage.kv.job;
 
 public enum JobType {
 
-    TEMP_STORAGE_CLEANUP(60000), STORAGE_CLEANUP(3600000), VM_ACCOUNT_STORAGE_CLEANUP(300000);
+    TEMP_STORAGE_CLEANUP(60000), STORAGE_CLEANUP(3600000), VM_ACCOUNT_STORAGE_CLEANUP(300000), ENTITY_RELATED_STORAGE_CLEANUP(86400000);
 
     // _interval in ms
     private final int _interval;
