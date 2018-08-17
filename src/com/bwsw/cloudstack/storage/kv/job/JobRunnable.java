@@ -39,7 +39,11 @@ public abstract class JobRunnable implements Runnable {
         s_logger.info("Job " + _jobType.name() + " started");
         if (_kvStorageLockManager.acquireLock(_jobType, _restHighLevelClient)) {
             s_logger.info("Lock " + _jobType.name() + " is acquired");
-            doJob();
+            try {
+                doJob();
+            } catch (Exception e) {
+                s_logger.error("Exception while executing the job " + _jobType.name(), e);
+            }
             s_logger.info("Releasing lock " + _jobType.name());
             _kvStorageLockManager.releaseLock(_jobType, _restHighLevelClient);
         } else {
