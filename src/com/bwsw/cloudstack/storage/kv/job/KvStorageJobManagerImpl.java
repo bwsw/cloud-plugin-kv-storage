@@ -60,7 +60,7 @@ public class KvStorageJobManagerImpl implements KvStorageJobManager {
                     storageManager.cleanupStorages();
                 }
             };
-        case VM_ACCOUNT_STORAGE_CLEANUP:
+        case VM_ACCOUNT_RECENTLY_DELETED_STORAGE_CLEANUP:
             return new JobRunnable(jobType, _kvStorageLockManager, client) {
                 @Override
                 protected void doJob() {
@@ -69,7 +69,7 @@ public class KvStorageJobManagerImpl implements KvStorageJobManager {
                     storageManager.deleteVmStoragesForRecentlyDeletedVms(interval);
                 }
             };
-        case ENTITY_RELATED_STORAGE_CLEANUP:
+        case VM_ACCOUNT_STORAGE_CLEANUP:
             return new JobRunnable(jobType, _kvStorageLockManager, client) {
                 @Override
                 protected void doJob() {
