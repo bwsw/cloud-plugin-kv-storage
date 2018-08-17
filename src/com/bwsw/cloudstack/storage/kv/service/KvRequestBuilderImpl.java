@@ -52,6 +52,7 @@ import org.elasticsearch.search.sort.SortOrder;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class KvRequestBuilderImpl implements KvRequestBuilder {
@@ -63,7 +64,7 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     private static final String ID_FIELD = "_id";
     private static final String ACCOUNT_FIELD = "account";
     private static final String TYPE_FIELD = "type";
-    private static final String EXPIRE_TEMP_STORAGE_SCRIPT = "ctx._source.deleted = true";
+    private static final String MARK_DELETED_STORAGE_SCRIPT = "ctx._source.deleted = true";
 
     private static final ObjectMapper s_objectMapper = new ObjectMapper();
 
@@ -177,26 +178,29 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
 
     @Override
     public Request getExpireTempStorageRequest(long timestamp) throws IOException {
-        Map<String, String> params = new HashMap<>();
-        params.put("conflicts", "proceed");
-
-        Script script = new Script(ScriptType.INLINE, "painless", EXPIRE_TEMP_STORAGE_SCRIPT, Collections.emptyMap());
-
         BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery();
-        queryBuilder.filter(QueryBuilders.termQuery("type", KvStorage.KvStorageType.TEMP.name()));
+        queryBuilder.filter(QueryBuilders.termQuery(TYPE_FIELD, KvStorage.KvStorageType.TEMP.name()));
         queryBuilder.filter(QueryBuilders.termQuery(EntityConstants.DELETED, false));
         queryBuilder.filter(QueryBuilders.rangeQuery(EntityConstants.EXPIRATION_TIMESTAMP).lte(timestamp));
+        return getMarkDeletedRequest(queryBuilder);
+    }
 
-        XContentBuilder contentBuilder = XContentFactory.jsonBuilder();
-        contentBuilder.startObject();
-        contentBuilder.field("script");
-        script.toXContent(contentBuilder, ToXContent.EMPTY_PARAMS);
-        contentBuilder.field("query");
-        queryBuilder.toXContent(contentBuilder, ToXContent.EMPTY_PARAMS);
-        contentBuilder.endObject();
-        StringEntity entity = new StringEntity(contentBuilder.string(), ContentType.APPLICATION_JSON);
+    @Override
+    public Request getMarkDeletedAccountStorageRequest(List<String> accountUuids) throws IOException {
+        BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery();
+        queryBuilder.filter(QueryBuilders.termQuery(TYPE_FIELD, KvStorage.KvStorageType.ACCOUNT.name()));
+        queryBuilder.filter(QueryBuilders.termQuery(EntityConstants.DELETED, false));
+        queryBuilder.filter(QueryBuilders.termsQuery(ACCOUNT_FIELD, accountUuids));
+        return getMarkDeletedRequest(queryBuilder);
+    }
 
-        return new Request("POST", STORAGE_REGISTRY_INDEX + "/_update_by_query", params, entity);
+    @Override
+    public Request getMarkDeletedVmStorageRequest(List<String> vmUuids) throws IOException {
+        BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery();
+        queryBuilder.filter(QueryBuilders.termQuery(TYPE_FIELD, KvStorage.KvStorageType.VM.name()));
+        queryBuilder.filter(QueryBuilders.termQuery(EntityConstants.DELETED, false));
+        queryBuilder.filter(QueryBuilders.termsQuery(ID_FIELD, vmUuids));
+        return getMarkDeletedRequest(queryBuilder);
     }
 
     private String getStorageIndex(KvStorage storage) {
@@ -225,5 +229,23 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
         searchRequest.source(sourceBuilder);
         return searchRequest;
 
+    }
+
+    private Request getMarkDeletedRequest(QueryBuilder queryBuilder) throws IOException {
+        Map<String, String> params = new HashMap<>();
+        params.put("conflicts", "proceed");
+
+        Script script = new Script(ScriptType.INLINE, "painless", MARK_DELETED_STORAGE_SCRIPT, Collections.emptyMap());
+
+        XContentBuilder contentBuilder = XContentFactory.jsonBuilder();
+        contentBuilder.startObject();
+        contentBuilder.field("script");
+        script.toXContent(contentBuilder, ToXContent.EMPTY_PARAMS);
+        contentBuilder.field("query");
+        queryBuilder.toXContent(contentBuilder, ToXContent.EMPTY_PARAMS);
+        contentBuilder.endObject();
+        StringEntity entity = new StringEntity(contentBuilder.string(), ContentType.APPLICATION_JSON);
+
+        return new Request("POST", STORAGE_REGISTRY_INDEX + "/_update_by_query", params, entity);
     }
 }

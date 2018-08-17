@@ -29,6 +29,7 @@ import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Request;
 
 import java.io.IOException;
+import java.util.List;
 
 public interface KvRequestBuilder {
 
@@ -57,4 +58,8 @@ public interface KvRequestBuilder {
     UpdateRequest getMarkDeletedRequest(KvStorage storage);
 
     Request getExpireTempStorageRequest(long timestamp) throws IOException;
+
+    Request getMarkDeletedAccountStorageRequest(List<String> accountUuids) throws IOException;
+
+    Request getMarkDeletedVmStorageRequest(List<String> vmUuids) throws IOException;
 }
