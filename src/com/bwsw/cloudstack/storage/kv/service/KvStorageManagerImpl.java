@@ -182,11 +182,11 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             while (response != null && response.getResults() != null && !response.getResults().isEmpty()) {
                 for (KvStorage storage : response.getResults()) {
                     storage.setDeleted(true);
-                    s_logger.info("Deleting the KV storage " + storage.getId() + "for the account " + storage.getAccount());
+                    s_logger.info("Deleting the KV storage " + storage.getId() + " for the account " + storage.getAccount());
                     if (!_kvExecutor.delete(_restHighLevelClient, _kvRequestBuilder.getDeleteRequest(storage))) {
                         s_logger.error("Unable to delete account KV storage " + storage.getId());
                     } else {
-                        s_logger.info("The KV storage " + storage.getId() + "for the account " + storage.getAccount() + " has been deleted");
+                        s_logger.info("The KV storage " + storage.getId() + " for the account " + storage.getAccount() + " has been deleted");
                     }
                 }
                 response = _kvExecutor.scroll(_restHighLevelClient, _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
@@ -197,14 +197,14 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
-    public void deleteAccountStorageForDeletedAccounts() {
-        deleteEntityRelatedStorages(() -> _kvRequestBuilder.getAccountStoragesRequest(DELETE_BATCH_SIZE, DELETE_BATCH_TIMEOUT), _accountVOByUuidSearchBuilder, _accountDao,
+    public void deleteAccountStoragesForDeletedAccounts() {
+        markDeleteEntityRelatedStorages(() -> _kvRequestBuilder.getAccountStoragesRequest(DELETE_BATCH_SIZE, DELETE_BATCH_TIMEOUT), _accountVOByUuidSearchBuilder, _accountDao,
                 KvStorage::getAccount, account -> account.getRemoved() != null);
     }
 
     @Override
-    public void deleteAccountStorageForRecentlyDeletedAccount(int interval) {
-        deleteStorageForRecentlyRemovedEntities(() -> _accountDao.findRecentlyDeletedAccounts(null, DateUtils.addMilliseconds(new Date(), -interval), null),
+    public void deleteAccountStoragesForRecentlyDeletedAccount(int interval) {
+        markDeletedStorageForDeletedEntities(() -> _accountDao.findRecentlyDeletedAccounts(null, DateUtils.addMilliseconds(new Date(), -interval), null),
                 uuids -> _kvRequestBuilder.getMarkDeletedAccountStorageRequest(uuids), AccountVO.class);
     }
 
@@ -308,13 +308,13 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     @Override
     public void deleteExpungedVmStorages() {
-        deleteEntityRelatedStorages(() -> _kvRequestBuilder.getVmStoragesRequest(DELETE_BATCH_SIZE, DELETE_BATCH_TIMEOUT), _vmInstanceVOByUuidSearchBuilder, _vmInstanceDao,
+        markDeleteEntityRelatedStorages(() -> _kvRequestBuilder.getVmStoragesRequest(DELETE_BATCH_SIZE, DELETE_BATCH_TIMEOUT), _vmInstanceVOByUuidSearchBuilder, _vmInstanceDao,
                 KvStorage::getId, VMInstanceVO::isRemoved);
     }
 
     @Override
-    public void deleteVmStoragesForRecentlyRemovedVms(int interval) {
-        deleteStorageForRecentlyRemovedEntities(() -> {
+    public void deleteVmStoragesForRecentlyDeletedVms(int interval) {
+        markDeletedStorageForDeletedEntities(() -> {
             SearchCriteria<VMInstanceVO> searchCriteria = _vmInstanceVOByRemovedSearchBuilder.create();
             searchCriteria.setParameters(REMOVED_GTE_CONDITION, DateUtils.addMilliseconds(new Date(), -interval));
             return _vmInstanceDao.searchIncludingRemoved(searchCriteria, null, null, false);
@@ -430,7 +430,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         }
     }
 
-    private <T extends Identity> void deleteEntityRelatedStorages(Supplier<SearchRequest> requestBuilder, SearchBuilder<T> searchBuilder, GenericDao<T, Long> dao,
+    private <T extends Identity> void markDeleteEntityRelatedStorages(Supplier<SearchRequest> requestBuilder, SearchBuilder<T> searchBuilder, GenericDao<T, Long> dao,
             Function<KvStorage, String> entityUuidRetriever, Predicate<T> removedChecker) {
         SearchRequest searchRequest = requestBuilder.get();
         try {
@@ -461,7 +461,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         }
     }
 
-    private <T extends Identity> void deleteStorageForRecentlyRemovedEntities(ExceptionalSupplier<List<T>> entitySupplier, RequestBuilder<String> requestBuilder,
+    private <T extends Identity> void markDeletedStorageForDeletedEntities(ExceptionalSupplier<List<T>> entitySupplier, RequestBuilder<String> requestBuilder,
             Class<T> entityClass) {
         try {
             List<T> entities = entitySupplier.get();

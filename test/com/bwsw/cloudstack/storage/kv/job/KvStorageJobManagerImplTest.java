@@ -57,11 +57,11 @@ public class KvStorageJobManagerImplTest {
         testGetJob(JobType.STORAGE_CLEANUP, manager -> {
             doNothing().when(manager).cleanupStorages();
             doNothing().when(manager).deleteExpungedVmStorages();
-            doNothing().when(manager).deleteAccountStorageForDeletedAccounts();
+            doNothing().when(manager).deleteAccountStoragesForDeletedAccounts();
         }, manager -> {
             verify(manager).cleanupStorages();
             verify(manager).deleteExpungedVmStorages();
-            verify(manager).deleteAccountStorageForDeletedAccounts();
+            verify(manager).deleteAccountStoragesForDeletedAccounts();
         });
     }
 
@@ -69,11 +69,11 @@ public class KvStorageJobManagerImplTest {
     public void testGetJobVmAccountStorageCleanup() {
         int interval = JobType.VM_ACCOUNT_STORAGE_CLEANUP.getInterval() * 2;
         testGetJob(JobType.VM_ACCOUNT_STORAGE_CLEANUP, manager -> {
-            doNothing().when(manager).deleteAccountStorageForRecentlyDeletedAccount(interval);
-            doNothing().when(manager).deleteVmStoragesForRecentlyRemovedVms(interval);
+            doNothing().when(manager).deleteAccountStoragesForRecentlyDeletedAccount(interval);
+            doNothing().when(manager).deleteVmStoragesForRecentlyDeletedVms(interval);
         }, manager -> {
-            verify(manager).deleteAccountStorageForRecentlyDeletedAccount(interval);
-            verify(manager).deleteVmStoragesForRecentlyRemovedVms(interval);
+            verify(manager).deleteAccountStoragesForRecentlyDeletedAccount(interval);
+            verify(manager).deleteVmStoragesForRecentlyDeletedVms(interval);
         });
     }
 

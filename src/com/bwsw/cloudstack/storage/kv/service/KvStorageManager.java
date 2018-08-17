@@ -46,9 +46,9 @@ public interface KvStorageManager extends PluggableService {
 
     void deleteAccountStorages(String accountUuid);
 
-    void deleteAccountStorageForDeletedAccounts();
+    void deleteAccountStoragesForDeletedAccounts();
 
-    void deleteAccountStorageForRecentlyDeletedAccount(int interval);
+    void deleteAccountStoragesForRecentlyDeletedAccount(int interval);
 
     // temp storages
     KvStorage createTempStorage(Integer ttl);
@@ -68,7 +68,7 @@ public interface KvStorageManager extends PluggableService {
 
     void deleteExpungedVmStorages();
 
-    void deleteVmStoragesForRecentlyRemovedVms(int interval);
+    void deleteVmStoragesForRecentlyDeletedVms(int interval);
 
     // utilities
 

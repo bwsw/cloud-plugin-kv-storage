@@ -65,8 +65,8 @@ public class KvStorageJobManagerImpl implements KvStorageJobManager {
                 @Override
                 protected void doJob() {
                     int interval = jobType.getInterval() * 2;
-                    storageManager.deleteAccountStorageForRecentlyDeletedAccount(interval);
-                    storageManager.deleteVmStoragesForRecentlyRemovedVms(interval);
+                    storageManager.deleteAccountStoragesForRecentlyDeletedAccount(interval);
+                    storageManager.deleteVmStoragesForRecentlyDeletedVms(interval);
                 }
             };
         case ENTITY_RELATED_STORAGE_CLEANUP:
@@ -74,7 +74,7 @@ public class KvStorageJobManagerImpl implements KvStorageJobManager {
                 @Override
                 protected void doJob() {
                     storageManager.deleteExpungedVmStorages();
-                    storageManager.deleteAccountStorageForDeletedAccounts();
+                    storageManager.deleteAccountStoragesForDeletedAccounts();
                 }
             };
         }
