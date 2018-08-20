@@ -84,10 +84,12 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     private static final String UUID_IN_CONDITION = "uuid_in";
     private static final String REMOVED_GTE_CONDITION = "removed_gte";
 
+    @FunctionalInterface
     private interface ExceptionalSupplier<T> {
         T get() throws Exception;
     }
 
+    @FunctionalInterface
     private interface RequestBuilder<T> {
         Request get(List<T> uuids) throws Exception;
     }
@@ -448,10 +450,10 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
                 for (KvStorage storage : response.getResults()) {
                     T entity = entityByUuid.get(storage.getId());
                     if (entity == null || removedChecker.test(entity)) {
-                        s_logger.info("Deleting " + storage.getType().name() + " storage " + storage.getId() + " for the removed entity " + storage.getId());
+                        s_logger.info("Deleting " + storage.getType().name() + " storage " + storage.getId() + " for the removed entity " + entityUuidRetriever.apply(storage));
                         storage.setDeleted(true);
                         _kvExecutor.update(_restHighLevelClient, _kvRequestBuilder.getMarkDeletedRequest(storage));
-                        s_logger.info("Deleted " + storage.getType().name() + " storage " + storage.getId() + " for the removed entity " + storage.getId());
+                        s_logger.info("Deleted " + storage.getType().name() + " storage " + storage.getId() + " for the removed entity " + entityUuidRetriever.apply(storage));
                     }
                 }
                 response = _kvExecutor.scroll(_restHighLevelClient, _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
