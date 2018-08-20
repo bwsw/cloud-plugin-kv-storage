@@ -35,11 +35,22 @@ public class EventSubscriberFactoryImpl implements EventSubscriberFactory {
     @Override
     public VmEventSubscriber getVmEventSubscriber() throws EventBusException {
         VmEventSubscriber subscriber = new VmEventSubscriber(_kvStorageManager);
-        String eventCategory = VmEventSubscriber.getEventCategory().getName();
-        for (String eventType : VmEventSubscriber.getEventTypes()) {
-            EventTopic eventTopic = new EventTopic(eventCategory, eventType, null, null, null);
-            _eventBus.subscribe(eventTopic, subscriber);
-        }
+        subscribe(subscriber);
         return subscriber;
+    }
+
+    @Override
+    public AccountEventSubscriber getAccountEventSubscriber() throws EventBusException {
+        AccountEventSubscriber subscriber = new AccountEventSubscriber(_kvStorageManager);
+        subscribe(subscriber);
+        return subscriber;
+    }
+
+    private void subscribe(BaseEventSubscriber eventSubscriber) throws EventBusException {
+        String eventCategory = eventSubscriber.getEventCategory().getName();
+        for (String eventType : eventSubscriber.getEventTypes()) {
+            EventTopic eventTopic = new EventTopic(eventCategory, eventType, null, null, null);
+            _eventBus.subscribe(eventTopic, eventSubscriber);
+        }
     }
 }

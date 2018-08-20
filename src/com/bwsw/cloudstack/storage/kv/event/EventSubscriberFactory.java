@@ -23,4 +23,5 @@ public interface EventSubscriberFactory {
 
     VmEventSubscriber getVmEventSubscriber() throws EventBusException;
 
+    AccountEventSubscriber getAccountEventSubscriber() throws EventBusException;
 }

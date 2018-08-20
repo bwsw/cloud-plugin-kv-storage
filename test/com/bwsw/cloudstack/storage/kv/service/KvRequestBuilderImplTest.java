@@ -22,6 +22,8 @@ import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.EntityConstants;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.tngtech.java.junit.dataprovider.DataProvider;
 import com.tngtech.java.junit.dataprovider.DataProviderRunner;
@@ -47,6 +49,7 @@ import org.junit.runner.RunWith;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -57,6 +60,7 @@ import static org.junit.Assert.assertNotNull;
 public class KvRequestBuilderImplTest {
 
     private static final String UUID = "61d12f36-0201-4035-b6fc-c7f768f583f1";
+    private static final List<String> UUID_LIST = ImmutableList.of("40de546f-f418-46df-9bde-b3fb2aebc035", "8d48167c-3bfc-47dd-b152-795a7fab4eff");
     private static final int FROM = 10;
     private static final int SIZE = 5;
     private static final int TTL = 300000;
@@ -67,6 +71,8 @@ public class KvRequestBuilderImplTest {
     public ExpectedException expectedException = ExpectedException.none();
 
     private KvRequestBuilderImpl _kvRequestBuilder = new KvRequestBuilderImpl();
+
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @DataProvider
     public static Object[][] storages() {
@@ -156,13 +162,25 @@ public class KvRequestBuilderImplTest {
     @Test
     public void testGetDeletedStoragesRequest() throws IOException {
         SearchRequest request = _kvRequestBuilder.getDeletedStoragesRequest(SIZE, TTL);
-        checkSearchRequest(request, TTL, "search-deleted-storages-query.json");
+        checkSearchRequest(request, TTL, "search-deleted-storages-query.json", null);
     }
 
     @Test
     public void testGetVmStoragesRequest() throws IOException {
         SearchRequest request = _kvRequestBuilder.getVmStoragesRequest(SIZE, TTL);
-        checkSearchRequest(request, TTL, "search-vm-storages-query.json");
+        checkSearchRequest(request, TTL, "search-vm-storages-query.json", null);
+    }
+
+    @Test
+    public void testGetAccountStoragesRequest() throws IOException {
+        SearchRequest request = _kvRequestBuilder.getAccountStoragesRequest(SIZE, TTL);
+        checkSearchRequest(request, TTL, "search-account-storages-query.json", null);
+    }
+
+    @Test
+    public void testGetAccountStoragesRequestForAccount() throws IOException {
+        SearchRequest request = _kvRequestBuilder.getAccountStoragesRequest(UUID, SIZE, TTL);
+        checkSearchRequest(request, TTL, "search-specific-account-storages-query.json", ImmutableMap.of("%UUID%", UUID));
     }
 
     @Test
@@ -179,19 +197,7 @@ public class KvRequestBuilderImplTest {
     @Test
     public void testGetExpireTempStorageRequest() throws IOException {
         Request request = _kvRequestBuilder.getExpireTempStorageRequest(TIMESTAMP);
-
-        assertNotNull(request);
-
-        assertEquals("POST", request.getMethod());
-        assertEquals(KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX + "/_update_by_query", request.getEndpoint());
-        assertEquals(ImmutableMap.of("conflicts", "proceed"), request.getParameters());
-
-        HttpEntity entity = request.getEntity();
-        assertNotNull(entity);
-        assertEquals(ContentType.APPLICATION_JSON.toString(), entity.getContentType().getValue());
-        String expectedQuery = IOUtils.resourceToString("expire-temp-storages-query.json", Charset.defaultCharset(), this.getClass().getClassLoader());
-        expectedQuery = expectedQuery.replace("%TIMESTAMP%", String.valueOf(TIMESTAMP));
-        assertEquals(expectedQuery.trim(), IOUtils.toString(request.getEntity().getContent(), Charset.defaultCharset()));
+        checkUpdateByQueryRequest(request, "expire-temp-storages-query.json", ImmutableMap.of("%TIMESTAMP%", TIMESTAMP));
     }
 
     @Test
@@ -201,6 +207,18 @@ public class KvRequestBuilderImplTest {
         UpdateRequest request = _kvRequestBuilder.getMarkDeletedRequest(storage);
 
         checkUpdateRequest(request, storage, ImmutableMap.of(EntityConstants.DELETED, true));
+    }
+
+    @Test
+    public void getMarkDeletedAccountStorageRequest() throws IOException {
+        Request request = _kvRequestBuilder.getMarkDeletedAccountStorageRequest(UUID_LIST);
+        checkUpdateByQueryRequest(request, "mark-deleted-account-storages-query.json", ImmutableMap.of("%UUID%", UUID_LIST));
+    }
+
+    @Test
+    public void getMarkDeletedVmStorageRequest() throws IOException {
+        Request request = _kvRequestBuilder.getMarkDeletedVmStorageRequest(UUID_LIST);
+        checkUpdateByQueryRequest(request, "mark-deleted-vm-storages-query.json", ImmutableMap.of("%UUID%", UUID_LIST));
     }
 
     private void testDeleteStorageRequest(KvStorage storage, String source) throws JsonProcessingException {
@@ -241,7 +259,7 @@ public class KvRequestBuilderImplTest {
         assertEquals(parameters, indexRequest.sourceAsMap());
     }
 
-    private void checkSearchRequest(SearchRequest request, int ttl, String requestResource) throws IOException {
+    private void checkSearchRequest(SearchRequest request, int ttl, String requestResource, Map<String, Object> params) throws IOException {
         assertNotNull(request);
         assertNotNull(request.scroll());
         assertNotNull(request.scroll().keepAlive());
@@ -249,9 +267,21 @@ public class KvRequestBuilderImplTest {
 
         SearchSourceBuilder sourceBuilder = request.source();
         assertNotNull(sourceBuilder);
+        assertEquals(getQuery(requestResource, params), sourceBuilder.toXContent(XContentFactory.jsonBuilder(), ToXContent.EMPTY_PARAMS).string());
+    }
 
-        String expectedQuery = IOUtils.resourceToString(requestResource, Charset.defaultCharset(), this.getClass().getClassLoader());
-        assertEquals(expectedQuery.trim(), sourceBuilder.toXContent(XContentFactory.jsonBuilder(), ToXContent.EMPTY_PARAMS).string());
+    private void checkUpdateByQueryRequest(Request request, String queryResource, Map<String, Object> scriptParams) throws IOException {
+        assertNotNull(request);
+
+        assertEquals("POST", request.getMethod());
+        assertEquals(KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX + "/_update_by_query", request.getEndpoint());
+        assertEquals(ImmutableMap.of("conflicts", "proceed"), request.getParameters());
+
+        HttpEntity entity = request.getEntity();
+        assertNotNull(entity);
+        assertEquals(ContentType.APPLICATION_JSON.toString(), entity.getContentType().getValue());
+
+        assertEquals(getQuery(queryResource, scriptParams), IOUtils.toString(request.getEntity().getContent(), Charset.defaultCharset()));
     }
 
     private void checkCreateIndexRequest(CreateIndexRequest request, String index) {
@@ -272,5 +302,15 @@ public class KvRequestBuilderImplTest {
         storage.setTtl(ttl);
         storage.setExpirationTimestamp(expirationTimestamp);
         return storage;
+    }
+
+    private String getQuery(String queryResource, Map<String, Object> params) throws IOException {
+        String expectedQuery = IOUtils.resourceToString(queryResource, Charset.defaultCharset(), this.getClass().getClassLoader());
+        if (params != null && !params.isEmpty()) {
+            for (Map.Entry<String, Object> param : params.entrySet()) {
+                expectedQuery = expectedQuery.replace(param.getKey(), objectMapper.writeValueAsString(param.getValue()));
+            }
+        }
+        return expectedQuery.trim();
     }
 }

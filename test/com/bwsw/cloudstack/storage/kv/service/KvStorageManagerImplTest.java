@@ -25,12 +25,15 @@ import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.user.AccountVO;
 import com.cloud.user.dao.AccountDao;
+import com.cloud.utils.db.Filter;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.dao.VMInstanceDao;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
+import org.apache.cloudstack.api.Identity;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.http.HttpStatus;
@@ -58,7 +61,9 @@ import org.mockito.runners.MockitoJUnitRunner;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.greaterThan;
@@ -68,10 +73,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.intThat;
+import static org.mockito.Matchers.isNull;
 import static org.mockito.Matchers.longThat;
 import static org.mockito.Matchers.same;
 import static org.mockito.Mockito.doNothing;
@@ -95,6 +103,11 @@ public class KvStorageManagerImplTest {
     private static final long PAGE_SIZE = 5L;
     private static final long START_INDEX = 10L;
     private static final long DEFAULT_INDEX = 0L;
+
+    @FunctionalInterface
+    private interface ExpectationSetter {
+        void setExpectations();
+    }
 
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
@@ -139,7 +152,13 @@ public class KvStorageManagerImplTest {
     private VMInstanceVO _vmInstanceVO;
 
     @Mock
-    private SearchBuilder<VMInstanceVO> _searchBuilder;
+    private SearchBuilder<VMInstanceVO> _vmInstanceVOByUuidSearchBuilder;
+
+    @Mock
+    private SearchBuilder<VMInstanceVO> _vmInstanceVOByRemovedSearchBuilder;
+
+    @Mock
+    private SearchBuilder<AccountVO> _accountVOByUuidSearchBuilder;
 
     @InjectMocks
     private KvStorageManagerImpl _kvStorageManager = new KvStorageManagerImpl();
@@ -442,6 +461,86 @@ public class KvStorageManagerImplTest {
     }
 
     @Test
+    public void testDeleteAccountStoragesByAccountNonexistentAccount() {
+        setExceptionExpectation(InvalidParameterValueException.class, "account");
+
+        _kvStorageManager.deleteAccountStorages(UUID);
+    }
+
+    @Test
+    public void testDeleteAccountStoragesByAccount() throws IOException {
+        AccountVO accountVO = new AccountVO();
+        accountVO.setUuid(UUID);
+
+        KvStorage kvStorage = new KvStorage();
+        kvStorage.setType(KvStorage.KvStorageType.ACCOUNT);
+        kvStorage.setAccount(UUID);
+        ScrollableListResponse<KvStorage> response = new ScrollableListResponse<>("scrollId", Collections.singletonList(kvStorage));
+
+        when(_accountDao.findByUuidIncludingRemoved(UUID)).thenReturn(accountVO);
+        when(_kvRequestBuilder.getAccountStoragesRequest(eq(UUID), intThat(greaterThan(0)), intThat(greaterThan(0)))).thenReturn(_searchRequest);
+        when(_kvExecutor.scroll(_restHighLevelClient, _searchRequest, KvStorage.class)).thenReturn(response);
+        for (KvStorage storage : response.getResults()) {
+            when(_kvRequestBuilder.getDeleteRequest(storage)).thenReturn(_deleteStorageRequest);
+            when(_kvExecutor.delete(_restHighLevelClient, _deleteStorageRequest)).thenReturn(true);
+        }
+        SearchScrollRequest scrollRequest = new SearchScrollRequest();
+        when(_kvRequestBuilder.getScrollRequest(eq(response.getScrollId()), intThat(greaterThan(0)))).thenReturn(scrollRequest);
+        when(_kvExecutor.scroll(_restHighLevelClient, scrollRequest, KvStorage.class)).thenReturn(new ScrollableListResponse<>("id", null));
+
+        _kvStorageManager.deleteAccountStorages(UUID);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testDeleteAccountStoragesForDeletedAccounts() throws IOException {
+        KvStorage kvStorage = new KvStorage();
+        kvStorage.setId(STORAGE_UUID);
+        kvStorage.setType(KvStorage.KvStorageType.ACCOUNT);
+        ScrollableListResponse<KvStorage> response = new ScrollableListResponse<>("scrollId", Collections.singletonList(kvStorage));
+
+        List<AccountVO> accountVOList = response.getResults().stream().map(storage -> {
+            AccountVO accountVO = mock(AccountVO.class);
+            when(accountVO.getUuid()).thenReturn(storage.getAccount());
+            when(accountVO.getRemoved()).thenReturn(new Date());
+            return accountVO;
+        }).collect(Collectors.toList());
+        SearchCriteria<AccountVO> searchCriteria = mock(SearchCriteria.class);
+
+        when(_kvRequestBuilder.getAccountStoragesRequest(intThat(greaterThan(0)), intThat(greaterThan(0)))).thenReturn(_searchRequest);
+        when(_kvExecutor.scroll(_restHighLevelClient, _searchRequest, KvStorage.class)).thenReturn(response);
+        when(_accountVOByUuidSearchBuilder.create()).thenReturn(searchCriteria);
+        doNothing().when(searchCriteria).setParameters(anyString(), eq(response.getResults().stream().map(KvStorage::getAccount).toArray()));
+        when(_accountDao.searchIncludingRemoved(same(searchCriteria), eq(null), eq(null), eq(false))).thenReturn(accountVOList);
+        for (KvStorage storage : response.getResults()) {
+            when(_kvRequestBuilder.getMarkDeletedRequest(storage)).thenReturn(_updateRequest);
+            doNothing().when(_kvExecutor).update(_restHighLevelClient, _updateRequest);
+        }
+        SearchScrollRequest scrollRequest = new SearchScrollRequest();
+        when(_kvRequestBuilder.getScrollRequest(eq(response.getScrollId()), intThat(greaterThan(0)))).thenReturn(scrollRequest);
+        when(_kvExecutor.scroll(_restHighLevelClient, scrollRequest, KvStorage.class)).thenReturn(new ScrollableListResponse<>("id", null));
+
+        _kvStorageManager.deleteAccountStoragesForDeletedAccounts();
+    }
+
+    @Test
+    public void testDeleteAccountStoragesForRecentlyDeletedAccount() throws IOException {
+        AccountVO accountVO = new AccountVO();
+        accountVO.setUuid(UUID);
+        List<AccountVO> accounts = ImmutableList.of(accountVO);
+
+        testDeleteStoragesForRecentlyRemovedEntities(
+                () -> when(_accountDao.findRecentlyDeletedAccounts(isNull(Long.class), any(Date.class), isNull(Filter.class))).thenReturn(accounts), request -> {
+                    try {
+                        when(_kvRequestBuilder.getMarkDeletedAccountStorageRequest(accounts.stream().map(AccountVO::getUuid).collect(Collectors.toList()))).thenReturn(request);
+                    } catch (IOException e) {
+                        // never happens
+                        fail(e.getMessage());
+                    }
+                }, storageManager -> storageManager.deleteAccountStoragesForRecentlyDeletedAccount(TTL));
+    }
+
+    @Test
     public void testUpdateTempStorageNullStorageId() {
         setExceptionExpectation(InvalidParameterValueException.class, "id");
 
@@ -691,7 +790,7 @@ public class KvStorageManagerImplTest {
 
         when(_kvRequestBuilder.getVmStoragesRequest(intThat(greaterThan(0)), intThat(greaterThan(0)))).thenReturn(_searchRequest);
         when(_kvExecutor.scroll(_restHighLevelClient, _searchRequest, KvStorage.class)).thenReturn(response);
-        when(_searchBuilder.create()).thenReturn(searchCriteria);
+        when(_vmInstanceVOByUuidSearchBuilder.create()).thenReturn(searchCriteria);
         doNothing().when(searchCriteria).setParameters(anyString(), eq(response.getResults().stream().map(KvStorage::getId).toArray()));
         when(_vmInstanceDao.searchIncludingRemoved(same(searchCriteria), eq(null), eq(null), eq(false))).thenReturn(vmInstanceVOList);
         for (KvStorage storage : response.getResults()) {
@@ -703,6 +802,27 @@ public class KvStorageManagerImplTest {
         when(_kvExecutor.scroll(_restHighLevelClient, scrollRequest, KvStorage.class)).thenReturn(new ScrollableListResponse<>("id", null));
 
         _kvStorageManager.deleteExpungedVmStorages();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testDeleteStoragesForRecentlyDeletedVms() throws IOException {
+        when(_vmInstanceVO.getUuid()).thenReturn(UUID);
+        List<VMInstanceVO> vmInstanceVOList = ImmutableList.of(_vmInstanceVO);
+
+        testDeleteStoragesForRecentlyRemovedEntities(() -> {
+            SearchCriteria<VMInstanceVO> searchCriteria = mock(SearchCriteria.class);
+            when(_vmInstanceVOByRemovedSearchBuilder.create()).thenReturn(searchCriteria);
+            doNothing().when(searchCriteria).setParameters(anyString(), any(Date.class));
+            when(_vmInstanceDao.searchIncludingRemoved(same(searchCriteria), eq(null), eq(null), eq(false))).thenReturn(vmInstanceVOList);
+        }, request -> {
+            try {
+                when(_kvRequestBuilder.getMarkDeletedVmStorageRequest(vmInstanceVOList.stream().map(VMInstanceVO::getUuid).collect(Collectors.toList()))).thenReturn(request);
+            } catch (IOException e) {
+                // never happens
+                fail(e.getMessage());
+            }
+        }, storageManager -> storageManager.deleteVmStoragesForRecentlyDeletedVms(TTL));
     }
 
     private void testCreateAccountStorageInvalidName(String name) {
@@ -734,6 +854,18 @@ public class KvStorageManagerImplTest {
 
         ListResponse<KvStorageResponse> response = _kvStorageManager.listAccountStorages(ID, argStartIndex, PAGE_SIZE);
         assertEquals(expectedResponse, response);
+    }
+
+    private <T extends Identity> void testDeleteStoragesForRecentlyRemovedEntities(ExpectationSetter daoPreparer, Consumer<Request> requestPreparer,
+            Consumer<KvStorageManager> testMethodCaller) throws IOException {
+        Request request = new Request("POST", "http://localhost:9200", Collections.emptyMap(), new StringEntity("body"));
+        daoPreparer.setExpectations();
+        requestPreparer.accept(request);
+        when(_restHighLevelClient.getLowLevelClient()).thenReturn(_restClient);
+        when(_restClient.performRequest(request.getMethod(), request.getEndpoint(), request.getParameters(), request.getEntity())).thenReturn(_response);
+        when(_response.getStatusLine()).thenReturn(new BasicStatusLine(HttpVersion.HTTP_1_1, HttpStatus.SC_OK, null));
+
+        testMethodCaller.accept(_kvStorageManager);
     }
 
     private void setAccountExpectations() {

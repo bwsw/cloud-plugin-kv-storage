@@ -33,15 +33,18 @@ import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.user.AccountVO;
 import com.cloud.user.dao.AccountDao;
 import com.cloud.utils.component.ComponentLifecycleBase;
+import com.cloud.utils.db.GenericDao;
 import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.dao.VMInstanceDao;
 import org.apache.cloudstack.api.ApiErrorCode;
+import org.apache.cloudstack.api.Identity;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
+import org.apache.commons.lang.time.DateUtils;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -61,12 +64,15 @@ import org.elasticsearch.rest.RestStatus;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvStorageManager, Configurable {
@@ -76,6 +82,17 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     private static final int DELETE_BATCH_SIZE = 100;
     private static final int DELETE_BATCH_TIMEOUT = 300000; // 5 minutes
     private static final String UUID_IN_CONDITION = "uuid_in";
+    private static final String REMOVED_GTE_CONDITION = "removed_gte";
+
+    @FunctionalInterface
+    private interface ExceptionalSupplier<T> {
+        T get() throws Exception;
+    }
+
+    @FunctionalInterface
+    private interface RequestBuilder<T> {
+        Request get(List<T> uuids) throws Exception;
+    }
 
     @Inject
     private AccountDao _accountDao;
@@ -94,7 +111,11 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     private RestHighLevelClient _restHighLevelClient;
 
-    private SearchBuilder<VMInstanceVO> _vmInstanceVOSearchBuilder;
+    private SearchBuilder<VMInstanceVO> _vmInstanceVOByUuidSearchBuilder;
+
+    private SearchBuilder<VMInstanceVO> _vmInstanceVOByRemovedSearchBuilder;
+
+    private SearchBuilder<AccountVO> _accountVOByUuidSearchBuilder;
 
     @Override
     public KvStorage createAccountStorage(Long accountId, String name, String description, Boolean historyEnabled) {
@@ -149,6 +170,44 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
                 throw new InvalidParameterValueException("The storage does not belong to the specified account");
             }
         });
+    }
+
+    @Override
+    public void deleteAccountStorages(String accountUuid) {
+        AccountVO accountVO = _accountDao.findByUuidIncludingRemoved(accountUuid);
+        if (accountVO == null) {
+            throw new InvalidParameterValueException("Unable to find an account with the specified id");
+        }
+        SearchRequest searchRequest = _kvRequestBuilder.getAccountStoragesRequest(accountVO.getUuid(), DELETE_BATCH_SIZE, DELETE_BATCH_TIMEOUT);
+        try {
+            ScrollableListResponse<KvStorage> response = _kvExecutor.scroll(_restHighLevelClient, searchRequest, KvStorage.class);
+            while (response != null && response.getResults() != null && !response.getResults().isEmpty()) {
+                for (KvStorage storage : response.getResults()) {
+                    storage.setDeleted(true);
+                    s_logger.info("Deleting the KV storage " + storage.getId() + " for the account " + storage.getAccount());
+                    if (!_kvExecutor.delete(_restHighLevelClient, _kvRequestBuilder.getDeleteRequest(storage))) {
+                        s_logger.error("Unable to delete account KV storage " + storage.getId());
+                    } else {
+                        s_logger.info("The KV storage " + storage.getId() + " for the account " + storage.getAccount() + " has been deleted");
+                    }
+                }
+                response = _kvExecutor.scroll(_restHighLevelClient, _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
+            }
+        } catch (Exception e) {
+            s_logger.error("Failed to delete storages for an account " + accountVO.getUuid(), e);
+        }
+    }
+
+    @Override
+    public void deleteAccountStoragesForDeletedAccounts() {
+        markDeleteEntityRelatedStorages(() -> _kvRequestBuilder.getAccountStoragesRequest(DELETE_BATCH_SIZE, DELETE_BATCH_TIMEOUT), _accountVOByUuidSearchBuilder, _accountDao,
+                KvStorage::getAccount, account -> account.getRemoved() != null);
+    }
+
+    @Override
+    public void deleteAccountStoragesForRecentlyDeletedAccount(int interval) {
+        markDeletedStorageForDeletedEntities(() -> _accountDao.findRecentlyDeletedAccounts(null, DateUtils.addMilliseconds(new Date(), -interval), null),
+                uuids -> _kvRequestBuilder.getMarkDeletedAccountStorageRequest(uuids), AccountVO.class);
     }
 
     @Override
@@ -251,34 +310,17 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     @Override
     public void deleteExpungedVmStorages() {
-        SearchRequest searchRequest = _kvRequestBuilder.getVmStoragesRequest(DELETE_BATCH_SIZE, DELETE_BATCH_TIMEOUT);
-        try {
-            ScrollableListResponse<KvStorage> response = _kvExecutor.scroll(_restHighLevelClient, searchRequest, KvStorage.class);
-            while (response != null && response.getResults() != null && !response.getResults().isEmpty()) {
+        markDeleteEntityRelatedStorages(() -> _kvRequestBuilder.getVmStoragesRequest(DELETE_BATCH_SIZE, DELETE_BATCH_TIMEOUT), _vmInstanceVOByUuidSearchBuilder, _vmInstanceDao,
+                KvStorage::getId, VMInstanceVO::isRemoved);
+    }
 
-                SearchCriteria<VMInstanceVO> searchCriteria = _vmInstanceVOSearchBuilder.create();
-                searchCriteria.setParameters(UUID_IN_CONDITION, response.getResults().stream().map(KvStorage::getId).toArray());
-                List<VMInstanceVO> vmInstanceVOList = _vmInstanceDao.searchIncludingRemoved(searchCriteria, null, null, false);
-                Map<String, VMInstanceVO> vmByUuid;
-                if (vmInstanceVOList != null) {
-                    vmByUuid = vmInstanceVOList.stream().collect(Collectors.toMap(VMInstanceVO::getUuid, Function.identity()));
-                } else {
-                    vmByUuid = new HashMap<>();
-                }
-
-                for (KvStorage storage : response.getResults()) {
-                    VMInstanceVO vmInstanceVO = vmByUuid.get(storage.getId());
-                    if (vmInstanceVO == null || vmInstanceVO.isRemoved()) {
-                        s_logger.info("Delete the storage for the expunged VM " + storage.getId());
-                        storage.setDeleted(true);
-                        _kvExecutor.update(_restHighLevelClient, _kvRequestBuilder.getMarkDeletedRequest(storage));
-                    }
-                }
-                response = _kvExecutor.scroll(_restHighLevelClient, _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
-            }
-        } catch (Exception e) {
-            s_logger.error("Unable to delete storages for expunged VMs", e);
-        }
+    @Override
+    public void deleteVmStoragesForRecentlyDeletedVms(int interval) {
+        markDeletedStorageForDeletedEntities(() -> {
+            SearchCriteria<VMInstanceVO> searchCriteria = _vmInstanceVOByRemovedSearchBuilder.create();
+            searchCriteria.setParameters(REMOVED_GTE_CONDITION, DateUtils.addMilliseconds(new Date(), -interval));
+            return _vmInstanceDao.searchIncludingRemoved(searchCriteria, null, null, false);
+        }, uuids -> _kvRequestBuilder.getMarkDeletedVmStorageRequest(uuids), VMInstanceVO.class);
     }
 
     @Override
@@ -338,8 +380,16 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         }
         _kvStorageJobManager.init(this, _restHighLevelClient);
 
-        _vmInstanceVOSearchBuilder = _vmInstanceDao.createSearchBuilder();
-        _vmInstanceVOSearchBuilder.and(UUID_IN_CONDITION, _vmInstanceVOSearchBuilder.entity().getUuid(), SearchCriteria.Op.IN);
+        _vmInstanceVOByUuidSearchBuilder = _vmInstanceDao.createSearchBuilder();
+        _vmInstanceVOByUuidSearchBuilder.and(UUID_IN_CONDITION, _vmInstanceVOByUuidSearchBuilder.entity().getUuid(), SearchCriteria.Op.IN);
+
+        _accountVOByUuidSearchBuilder = _accountDao.createSearchBuilder();
+        _accountVOByUuidSearchBuilder.and(UUID_IN_CONDITION, _accountVOByUuidSearchBuilder.entity().getUuid(), SearchCriteria.Op.IN);
+
+        _vmInstanceVOByRemovedSearchBuilder = _vmInstanceDao.createSearchBuilder();
+        _vmInstanceVOByRemovedSearchBuilder.and(_vmInstanceVOByRemovedSearchBuilder.entity().getRemoved(), SearchCriteria.Op.NNULL);
+        _vmInstanceVOByRemovedSearchBuilder.and(REMOVED_GTE_CONDITION, _vmInstanceVOByRemovedSearchBuilder.entity().getRemoved(), SearchCriteria.Op.GTEQ);
+
         return true;
     }
 
@@ -381,4 +431,56 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             return false;
         }
     }
+
+    private <T extends Identity> void markDeleteEntityRelatedStorages(Supplier<SearchRequest> requestBuilder, SearchBuilder<T> searchBuilder, GenericDao<T, Long> dao,
+            Function<KvStorage, String> entityUuidRetriever, Predicate<T> removedChecker) {
+        SearchRequest searchRequest = requestBuilder.get();
+        try {
+            ScrollableListResponse<KvStorage> response = _kvExecutor.scroll(_restHighLevelClient, searchRequest, KvStorage.class);
+            while (response != null && response.getResults() != null && !response.getResults().isEmpty()) {
+                SearchCriteria<T> searchCriteria = searchBuilder.create();
+                searchCriteria.setParameters(UUID_IN_CONDITION, response.getResults().stream().map(entityUuidRetriever).toArray());
+                List<T> entityList = dao.searchIncludingRemoved(searchCriteria, null, null, false);
+                Map<String, T> entityByUuid;
+                if (entityList != null) {
+                    entityByUuid = entityList.stream().collect(Collectors.toMap(T::getUuid, Function.identity()));
+                } else {
+                    entityByUuid = new HashMap<>();
+                }
+                for (KvStorage storage : response.getResults()) {
+                    T entity = entityByUuid.get(storage.getId());
+                    if (entity == null || removedChecker.test(entity)) {
+                        s_logger.info("Deleting " + storage.getType().name() + " storage " + storage.getId() + " for the removed entity " + entityUuidRetriever.apply(storage));
+                        storage.setDeleted(true);
+                        _kvExecutor.update(_restHighLevelClient, _kvRequestBuilder.getMarkDeletedRequest(storage));
+                        s_logger.info("Deleted " + storage.getType().name() + " storage " + storage.getId() + " for the removed entity " + entityUuidRetriever.apply(storage));
+                    }
+                }
+                response = _kvExecutor.scroll(_restHighLevelClient, _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
+            }
+        } catch (Exception e) {
+            s_logger.error("Error while deleting storages for removed entities", e);
+        }
+    }
+
+    private <T extends Identity> void markDeletedStorageForDeletedEntities(ExceptionalSupplier<List<T>> entitySupplier, RequestBuilder<String> requestBuilder,
+            Class<T> entityClass) {
+        try {
+            List<T> entities = entitySupplier.get();
+            if (entities != null && !entities.isEmpty()) {
+                Request request = requestBuilder.get(entities.stream().map(T::getUuid).collect(Collectors.toList()));
+                Response response = _restHighLevelClient.getLowLevelClient()
+                        .performRequest(request.getMethod(), request.getEndpoint(), request.getParameters(), request.getEntity());
+                if (response.getStatusLine().getStatusCode() == RestStatus.OK.getStatus()) {
+                    s_logger.info("KV storages for recently removed " + entityClass.getSimpleName() + " have been cleaned");
+                } else {
+                    s_logger.error(
+                            "Unexpected status while cleaning KV storages for recently removed " + entityClass.getSimpleName() + " " + response.getStatusLine().getStatusCode());
+                }
+            }
+        } catch (Exception e) {
+            s_logger.error("Unable to cleanup KV storages for recently removed " + entityClass.getSimpleName(), e);
+        }
+    }
+
 }
