@@ -15,13 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.bwsw.cloudstack.storage.kv.api;
+package com.bwsw.cloudstack.storage.kv.exception;
 
-public class ApiConstants {
+public class InvalidEntityException extends RuntimeException {
 
-    public static final String STORAGE_ID = "storageid";
-    public static final String HISTORY_ENABLED = "historyenabled";
-    public static final String TTL = "ttl";
-    public static final String EXPIRATION_TIMESTAMP = "expirationtimestamp";
-    public static final String CODE = "code";
+    public InvalidEntityException() {
+        super();
+    }
 }

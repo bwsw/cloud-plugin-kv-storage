@@ -15,13 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.bwsw.cloudstack.storage.kv.api;
+package com.bwsw.cloudstack.storage.kv.service;
 
-public class ApiConstants {
+import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
 
-    public static final String STORAGE_ID = "storageid";
-    public static final String HISTORY_ENABLED = "historyenabled";
-    public static final String TTL = "ttl";
-    public static final String EXPIRATION_TIMESTAMP = "expirationtimestamp";
-    public static final String CODE = "code";
+public interface KvOperationManager {
+
+    KvOperationResponse get(KvStorage storage, String key);
 }

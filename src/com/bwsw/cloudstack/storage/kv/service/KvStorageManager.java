@@ -18,6 +18,7 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.cloud.utils.component.PluggableService;
 import org.apache.cloudstack.api.response.ListResponse;
@@ -36,6 +37,10 @@ public interface KvStorageManager extends PluggableService {
 
     ConfigKey<Boolean> KvStorageVmHistoryEnabled = new ConfigKey<>("Advanced", Boolean.class, "storage.kv.vm.history.enabled", "false",
             "true if VM storages should keep an operation history, false otherwise", true);
+
+    ConfigKey<Integer> KvStorageCacheMaxSize = new ConfigKey<>("Advanced", Integer.class, "storage.kv.cache.size.max", "10000", "Maximum size of storage cache", false);
+
+    ConfigKey<String> KvStorageUrl = new ConfigKey<>("Advanced", String.class, "storage.kv.url", null, "KV storage URL", false);
 
     // account storages
     KvStorage createAccountStorage(Long accountId, String name, String description, Boolean historyEnabled);
@@ -73,4 +78,8 @@ public interface KvStorageManager extends PluggableService {
     // utilities
 
     void cleanupStorages();
+
+    // storage operations
+
+    KvOperationResponse getValue(String storageId, String key);
 }
