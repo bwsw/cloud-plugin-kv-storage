@@ -24,4 +24,5 @@ public class ApiConstants {
     public static final String TTL = "ttl";
     public static final String EXPIRATION_TIMESTAMP = "expirationtimestamp";
     public static final String CODE = "code";
+    public static final String KEYS = "keys";
 }

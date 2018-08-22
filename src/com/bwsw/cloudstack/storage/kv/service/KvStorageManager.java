@@ -24,6 +24,8 @@ import com.cloud.utils.component.PluggableService;
 import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.cloudstack.framework.config.ConfigKey;
 
+import java.util.List;
+
 public interface KvStorageManager extends PluggableService {
 
     ConfigKey<String> KvStorageElasticsearchList = new ConfigKey<>("Advanced", String.class, "storage.kv.elasticsearch.list", null,
@@ -82,4 +84,6 @@ public interface KvStorageManager extends PluggableService {
     // storage operations
 
     KvOperationResponse getValue(String storageId, String key);
+
+    KvOperationResponse getValues(String storageId, List<String> keys);
 }

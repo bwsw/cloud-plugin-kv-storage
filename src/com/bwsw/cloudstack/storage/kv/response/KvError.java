@@ -27,6 +27,7 @@ public class KvError extends KvOperationResponse {
 
     public KvError(int errorCode) {
         this.errorCode = errorCode;
+        setObjectName("kverror");
     }
 
     public int getErrorCode() {

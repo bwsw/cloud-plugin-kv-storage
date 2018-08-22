@@ -20,4 +20,9 @@ package com.bwsw.cloudstack.storage.kv.response;
 import org.apache.cloudstack.api.BaseResponse;
 
 public abstract class KvOperationResponse extends BaseResponse {
+
+    public KvOperationResponse() {
+        super();
+        setObjectName("kvresult");
+    }
 }

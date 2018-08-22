@@ -22,6 +22,7 @@ import com.bwsw.cloudstack.storage.kv.api.CreateTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteAccountKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.GetKvStorageValueCmd;
+import com.bwsw.cloudstack.storage.kv.api.GetKvStorageValuesCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
 import com.bwsw.cloudstack.storage.kv.api.UpdateTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.cache.KvStorageCache;
@@ -360,6 +361,11 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
+    public KvOperationResponse getValues(String storageId, List<String> keys) {
+        return execute(storageId, storage -> _kvOperationManager.get(storage, keys));
+    }
+
+    @Override
     public List<Class<?>> getCommands() {
         List<Class<?>> commands = new ArrayList<>();
         commands.add(ListAccountKvStoragesCmd.class);
@@ -369,6 +375,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         commands.add(UpdateTempKvStorageCmd.class);
         commands.add(DeleteTempKvStorageCmd.class);
         commands.add(GetKvStorageValueCmd.class);
+        commands.add(GetKvStorageValuesCmd.class);
         return commands;
     }
 

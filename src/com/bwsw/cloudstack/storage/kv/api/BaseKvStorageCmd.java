@@ -53,7 +53,6 @@ public abstract class BaseKvStorageCmd extends BaseCmd {
             NetworkRuleConflictException {
         KvOperationResponse response = getResponse();
         response.setResponseName(getCommandName());
-        response.setObjectName(response.getClass().getSimpleName().toLowerCase());
         setResponseObject(response);
     }
 
