@@ -34,7 +34,7 @@ public class GetKvStorageValuesCmd extends BaseKvStorageCmd {
 
     public static final String API_NAME = "getKvStorageValues";
 
-    @Parameter(name = ApiConstants.KEYS, type = CommandType.LIST, collectionType = CommandType.STRING, description = "keys to retrieve values for")
+    @Parameter(name = ApiConstants.KEYS, required = true, type = CommandType.LIST, collectionType = CommandType.STRING, description = "keys to retrieve values for")
     private List<String> keys;
 
     public List<String> getKeys() {
