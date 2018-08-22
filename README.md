@@ -160,8 +160,8 @@ See [async command response tags](#async-command-response-tags).
 * [getKvStorageValues](#getKvStorageValues)
 * [setKvStorageValue](#setkvstoragevalue)
 * [setKvStorageValues](#setkvstoragevalues)
-* [deleteKvStorageKey](#deleteKvStorageKey)
-* [deleteKvStorageKeys](#deleteKvStorageKeys)
+* [deleteKvStorageKey](#deletekvstoragekey)
+* [deleteKvStorageKeys](#deletekvstoragekeys)
 * [listKvStorageKeys](#listkvstoragekeys)
 * [clearKvStorage](#clearkvstorage)
 
