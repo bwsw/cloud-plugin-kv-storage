@@ -21,6 +21,7 @@ import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvError;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
+import com.bwsw.cloudstack.storage.kv.response.KvKeys;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvPair;
 import com.bwsw.cloudstack.storage.kv.response.KvResult;
@@ -39,6 +40,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -310,6 +312,30 @@ public class KvOperationManagerImplTest {
         testException(this::getDeleteKeysPath, deleteKeysSupplier());
     }
 
+    @Test
+    public void testList() throws JsonProcessingException {
+        stubFor(getListPath().willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(objectMapper.writeValueAsString(DATA.keySet()))));
+
+        KvKeys response = kvOperationManager.list(STORAGE);
+        assertNotNull(response);
+        assertEquals(new ArrayList<>(DATA.keySet()), response.getItems());
+    }
+
+    @Test
+    public void testListNotFoundResponse() {
+        testNotFoundResponse(this::getListPath, listSupplier());
+    }
+
+    @Test
+    public void testListInternalErrorResponse() {
+        testInternalErrorResponse(this::getListPath, listSupplier());
+    }
+
+    @Test
+    public void testListException() {
+        testException(this::getListPath, listSupplier());
+    }
+
     private MappingBuilder getGetByKeyPath() {
         return get(urlEqualTo("/get/" + STORAGE.getId() + "/" + KEY));
     }
@@ -346,6 +372,10 @@ public class KvOperationManagerImplTest {
         }
     }
 
+    private MappingBuilder getListPath() {
+        return get(urlEqualTo("/list/" + STORAGE.getId()));
+    }
+
     private Supplier<KvOperationResponse> getByKeySupplier() {
         return () -> kvOperationManager.get(STORAGE, KEY);
     }
@@ -368,6 +398,10 @@ public class KvOperationManagerImplTest {
 
     private Supplier<KvResult> deleteKeysSupplier() {
         return () -> kvOperationManager.delete(STORAGE, DATA.keySet());
+    }
+
+    private Supplier<KvKeys> listSupplier() {
+        return () -> kvOperationManager.list(STORAGE);
     }
 
     private <T extends KvOperationResponse> void testNotFoundResponse(Supplier<MappingBuilder> requestBuilder, Supplier<T> responseSupplier) {

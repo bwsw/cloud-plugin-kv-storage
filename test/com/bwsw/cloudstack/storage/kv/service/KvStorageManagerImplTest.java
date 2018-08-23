@@ -25,6 +25,7 @@ import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidEntityException;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
+import com.bwsw.cloudstack.storage.kv.response.KvKeys;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvPair;
 import com.bwsw.cloudstack.storage.kv.response.KvResult;
@@ -69,6 +70,7 @@ import org.mockito.runners.MockitoJUnitRunner;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -1031,6 +1033,37 @@ public class KvStorageManagerImplTest {
         when(_kvOperationManager.delete(STORAGE, DATA.keySet())).thenReturn(result);
 
         KvResult response = _kvStorageManager.deleteKeys(STORAGE.getId(), DATA.keySet());
+        assertSame(result, response);
+    }
+
+    @Test
+    public void testListKeysNonexistentStorage() throws ExecutionException {
+        setNonexistentStorageCacheExpectations();
+        _kvStorageManager.listKeys(UUID);
+    }
+
+    @Test
+    public void testListKeysCacheException() throws ExecutionException {
+        seStorageCacheLoadingException();
+        _kvStorageManager.listKeys(UUID);
+    }
+
+    @Test
+    public void testListKeysOperationException() throws ExecutionException {
+        expectedException.expect(ServerApiException.class);
+        setStorageCacheExpectations(STORAGE);
+        when(_kvOperationManager.list(STORAGE)).thenThrow(new ServerApiException());
+
+        _kvStorageManager.listKeys(STORAGE.getId());
+    }
+
+    @Test
+    public void testListKeys() throws ExecutionException {
+        setStorageCacheExpectations(STORAGE);
+        KvKeys result = new KvKeys(new ArrayList<>(DATA.keySet()));
+        when(_kvOperationManager.list(STORAGE)).thenReturn(result);
+
+        KvKeys response = _kvStorageManager.listKeys(STORAGE.getId());
         assertSame(result, response);
     }
 

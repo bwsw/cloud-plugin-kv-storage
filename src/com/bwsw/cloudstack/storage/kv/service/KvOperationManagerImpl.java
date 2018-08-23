@@ -21,6 +21,7 @@ import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvError;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
+import com.bwsw.cloudstack.storage.kv.response.KvKeys;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvPair;
 import com.bwsw.cloudstack.storage.kv.response.KvResult;
@@ -51,6 +52,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 public class KvOperationManagerImpl implements KvOperationManager {
@@ -196,6 +198,21 @@ public class KvOperationManagerImpl implements KvOperationManager {
             case HttpStatus.SC_OK:
                 @SuppressWarnings("unchecked") Map<String, Boolean> items = objectMapper.readValue(EntityUtils.toString(entity, CHARSET), Map.class);
                 return new KvResult(items);
+            case HttpStatus.SC_NOT_FOUND:
+                throw getNonexistentStorageException();
+            default:
+                throw getUnexpectedStatusException(statusCode);
+            }
+        });
+    }
+
+    @Override
+    public KvKeys list(KvStorage storage) {
+        return execute(() -> new HttpGet(String.format("%slist/%s", _url, encode(storage.getId()))), (statusCode, entity) -> {
+            switch (statusCode) {
+            case HttpStatus.SC_OK:
+                @SuppressWarnings("unchecked") List<String> items = objectMapper.readValue(EntityUtils.toString(entity, CHARSET), List.class);
+                return new KvKeys(items);
             case HttpStatus.SC_NOT_FOUND:
                 throw getNonexistentStorageException();
             default:
