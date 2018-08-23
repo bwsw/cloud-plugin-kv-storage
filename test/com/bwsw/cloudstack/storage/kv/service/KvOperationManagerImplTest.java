@@ -37,6 +37,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -51,6 +53,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class KvOperationManagerImplTest {
 
@@ -117,6 +120,24 @@ public class KvOperationManagerImplTest {
         assert (response instanceof KvData);
         KvData result = (KvData)response;
         assertEquals(DATA, result.getItems());
+    }
+
+    @Test
+    public void testGetByKeysNullKeyCollection() {
+        KvOperationResponse response = kvOperationManager.get(STORAGE, (Collection<String>)null);
+
+        assertNotNull(response);
+        assertTrue(response instanceof KvData);
+        assertEquals(Collections.emptyMap(), ((KvData)response).getItems());
+    }
+
+    @Test
+    public void testGetByKeysEmptyKeyCollection() {
+        KvOperationResponse response = kvOperationManager.get(STORAGE, Collections.emptySet());
+
+        assertNotNull(response);
+        assertTrue(response instanceof KvData);
+        assertEquals(Collections.emptyMap(), ((KvData)response).getItems());
     }
 
     @Test
