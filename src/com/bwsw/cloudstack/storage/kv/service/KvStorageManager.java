@@ -20,12 +20,14 @@ package com.bwsw.cloudstack.storage.kv.service;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvPair;
+import com.bwsw.cloudstack.storage.kv.response.KvResult;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.cloud.utils.component.PluggableService;
 import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.cloudstack.framework.config.ConfigKey;
 
 import java.util.Collection;
+import java.util.Map;
 
 public interface KvStorageManager extends PluggableService {
 
@@ -89,4 +91,6 @@ public interface KvStorageManager extends PluggableService {
     KvOperationResponse getValues(String storageId, Collection<String> keys);
 
     KvPair setValue(String storageId, String key, String value);
+
+    KvResult setValues(String storageId, Map<String, String> data);
 }

@@ -26,6 +26,7 @@ import com.bwsw.cloudstack.storage.kv.exception.InvalidEntityException;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvPair;
+import com.bwsw.cloudstack.storage.kv.response.KvResult;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvValue;
 import com.cloud.exception.InvalidParameterValueException;
@@ -74,6 +75,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.greaterThan;
@@ -935,6 +937,37 @@ public class KvStorageManagerImplTest {
         when(_kvOperationManager.set(STORAGE, KEY, VALUE)).thenReturn(result);
 
         KvPair response = _kvStorageManager.setValue(STORAGE.getId(), KEY, VALUE);
+        assertSame(result, response);
+    }
+
+    @Test
+    public void testSetValuesNonexistentStorage() throws ExecutionException {
+        setNonexistentStorageCacheExpectations();
+        _kvStorageManager.setValues(UUID, DATA);
+    }
+
+    @Test
+    public void testSetValuesCacheException() throws ExecutionException {
+        seStorageCacheLoadingException();
+        _kvStorageManager.setValues(UUID, DATA);
+    }
+
+    @Test
+    public void testSetValuesOperationException() throws ExecutionException {
+        expectedException.expect(ServerApiException.class);
+        setStorageCacheExpectations(STORAGE);
+        when(_kvOperationManager.set(STORAGE, DATA)).thenThrow(new ServerApiException());
+
+        _kvStorageManager.setValues(STORAGE.getId(), DATA);
+    }
+
+    @Test
+    public void testSetValues() throws ExecutionException {
+        setStorageCacheExpectations(STORAGE);
+        KvResult result = new KvResult(DATA.keySet().stream().collect(Collectors.toMap(Function.identity(), k -> true)));
+        when(_kvOperationManager.set(STORAGE, DATA)).thenReturn(result);
+
+        KvResult response = _kvStorageManager.setValues(STORAGE.getId(), DATA);
         assertSame(result, response);
     }
 

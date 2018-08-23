@@ -15,23 +15,37 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.bwsw.cloudstack.storage.kv.service;
+package com.bwsw.cloudstack.storage.kv.response;
 
-import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
-import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
-import com.bwsw.cloudstack.storage.kv.response.KvPair;
-import com.bwsw.cloudstack.storage.kv.response.KvResult;
+import com.bwsw.cloudstack.storage.kv.entity.EntityConstants;
+import com.google.gson.annotations.SerializedName;
 
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 
-public interface KvOperationManager {
+public class KvResult extends KvOperationResponse {
 
-    KvOperationResponse get(KvStorage storage, String key);
+    @SerializedName(EntityConstants.ITEMS)
+    private Map<String, Boolean> items;
 
-    KvOperationResponse get(KvStorage storage, Collection<String> keys);
+    public KvResult() {
+        items = new HashMap<>();
+    }
 
-    KvPair set(KvStorage storage, String key, String value);
+    public KvResult(Map<String, Boolean> items) {
+        setItems(items);
+    }
 
-    KvResult set(KvStorage storage, Map<String, String> data);
+    public Map<String, Boolean> getItems() {
+        return items;
+    }
+
+    public void setItems(Map<String, Boolean> items) {
+        if (items == null) {
+            this.items = new HashMap<>();
+        } else {
+            this.items = items;
+        }
+    }
+
 }

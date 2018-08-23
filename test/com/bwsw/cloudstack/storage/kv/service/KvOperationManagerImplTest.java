@@ -22,6 +22,7 @@ import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvError;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvPair;
+import com.bwsw.cloudstack.storage.kv.response.KvResult;
 import com.bwsw.cloudstack.storage.kv.response.KvValue;
 import com.cloud.exception.InvalidParameterValueException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -40,7 +41,9 @@ import org.junit.rules.ExpectedException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
@@ -201,6 +204,45 @@ public class KvOperationManagerImplTest {
         testException(this::getSetValuePath, setValueSupplier());
     }
 
+    @Test
+    public void testSetValues() throws JsonProcessingException {
+        Map<String, Boolean> result = DATA.keySet().stream().collect(Collectors.toMap(Function.identity(), k -> true));
+        stubFor(getSetValuesPath().willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(objectMapper.writeValueAsString(result))));
+
+        KvResult response = kvOperationManager.set(STORAGE, DATA);
+        assertNotNull(response);
+        assertEquals(result, response.getItems());
+    }
+
+    @Test
+    public void testSetNullData() {
+        KvResult response = kvOperationManager.set(STORAGE, null);
+        assertNotNull(response);
+        assertEquals(Collections.emptyMap(), response.getItems());
+    }
+
+    @Test
+    public void testSetEmptyData() {
+        KvResult response = kvOperationManager.set(STORAGE, Collections.emptyMap());
+        assertNotNull(response);
+        assertEquals(Collections.emptyMap(), response.getItems());
+    }
+
+    @Test
+    public void testSetValuesNotFoundResponse() {
+        testNotFoundResponse(this::getSetValuesPath, setValuesSupplier());
+    }
+
+    @Test
+    public void testSetValuesInternalErrorResponse() {
+        testInternalErrorResponse(this::getSetValuesPath, setValuesSupplier());
+    }
+
+    @Test
+    public void testSetValuesException() {
+        testException(this::getSetValuesPath, setValuesSupplier());
+    }
+
     private MappingBuilder getGetByKeyPath() {
         return get(urlEqualTo("/get/" + STORAGE.getId() + "/" + KEY));
     }
@@ -217,6 +259,14 @@ public class KvOperationManagerImplTest {
         return put(urlEqualTo("/set/" + STORAGE.getId() + "/" + KEY)).withRequestBody(equalTo(VALUE));
     }
 
+    private MappingBuilder getSetValuesPath() {
+        try {
+            return put(urlEqualTo("/set/" + STORAGE.getId())).withRequestBody(equalToJson(objectMapper.writeValueAsString(DATA)));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private Supplier<KvOperationResponse> getByKeySupplier() {
         return () -> kvOperationManager.get(STORAGE, KEY);
     }
@@ -227,6 +277,10 @@ public class KvOperationManagerImplTest {
 
     private Supplier<KvPair> setValueSupplier() {
         return () -> kvOperationManager.set(STORAGE, KEY, VALUE);
+    }
+
+    private Supplier<KvResult> setValuesSupplier() {
+        return () -> kvOperationManager.set(STORAGE, DATA);
     }
 
     private <T extends KvOperationResponse> void testNotFoundResponse(Supplier<MappingBuilder> requestBuilder, Supplier<T> responseSupplier) {

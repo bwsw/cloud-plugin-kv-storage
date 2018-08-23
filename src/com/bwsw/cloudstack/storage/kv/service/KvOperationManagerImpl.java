@@ -22,6 +22,7 @@ import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvError;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvPair;
+import com.bwsw.cloudstack.storage.kv.response.KvResult;
 import com.bwsw.cloudstack.storage.kv.response.KvValue;
 import com.cloud.exception.InvalidParameterValueException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -110,7 +111,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
                 @SuppressWarnings("unchecked") Map<String, String> items = objectMapper.readValue(EntityUtils.toString(entity, CHARSET), Map.class);
                 return new KvData(items);
             case HttpStatus.SC_NOT_FOUND:
-                throw new InvalidParameterValueException("KV storage does not exist");
+                throw getNonexistentStorageException();
             default:
                 throw new RuntimeException("Unexpected KV get by keys operation status: " + statusCode);
             }
@@ -132,9 +133,32 @@ public class KvOperationManagerImpl implements KvOperationManager {
             case HttpStatus.SC_OK:
                 return new KvPair(key, value);
             case HttpStatus.SC_NOT_FOUND:
-                throw new InvalidParameterValueException("KV storage does not exist");
+                throw getNonexistentStorageException();
             case HttpStatus.SC_BAD_REQUEST:
                 throw new InvalidParameterValueException("Key/value pair is invalid");
+            default:
+                throw new RuntimeException("Unexpected KV get by keys operation status: " + statusCode);
+            }
+        });
+    }
+
+    @Override
+    public KvResult set(KvStorage storage, Map<String, String> data) {
+        if (data == null || data.isEmpty()) {
+            return new KvResult();
+        }
+        return execute(() -> {
+            StringEntity entity = new StringEntity(objectMapper.writeValueAsString(data), JSON_CONTENT_TYPE);
+            HttpPut request = new HttpPut(String.format("%sset/%s", _url, encode(storage.getId())));
+            request.setEntity(entity);
+            return request;
+        }, (statusCode, entity) -> {
+            switch (statusCode) {
+            case HttpStatus.SC_OK:
+                @SuppressWarnings("unchecked") Map<String, Boolean> items = objectMapper.readValue(EntityUtils.toString(entity, CHARSET), Map.class);
+                return new KvResult(items);
+            case HttpStatus.SC_NOT_FOUND:
+                throw getNonexistentStorageException();
             default:
                 throw new RuntimeException("Unexpected KV get by keys operation status: " + statusCode);
             }
@@ -171,5 +195,9 @@ public class KvOperationManagerImpl implements KvOperationManager {
                 }
             }
         }
+    }
+
+    private InvalidParameterValueException getNonexistentStorageException() {
+        return new InvalidParameterValueException("KV storage does not exist");
     }
 }
