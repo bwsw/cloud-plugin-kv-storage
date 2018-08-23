@@ -37,4 +37,6 @@ public interface KvOperationManager {
     KvResult set(KvStorage storage, Map<String, String> data);
 
     KvKey delete(KvStorage storage, String key);
+
+    KvResult delete(KvStorage storage, Collection<String> keys);
 }

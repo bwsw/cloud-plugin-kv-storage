@@ -255,7 +255,7 @@ public class KvOperationManagerImplTest {
     }
 
     @Test
-    public void testDeleteNotFoundResponse() {
+    public void testDeleteKeyNotFoundResponse() {
         testNotFoundResponse(this::getDeleteKeyPath, deleteKeySupplier());
     }
 
@@ -267,6 +267,47 @@ public class KvOperationManagerImplTest {
     @Test
     public void testDeleteKeyException() {
         testException(this::getDeleteKeyPath, deleteKeySupplier());
+    }
+
+    @Test
+    public void testDeleteKeys() throws JsonProcessingException {
+        Map<String, Boolean> result = DATA.keySet().stream().collect(Collectors.toMap(Function.identity(), k -> true));
+        stubFor(getDeleteKeysPath().willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(objectMapper.writeValueAsString(result))));
+
+        KvResult response = kvOperationManager.delete(STORAGE, DATA.keySet());
+        assertNotNull(response);
+        assertEquals(result, response.getItems());
+    }
+
+    @Test
+    public void testDeleteKeysNullKeyCollection() {
+        KvResult response = kvOperationManager.delete(STORAGE, (Collection<String>)null);
+
+        assertNotNull(response);
+        assertEquals(Collections.emptyMap(), response.getItems());
+    }
+
+    @Test
+    public void testDeleteKeysEmptyKeyCollection() {
+        KvResult response = kvOperationManager.delete(STORAGE, Collections.emptySet());
+
+        assertNotNull(response);
+        assertEquals(Collections.emptyMap(), response.getItems());
+    }
+
+    @Test
+    public void testDeleteKeysNotFoundResponse() {
+        testNotFoundResponse(this::getDeleteKeysPath, deleteKeysSupplier());
+    }
+
+    @Test
+    public void testDeleteKeysInternalErrorResponse() {
+        testInternalErrorResponse(this::getDeleteKeysPath, deleteKeysSupplier());
+    }
+
+    @Test
+    public void testDeleteKeysException() {
+        testException(this::getDeleteKeysPath, deleteKeysSupplier());
     }
 
     private MappingBuilder getGetByKeyPath() {
@@ -297,6 +338,14 @@ public class KvOperationManagerImplTest {
         return delete(urlEqualTo("/delete/" + STORAGE.getId() + "/" + KEY));
     }
 
+    private MappingBuilder getDeleteKeysPath() {
+        try {
+            return post(urlEqualTo("/delete/" + STORAGE.getId())).withRequestBody(equalToJson(objectMapper.writeValueAsString(DATA.keySet())));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private Supplier<KvOperationResponse> getByKeySupplier() {
         return () -> kvOperationManager.get(STORAGE, KEY);
     }
@@ -315,6 +364,10 @@ public class KvOperationManagerImplTest {
 
     private Supplier<KvKey> deleteKeySupplier() {
         return () -> kvOperationManager.delete(STORAGE, KEY);
+    }
+
+    private Supplier<KvResult> deleteKeysSupplier() {
+        return () -> kvOperationManager.delete(STORAGE, DATA.keySet());
     }
 
     private <T extends KvOperationResponse> void testNotFoundResponse(Supplier<MappingBuilder> requestBuilder, Supplier<T> responseSupplier) {

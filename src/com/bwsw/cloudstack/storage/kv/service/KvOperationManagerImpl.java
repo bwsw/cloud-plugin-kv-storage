@@ -181,6 +181,29 @@ public class KvOperationManagerImpl implements KvOperationManager {
         });
     }
 
+    @Override
+    public KvResult delete(KvStorage storage, Collection<String> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return new KvResult();
+        }
+        return execute(() -> {
+            StringEntity entity = new StringEntity(objectMapper.writeValueAsString(keys), JSON_CONTENT_TYPE);
+            HttpPost request = new HttpPost(String.format("%sdelete/%s", _url, encode(storage.getId())));
+            request.setEntity(entity);
+            return request;
+        }, (statusCode, entity) -> {
+            switch (statusCode) {
+            case HttpStatus.SC_OK:
+                @SuppressWarnings("unchecked") Map<String, Boolean> items = objectMapper.readValue(EntityUtils.toString(entity, CHARSET), Map.class);
+                return new KvResult(items);
+            case HttpStatus.SC_NOT_FOUND:
+                throw getNonexistentStorageException();
+            default:
+                throw getUnexpectedStatusException(statusCode);
+            }
+        });
+    }
+
     private String encode(String value) {
         try {
             return URLEncoder.encode(value, "UTF-8");

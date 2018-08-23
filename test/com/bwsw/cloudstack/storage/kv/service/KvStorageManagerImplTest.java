@@ -1003,6 +1003,37 @@ public class KvStorageManagerImplTest {
         assertSame(result, response);
     }
 
+    @Test
+    public void testDeleteKeysNonexistentStorage() throws ExecutionException {
+        setNonexistentStorageCacheExpectations();
+        _kvStorageManager.deleteKeys(UUID, DATA.keySet());
+    }
+
+    @Test
+    public void testDeleteKeysCacheException() throws ExecutionException {
+        seStorageCacheLoadingException();
+        _kvStorageManager.deleteKeys(UUID, DATA.keySet());
+    }
+
+    @Test
+    public void testDeleteKeysOperationException() throws ExecutionException {
+        expectedException.expect(ServerApiException.class);
+        setStorageCacheExpectations(STORAGE);
+        when(_kvOperationManager.delete(STORAGE, DATA.keySet())).thenThrow(new ServerApiException());
+
+        _kvStorageManager.deleteKeys(STORAGE.getId(), DATA.keySet());
+    }
+
+    @Test
+    public void testDeleteKeys() throws ExecutionException {
+        setStorageCacheExpectations(STORAGE);
+        KvResult result = new KvResult(DATA.keySet().stream().collect(Collectors.toMap(Function.identity(), k -> true)));
+        when(_kvOperationManager.delete(STORAGE, DATA.keySet())).thenReturn(result);
+
+        KvResult response = _kvStorageManager.deleteKeys(STORAGE.getId(), DATA.keySet());
+        assertSame(result, response);
+    }
+
     private void testCreateAccountStorageInvalidName(String name) {
         setExceptionExpectation(InvalidParameterValueException.class, "name");
 
