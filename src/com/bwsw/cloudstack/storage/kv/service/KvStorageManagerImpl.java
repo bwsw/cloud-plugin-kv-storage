@@ -70,6 +70,7 @@ import org.elasticsearch.rest.RestStatus;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -362,7 +363,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
-    public KvOperationResponse getValues(String storageId, List<String> keys) {
+    public KvOperationResponse getValues(String storageId, Collection<String> keys) {
         return execute(storageId, storage -> _kvOperationManager.get(storage, keys));
     }
 

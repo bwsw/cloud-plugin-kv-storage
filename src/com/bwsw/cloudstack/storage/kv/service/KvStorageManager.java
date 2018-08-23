@@ -24,7 +24,7 @@ import com.cloud.utils.component.PluggableService;
 import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.cloudstack.framework.config.ConfigKey;
 
-import java.util.List;
+import java.util.Collection;
 
 public interface KvStorageManager extends PluggableService {
 
@@ -85,5 +85,5 @@ public interface KvStorageManager extends PluggableService {
 
     KvOperationResponse getValue(String storageId, String key);
 
-    KvOperationResponse getValues(String storageId, List<String> keys);
+    KvOperationResponse getValues(String storageId, Collection<String> keys);
 }
