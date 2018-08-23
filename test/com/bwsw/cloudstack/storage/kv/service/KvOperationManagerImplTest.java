@@ -38,6 +38,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
@@ -99,18 +100,12 @@ public class KvOperationManagerImplTest {
 
     @Test
     public void testGetByKeyInternalErrorResponse() {
-        expectedException.expect(ServerApiException.class);
-        stubFor(getGetByKeyPath().willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
-
-        kvOperationManager.get(STORAGE, KEY);
+        testInternalErrorResponse(this::getGetByKeyPath, getByKeySupplier());
     }
 
     @Test
     public void testGetByKeyException() {
-        expectedException.expect(ServerApiException.class);
-        stubFor(getGetByKeyPath().willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE)));
-
-        kvOperationManager.get(STORAGE, KEY);
+        testException(this::getGetByKeyPath, getByKeySupplier());
     }
 
     @Test
@@ -126,27 +121,17 @@ public class KvOperationManagerImplTest {
 
     @Test
     public void testGetByKeysNotFoundResponse() {
-        expectNonexistentStorage();
-
-        stubFor(getGetByKeysPath().willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
-
-        kvOperationManager.get(STORAGE, DATA.keySet());
+        testNotFoundResponse(this::getGetByKeysPath, getByKeysSupplier());
     }
 
     @Test
     public void testGetByKeysInternalErrorResponse() {
-        expectedException.expect(ServerApiException.class);
-        stubFor(getGetByKeysPath().willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
-
-        kvOperationManager.get(STORAGE, DATA.keySet());
+        testInternalErrorResponse(this::getGetByKeysPath, getByKeysSupplier());
     }
 
     @Test
     public void testGetByKeysException() {
-        expectedException.expect(ServerApiException.class);
-        stubFor(getGetByKeysPath().willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE)));
-
-        kvOperationManager.get(STORAGE, DATA.keySet());
+        testException(this::getGetByKeysPath, getByKeysSupplier());
     }
 
     @Test
@@ -173,11 +158,7 @@ public class KvOperationManagerImplTest {
 
     @Test
     public void testSetValueNotFoundResponse() {
-        expectNonexistentStorage();
-
-        stubFor(getSetValuePath().willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
-
-        kvOperationManager.set(STORAGE, KEY, VALUE);
+        testNotFoundResponse(this::getSetValuePath, setValueSupplier());
     }
 
     @Test
@@ -191,18 +172,12 @@ public class KvOperationManagerImplTest {
 
     @Test
     public void testSetValueInternalErrorResponse() {
-        expectedException.expect(ServerApiException.class);
-        stubFor(getSetValuePath().willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
-
-        kvOperationManager.set(STORAGE, KEY, VALUE);
+        testInternalErrorResponse(this::getSetValuePath, setValueSupplier());
     }
 
     @Test
     public void testSetValueException() {
-        expectedException.expect(ServerApiException.class);
-        stubFor(getSetValuePath().willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE)));
-
-        kvOperationManager.set(STORAGE, KEY, VALUE);
+        testException(this::getSetValuePath, setValueSupplier());
     }
 
     private MappingBuilder getGetByKeyPath() {
@@ -219,6 +194,39 @@ public class KvOperationManagerImplTest {
 
     private MappingBuilder getSetValuePath() {
         return put(urlEqualTo("/set/" + STORAGE.getId() + "/" + KEY)).withRequestBody(equalTo(VALUE));
+    }
+
+    private Supplier<KvOperationResponse> getByKeySupplier() {
+        return () -> kvOperationManager.get(STORAGE, KEY);
+    }
+
+    private Supplier<KvOperationResponse> getByKeysSupplier() {
+        return () -> kvOperationManager.get(STORAGE, DATA.keySet());
+    }
+
+    private Supplier<KvPair> setValueSupplier() {
+        return () -> kvOperationManager.set(STORAGE, KEY, VALUE);
+    }
+
+    private <T extends KvOperationResponse> void testNotFoundResponse(Supplier<MappingBuilder> requestBuilder, Supplier<T> responseSupplier) {
+        expectNonexistentStorage();
+        stubFor(requestBuilder.get().willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
+
+        responseSupplier.get();
+    }
+
+    private <T extends KvOperationResponse> void testInternalErrorResponse(Supplier<MappingBuilder> requestBuilder, Supplier<T> responseSupplier) {
+        expectedException.expect(ServerApiException.class);
+        stubFor(requestBuilder.get().willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
+
+        responseSupplier.get();
+    }
+
+    private <T extends KvOperationResponse> void testException(Supplier<MappingBuilder> requestBuilder, Supplier<T> responseSupplier) {
+        expectedException.expect(ServerApiException.class);
+        stubFor(requestBuilder.get().willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE)));
+
+        responseSupplier.get();
     }
 
     private void expectNonexistentStorage() {
