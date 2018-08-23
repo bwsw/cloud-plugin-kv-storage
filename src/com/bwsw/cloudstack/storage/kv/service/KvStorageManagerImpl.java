@@ -43,6 +43,7 @@ import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.dao.VMInstanceDao;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.Identity;
 import org.apache.cloudstack.api.ServerApiException;
@@ -520,7 +521,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             if (!storage.isPresent()) {
                 throw new InvalidParameterValueException("KV storage does not exist");
             }
-        } catch (ExecutionException e) {
+        } catch (ExecutionException | UncheckedExecutionException e) {
             s_logger.error("Unable to execute storage operation", e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to execute KV storage operation");
         }
