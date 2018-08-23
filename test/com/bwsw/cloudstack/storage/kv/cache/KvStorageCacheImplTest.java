@@ -51,7 +51,7 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class KvStorageCacheImplTest {
 
-    private static final String ID = "id";
+    private static final String ID = "e0123777-921b-4e62-a7cc-8135015ca571";
     private static final String UUID = "35e7200d-0fda-4ca9-ad3e-3b3b37a77e32";
     private static final AccountVO ACCOUNT_VO = new AccountVO();
     private static final KvStorage ACCOUNT_STORAGE = new KvStorage(ID, UUID, "test", null, false);
