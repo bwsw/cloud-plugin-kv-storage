@@ -24,6 +24,7 @@ import com.bwsw.cloudstack.storage.kv.api.DeleteTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.GetKvStorageValueCmd;
 import com.bwsw.cloudstack.storage.kv.api.GetKvStorageValuesCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
+import com.bwsw.cloudstack.storage.kv.api.SetKvStorageValueCmd;
 import com.bwsw.cloudstack.storage.kv.api.UpdateTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.cache.KvStorageCache;
 import com.bwsw.cloudstack.storage.kv.cache.KvStorageCacheFactory;
@@ -32,6 +33,7 @@ import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.job.KvStorageJobManager;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
+import com.bwsw.cloudstack.storage.kv.response.KvPair;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.bwsw.cloudstack.storage.kv.util.HttpUtils;
 import com.cloud.exception.InvalidParameterValueException;
@@ -368,6 +370,11 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
+    public KvPair setValue(String storageId, String key, String value) {
+        return execute(storageId, storage -> _kvOperationManager.set(storage, key, value));
+    }
+
+    @Override
     public List<Class<?>> getCommands() {
         List<Class<?>> commands = new ArrayList<>();
         commands.add(ListAccountKvStoragesCmd.class);
@@ -378,6 +385,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         commands.add(DeleteTempKvStorageCmd.class);
         commands.add(GetKvStorageValueCmd.class);
         commands.add(GetKvStorageValuesCmd.class);
+        commands.add(SetKvStorageValueCmd.class);
         return commands;
     }
 
@@ -515,7 +523,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         }
     }
 
-    private KvOperationResponse execute(String storageId, Function<KvStorage, KvOperationResponse> retriever) {
+    private <T extends KvOperationResponse> T execute(String storageId, Function<KvStorage, T> retriever) {
         Optional<KvStorage> storage;
         try {
             storage = _kvStorageCache.get(storageId);

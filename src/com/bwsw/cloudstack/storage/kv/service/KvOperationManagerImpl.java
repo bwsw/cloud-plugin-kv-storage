@@ -21,6 +21,7 @@ import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvError;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
+import com.bwsw.cloudstack.storage.kv.response.KvPair;
 import com.bwsw.cloudstack.storage.kv.response.KvValue;
 import com.cloud.exception.InvalidParameterValueException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,6 +34,7 @@ import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
@@ -53,6 +55,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
     private static final int TIMEOUT = 3000;
     private static final Charset CHARSET = Charset.forName("UTF-8");
     private static final ContentType JSON_CONTENT_TYPE = ContentType.create("application/json");
+    private static final ContentType TEXT_PLAIN_CONTENT_TYPE = ContentType.create("text/plain");
 
     private static final Logger s_logger = Logger.getLogger(KvStorageManagerImpl.class);
 
@@ -114,6 +117,30 @@ public class KvOperationManagerImpl implements KvOperationManager {
         });
     }
 
+    @Override
+    public KvPair set(KvStorage storage, String key, String value) {
+        if (key == null || key.isEmpty()) {
+            throw new InvalidParameterValueException("Null or empty key");
+        }
+        return execute(() -> {
+            StringEntity entity = new StringEntity(value, TEXT_PLAIN_CONTENT_TYPE);
+            HttpPut request = new HttpPut(String.format("%s/set/%s/%s", _url, encode(storage.getId()), encode(key)));
+            request.setEntity(entity);
+            return request;
+        }, (statusCode, entity) -> {
+            switch (statusCode) {
+            case HttpStatus.SC_OK:
+                return new KvPair(key, value);
+            case HttpStatus.SC_NOT_FOUND:
+                throw new InvalidParameterValueException("KV storage does not exist");
+            case HttpStatus.SC_BAD_REQUEST:
+                throw new InvalidParameterValueException("Key/value pair is invalid");
+            default:
+                throw new RuntimeException("Unexpected KV get by keys operation status: " + statusCode);
+            }
+        });
+    }
+
     private String encode(String value) {
         try {
             return URLEncoder.encode(value, "UTF-8");
@@ -123,8 +150,8 @@ public class KvOperationManagerImpl implements KvOperationManager {
         }
     }
 
-    private KvOperationResponse execute(CheckedSupplier<HttpUriRequest, Exception> requestSupplier,
-            CheckedBiFunction<Integer, HttpEntity, KvOperationResponse, Exception> responseFactory) {
+    private <T extends KvOperationResponse> T execute(CheckedSupplier<HttpUriRequest, Exception> requestSupplier,
+            CheckedBiFunction<Integer, HttpEntity, T, Exception> responseFactory) {
         CloseableHttpResponse response = null;
         try {
             response = _httpClient.execute(requestSupplier.get());

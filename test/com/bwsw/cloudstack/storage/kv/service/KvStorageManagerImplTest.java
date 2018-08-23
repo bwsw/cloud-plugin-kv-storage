@@ -25,6 +25,7 @@ import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidEntityException;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
+import com.bwsw.cloudstack.storage.kv.response.KvPair;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvValue;
 import com.cloud.exception.InvalidParameterValueException;
@@ -903,6 +904,37 @@ public class KvStorageManagerImplTest {
         when(_kvOperationManager.get(STORAGE, DATA.keySet())).thenReturn(result);
 
         KvOperationResponse response = _kvStorageManager.getValues(STORAGE.getId(), DATA.keySet());
+        assertSame(result, response);
+    }
+
+    @Test
+    public void testSetValueNonexistentStorage() throws ExecutionException {
+        setNonexistentStorageCacheExpectations();
+        _kvStorageManager.setValue(UUID, KEY, VALUE);
+    }
+
+    @Test
+    public void testSetValueCacheException() throws ExecutionException {
+        seStorageCacheLoadingException();
+        _kvStorageManager.setValue(UUID, KEY, VALUE);
+    }
+
+    @Test
+    public void testSetValueOperationException() throws ExecutionException {
+        expectedException.expect(ServerApiException.class);
+        setStorageCacheExpectations(STORAGE);
+        when(_kvOperationManager.set(STORAGE, KEY, VALUE)).thenThrow(new ServerApiException());
+
+        _kvStorageManager.setValue(STORAGE.getId(), KEY, VALUE);
+    }
+
+    @Test
+    public void testSetValue() throws ExecutionException {
+        setStorageCacheExpectations(STORAGE);
+        KvPair result = new KvPair(KEY, VALUE);
+        when(_kvOperationManager.set(STORAGE, KEY, VALUE)).thenReturn(result);
+
+        KvPair response = _kvStorageManager.setValue(STORAGE.getId(), KEY, VALUE);
         assertSame(result, response);
     }
 

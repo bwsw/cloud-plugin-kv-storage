@@ -21,10 +21,12 @@ import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvError;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
+import com.bwsw.cloudstack.storage.kv.response.KvPair;
 import com.bwsw.cloudstack.storage.kv.response.KvValue;
 import com.cloud.exception.InvalidParameterValueException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.tomakehurst.wiremock.client.MappingBuilder;
 import com.github.tomakehurst.wiremock.http.Fault;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.google.common.collect.ImmutableMap;
@@ -38,9 +40,11 @@ import org.junit.rules.ExpectedException;
 import java.util.Map;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.put;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
@@ -54,9 +58,6 @@ public class KvOperationManagerImplTest {
     private static final String KEY = "key";
     private static final String VALUE = "value";
     private static final Map<String, String> DATA = ImmutableMap.of("key1", "one", "key2", "two");
-
-    private static final String GET_BY_KEY_PATH = "/get/" + STORAGE.getId() + "/" + KEY;
-    private static final String GET_BY_KEYS_PATH = "/get/" + STORAGE.getId();
 
     @Rule
     public WireMockRule wireMockRule = new WireMockRule(options().dynamicPort(), true);
@@ -75,7 +76,7 @@ public class KvOperationManagerImplTest {
 
     @Test
     public void testGetByKey() {
-        stubFor(get(urlEqualTo(GET_BY_KEY_PATH)).willReturn(aResponse().withHeader("Content-Type", "text/plain").withBody(VALUE)));
+        stubFor(getGetByKeyPath().willReturn(aResponse().withHeader("Content-Type", "text/plain").withBody(VALUE)));
 
         KvOperationResponse response = kvOperationManager.get(STORAGE, KEY);
         assertNotNull(response);
@@ -87,7 +88,7 @@ public class KvOperationManagerImplTest {
     @Test
     public void testGetByKeyNotFoundResponse() {
         expectedException.expect(ServerApiException.class);
-        stubFor(get(urlEqualTo(GET_BY_KEY_PATH)).willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
+        stubFor(getGetByKeyPath().willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
 
         KvOperationResponse response = kvOperationManager.get(STORAGE, KEY);
         assertNotNull(response);
@@ -99,7 +100,7 @@ public class KvOperationManagerImplTest {
     @Test
     public void testGetByKeyInternalErrorResponse() {
         expectedException.expect(ServerApiException.class);
-        stubFor(get(urlEqualTo(GET_BY_KEY_PATH)).willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
+        stubFor(getGetByKeyPath().willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
 
         kvOperationManager.get(STORAGE, KEY);
     }
@@ -107,15 +108,14 @@ public class KvOperationManagerImplTest {
     @Test
     public void testGetByKeyException() {
         expectedException.expect(ServerApiException.class);
-        stubFor(get(urlEqualTo(GET_BY_KEY_PATH)).willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE)));
+        stubFor(getGetByKeyPath().willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE)));
 
         kvOperationManager.get(STORAGE, KEY);
     }
 
     @Test
     public void testGetByKeys() throws JsonProcessingException {
-        stubFor(post(urlEqualTo(GET_BY_KEYS_PATH)).withRequestBody(equalToJson(objectMapper.writeValueAsString(DATA.keySet())))
-                .willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(objectMapper.writeValueAsString(DATA))));
+        stubFor(getGetByKeysPath().willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(objectMapper.writeValueAsString(DATA))));
 
         KvOperationResponse response = kvOperationManager.get(STORAGE, DATA.keySet());
         assertNotNull(response);
@@ -125,12 +125,10 @@ public class KvOperationManagerImplTest {
     }
 
     @Test
-    public void testGetByKeysNotFoundResponse() throws JsonProcessingException {
-        expectedException.expect(InvalidParameterValueException.class);
-        expectedException.expectMessage("KV storage does not exist");
+    public void testGetByKeysNotFoundResponse() {
+        expectNonexistentStorage();
 
-        stubFor(post(urlEqualTo(GET_BY_KEYS_PATH)).withRequestBody(equalToJson(objectMapper.writeValueAsString(DATA.keySet())))
-                .willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
+        stubFor(getGetByKeysPath().willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
 
         kvOperationManager.get(STORAGE, DATA.keySet());
     }
@@ -138,7 +136,7 @@ public class KvOperationManagerImplTest {
     @Test
     public void testGetByKeysInternalErrorResponse() {
         expectedException.expect(ServerApiException.class);
-        stubFor(post(urlEqualTo(GET_BY_KEYS_PATH)).willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
+        stubFor(getGetByKeysPath().willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
 
         kvOperationManager.get(STORAGE, DATA.keySet());
     }
@@ -146,8 +144,85 @@ public class KvOperationManagerImplTest {
     @Test
     public void testGetByKeysException() {
         expectedException.expect(ServerApiException.class);
-        stubFor(post(urlEqualTo(GET_BY_KEYS_PATH)).willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE)));
+        stubFor(getGetByKeysPath().willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE)));
 
         kvOperationManager.get(STORAGE, DATA.keySet());
+    }
+
+    @Test
+    public void testSetValue() {
+        stubFor(getSetValuePath().willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
+
+        KvPair response = kvOperationManager.set(STORAGE, KEY, VALUE);
+        assertNotNull(response);
+        assertEquals(KEY, response.getKey());
+        assertEquals(VALUE, response.getValue());
+    }
+
+    @Test
+    public void testSetNullKey() {
+        expectedException.expect(InvalidParameterValueException.class);
+        kvOperationManager.set(STORAGE, null, VALUE);
+    }
+
+    @Test
+    public void testSetEmptyKey() {
+        expectedException.expect(InvalidParameterValueException.class);
+        kvOperationManager.set(STORAGE, "", VALUE);
+    }
+
+    @Test
+    public void testSetValueNotFoundResponse() {
+        expectNonexistentStorage();
+
+        stubFor(getSetValuePath().willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
+
+        kvOperationManager.set(STORAGE, KEY, VALUE);
+    }
+
+    @Test
+    public void testSetValueBadRequestResponse() {
+        expectedException.expect(InvalidParameterValueException.class);
+
+        stubFor(getSetValuePath().willReturn(aResponse().withStatus(HttpStatus.SC_BAD_REQUEST)));
+
+        kvOperationManager.set(STORAGE, KEY, VALUE);
+    }
+
+    @Test
+    public void testSetValueInternalErrorResponse() {
+        expectedException.expect(ServerApiException.class);
+        stubFor(getSetValuePath().willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
+
+        kvOperationManager.set(STORAGE, KEY, VALUE);
+    }
+
+    @Test
+    public void testSetValueException() {
+        expectedException.expect(ServerApiException.class);
+        stubFor(getSetValuePath().willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE)));
+
+        kvOperationManager.set(STORAGE, KEY, VALUE);
+    }
+
+    private MappingBuilder getGetByKeyPath() {
+        return get(urlEqualTo("/get/" + STORAGE.getId() + "/" + KEY));
+    }
+
+    private MappingBuilder getGetByKeysPath() {
+        try {
+            return post(urlEqualTo("/get/" + STORAGE.getId())).withRequestBody(equalToJson(objectMapper.writeValueAsString(DATA.keySet())));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private MappingBuilder getSetValuePath() {
+        return put(urlEqualTo("/set/" + STORAGE.getId() + "/" + KEY)).withRequestBody(equalTo(VALUE));
+    }
+
+    private void expectNonexistentStorage() {
+        expectedException.expect(InvalidParameterValueException.class);
+        expectedException.expectMessage("KV storage does not exist");
     }
 }
