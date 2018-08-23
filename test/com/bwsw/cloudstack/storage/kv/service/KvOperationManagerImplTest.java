@@ -20,6 +20,7 @@ package com.bwsw.cloudstack.storage.kv.service;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvError;
+import com.bwsw.cloudstack.storage.kv.response.KvKey;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvPair;
 import com.bwsw.cloudstack.storage.kv.response.KvResult;
@@ -46,6 +47,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.delete;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -243,6 +245,30 @@ public class KvOperationManagerImplTest {
         testException(this::getSetValuesPath, setValuesSupplier());
     }
 
+    @Test
+    public void testDeleteKey() {
+        stubFor(getDeleteKeyPath().willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
+
+        KvKey response = kvOperationManager.delete(STORAGE, KEY);
+        assertNotNull(response);
+        assertEquals(KEY, response.getKey());
+    }
+
+    @Test
+    public void testDeleteNotFoundResponse() {
+        testNotFoundResponse(this::getDeleteKeyPath, deleteKeySupplier());
+    }
+
+    @Test
+    public void testDeleteKeyInternalErrorResponse() {
+        testInternalErrorResponse(this::getDeleteKeyPath, deleteKeySupplier());
+    }
+
+    @Test
+    public void testDeleteKeyException() {
+        testException(this::getDeleteKeyPath, deleteKeySupplier());
+    }
+
     private MappingBuilder getGetByKeyPath() {
         return get(urlEqualTo("/get/" + STORAGE.getId() + "/" + KEY));
     }
@@ -267,6 +293,10 @@ public class KvOperationManagerImplTest {
         }
     }
 
+    private MappingBuilder getDeleteKeyPath() {
+        return delete(urlEqualTo("/delete/" + STORAGE.getId() + "/" + KEY));
+    }
+
     private Supplier<KvOperationResponse> getByKeySupplier() {
         return () -> kvOperationManager.get(STORAGE, KEY);
     }
@@ -281,6 +311,10 @@ public class KvOperationManagerImplTest {
 
     private Supplier<KvResult> setValuesSupplier() {
         return () -> kvOperationManager.set(STORAGE, DATA);
+    }
+
+    private Supplier<KvKey> deleteKeySupplier() {
+        return () -> kvOperationManager.delete(STORAGE, KEY);
     }
 
     private <T extends KvOperationResponse> void testNotFoundResponse(Supplier<MappingBuilder> requestBuilder, Supplier<T> responseSupplier) {

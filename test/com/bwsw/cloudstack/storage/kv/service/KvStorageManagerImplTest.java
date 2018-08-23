@@ -24,6 +24,7 @@ import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidEntityException;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
+import com.bwsw.cloudstack.storage.kv.response.KvKey;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvPair;
 import com.bwsw.cloudstack.storage.kv.response.KvResult;
@@ -968,6 +969,37 @@ public class KvStorageManagerImplTest {
         when(_kvOperationManager.set(STORAGE, DATA)).thenReturn(result);
 
         KvResult response = _kvStorageManager.setValues(STORAGE.getId(), DATA);
+        assertSame(result, response);
+    }
+
+    @Test
+    public void testDeleteKeyNonexistentStorage() throws ExecutionException {
+        setNonexistentStorageCacheExpectations();
+        _kvStorageManager.deleteKey(UUID, KEY);
+    }
+
+    @Test
+    public void testDeleteKeyCacheException() throws ExecutionException {
+        seStorageCacheLoadingException();
+        _kvStorageManager.deleteKey(UUID, KEY);
+    }
+
+    @Test
+    public void testDeleteKeyOperationException() throws ExecutionException {
+        expectedException.expect(ServerApiException.class);
+        setStorageCacheExpectations(STORAGE);
+        when(_kvOperationManager.delete(STORAGE, KEY)).thenThrow(new ServerApiException());
+
+        _kvStorageManager.deleteKey(STORAGE.getId(), KEY);
+    }
+
+    @Test
+    public void testDeleteKey() throws ExecutionException {
+        setStorageCacheExpectations(STORAGE);
+        KvKey result = new KvKey(KEY);
+        when(_kvOperationManager.delete(STORAGE, KEY)).thenReturn(result);
+
+        KvKey response = _kvStorageManager.deleteKey(STORAGE.getId(), KEY);
         assertSame(result, response);
     }
 

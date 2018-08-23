@@ -15,26 +15,25 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.bwsw.cloudstack.storage.kv.service;
+package com.bwsw.cloudstack.storage.kv.response;
 
-import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
-import com.bwsw.cloudstack.storage.kv.response.KvKey;
-import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
-import com.bwsw.cloudstack.storage.kv.response.KvPair;
-import com.bwsw.cloudstack.storage.kv.response.KvResult;
+import com.google.gson.annotations.SerializedName;
+import org.apache.cloudstack.api.ApiConstants;
 
-import java.util.Collection;
-import java.util.Map;
+public class KvKey extends KvOperationResponse {
 
-public interface KvOperationManager {
+    @SerializedName(ApiConstants.KEY)
+    private String key;
 
-    KvOperationResponse get(KvStorage storage, String key);
+    public KvKey(String key) {
+        this.key = key;
+    }
 
-    KvOperationResponse get(KvStorage storage, Collection<String> keys);
+    public String getKey() {
+        return key;
+    }
 
-    KvPair set(KvStorage storage, String key, String value);
-
-    KvResult set(KvStorage storage, Map<String, String> data);
-
-    KvKey delete(KvStorage storage, String key);
+    public void setKey(String key) {
+        this.key = key;
+    }
 }

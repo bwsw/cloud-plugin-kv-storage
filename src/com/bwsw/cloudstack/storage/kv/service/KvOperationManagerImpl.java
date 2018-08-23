@@ -20,6 +20,7 @@ package com.bwsw.cloudstack.storage.kv.service;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvError;
+import com.bwsw.cloudstack.storage.kv.response.KvKey;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvPair;
 import com.bwsw.cloudstack.storage.kv.response.KvResult;
@@ -33,6 +34,7 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
@@ -90,7 +92,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
             case HttpStatus.SC_NOT_FOUND:
                 new KvError(statusCode);
             default:
-                throw new RuntimeException("Unexpected KV get by key operation status: " + statusCode);
+                throw getUnexpectedStatusException(statusCode);
             }
         });
     }
@@ -113,7 +115,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
             case HttpStatus.SC_NOT_FOUND:
                 throw getNonexistentStorageException();
             default:
-                throw new RuntimeException("Unexpected KV get by keys operation status: " + statusCode);
+                throw getUnexpectedStatusException(statusCode);
             }
         });
     }
@@ -137,7 +139,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
             case HttpStatus.SC_BAD_REQUEST:
                 throw new InvalidParameterValueException("Key/value pair is invalid");
             default:
-                throw new RuntimeException("Unexpected KV get by keys operation status: " + statusCode);
+                throw getUnexpectedStatusException(statusCode);
             }
         });
     }
@@ -160,7 +162,21 @@ public class KvOperationManagerImpl implements KvOperationManager {
             case HttpStatus.SC_NOT_FOUND:
                 throw getNonexistentStorageException();
             default:
-                throw new RuntimeException("Unexpected KV get by keys operation status: " + statusCode);
+                throw getUnexpectedStatusException(statusCode);
+            }
+        });
+    }
+
+    @Override
+    public KvKey delete(KvStorage storage, String key) {
+        return execute(() -> new HttpDelete(String.format("%sdelete/%s/%s", _url, storage.getId(), encode(key))), (statusCode, entity) -> {
+            switch (statusCode) {
+            case HttpStatus.SC_OK:
+                return new KvKey(key);
+            case HttpStatus.SC_NOT_FOUND:
+                throw getNonexistentStorageException();
+            default:
+                throw getUnexpectedStatusException(statusCode);
             }
         });
     }
@@ -199,5 +215,9 @@ public class KvOperationManagerImpl implements KvOperationManager {
 
     private InvalidParameterValueException getNonexistentStorageException() {
         return new InvalidParameterValueException("KV storage does not exist");
+    }
+
+    private RuntimeException getUnexpectedStatusException(int statusCode) {
+        return new RuntimeException("Unexpected KV get by keys operation status: " + statusCode);
     }
 }
