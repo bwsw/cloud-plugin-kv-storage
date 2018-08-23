@@ -45,8 +45,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
-import java.security.InvalidParameterException;
-import java.util.List;
+import java.util.Collection;
 import java.util.Map;
 
 public class KvOperationManagerImpl implements KvOperationManager {
@@ -81,16 +80,19 @@ public class KvOperationManagerImpl implements KvOperationManager {
     @Override
     public KvOperationResponse get(KvStorage storage, String key) {
         return execute(() -> new HttpGet(String.format("%sget/%s/%s", _url, encode(storage.getId()), encode(key))), (statusCode, entity) -> {
-            if (statusCode == HttpStatus.SC_OK) {
+            switch (statusCode) {
+            case HttpStatus.SC_OK:
                 return new KvValue(EntityUtils.toString(entity, CHARSET));
-            } else {
-                return new KvError(statusCode);
+            case HttpStatus.SC_NOT_FOUND:
+                new KvError(statusCode);
+            default:
+                throw new RuntimeException("Unexpected KV get by key operation status: " + statusCode);
             }
         });
     }
 
     @Override
-    public KvOperationResponse get(KvStorage storage, List<String> keys) {
+    public KvOperationResponse get(KvStorage storage, Collection<String> keys) {
         if (keys == null || keys.isEmpty()) {
             return new KvData();
         }
@@ -127,7 +129,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
         try {
             response = _httpClient.execute(requestSupplier.get());
             return responseFactory.apply(response.getStatusLine().getStatusCode(), response.getEntity());
-        } catch (InvalidParameterException e) {
+        } catch (InvalidParameterValueException e) {
             throw e;
         } catch (Exception e) {
             s_logger.error("Unable to execute storage operation", e);

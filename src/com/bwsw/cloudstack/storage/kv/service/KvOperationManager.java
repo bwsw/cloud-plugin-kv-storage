@@ -20,11 +20,11 @@ package com.bwsw.cloudstack.storage.kv.service;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
 
-import java.util.List;
+import java.util.Collection;
 
 public interface KvOperationManager {
 
     KvOperationResponse get(KvStorage storage, String key);
 
-    KvOperationResponse get(KvStorage storage, List<String> keys);
+    KvOperationResponse get(KvStorage storage, Collection<String> keys);
 }
