@@ -25,6 +25,7 @@ import com.bwsw.cloudstack.storage.kv.response.KvKeys;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvPair;
 import com.bwsw.cloudstack.storage.kv.response.KvResult;
+import com.bwsw.cloudstack.storage.kv.response.KvSuccess;
 import com.bwsw.cloudstack.storage.kv.response.KvValue;
 import com.cloud.exception.InvalidParameterValueException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -336,6 +337,41 @@ public class KvOperationManagerImplTest {
         testException(this::getListPath, listSupplier());
     }
 
+    @Test
+    public void testClear() {
+        stubFor(getClearPath().willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
+
+        KvOperationResponse response = kvOperationManager.clear(STORAGE);
+        assertNotNull(response);
+        assertTrue(response instanceof KvSuccess);
+        assertTrue(((KvSuccess)response).isSuccess());
+    }
+
+    @Test
+    public void testClearConflictResponse() {
+        stubFor(getClearPath().willReturn(aResponse().withStatus(HttpStatus.SC_CONFLICT)));
+
+        KvOperationResponse response = kvOperationManager.clear(STORAGE);
+        assertNotNull(response);
+        assertTrue(response instanceof KvError);
+        assertEquals(HttpStatus.SC_CONFLICT, ((KvError)response).getErrorCode());
+    }
+
+    @Test
+    public void testClearNotFoundResponse() {
+        testNotFoundResponse(this::getClearPath, clearSupplier());
+    }
+
+    @Test
+    public void testClearInternalErrorResponse() {
+        testInternalErrorResponse(this::getClearPath, clearSupplier());
+    }
+
+    @Test
+    public void testClearException() {
+        testException(this::getClearPath, clearSupplier());
+    }
+
     private MappingBuilder getGetByKeyPath() {
         return get(urlEqualTo("/get/" + STORAGE.getId() + "/" + KEY));
     }
@@ -376,6 +412,10 @@ public class KvOperationManagerImplTest {
         return get(urlEqualTo("/list/" + STORAGE.getId()));
     }
 
+    private MappingBuilder getClearPath() {
+        return post(urlEqualTo("/clear/" + STORAGE.getId()));
+    }
+
     private Supplier<KvOperationResponse> getByKeySupplier() {
         return () -> kvOperationManager.get(STORAGE, KEY);
     }
@@ -402,6 +442,10 @@ public class KvOperationManagerImplTest {
 
     private Supplier<KvKeys> listSupplier() {
         return () -> kvOperationManager.list(STORAGE);
+    }
+
+    private Supplier<KvOperationResponse> clearSupplier() {
+        return () -> kvOperationManager.clear(STORAGE);
     }
 
     private <T extends KvOperationResponse> void testNotFoundResponse(Supplier<MappingBuilder> requestBuilder, Supplier<T> responseSupplier) {

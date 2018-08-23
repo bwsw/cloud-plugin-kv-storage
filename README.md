@@ -299,7 +299,7 @@ Lists keys.
 
 ### clearKvStorage
 
-Lists keys.
+Clears the storage.
 
 **Request parameters**
 

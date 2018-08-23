@@ -23,4 +23,5 @@ public class EntityConstants {
     public static final String DELETED = "deleted";
     public static final String EXPIRATION_TIMESTAMP = "expiration_timestamp";
     public static final String ITEMS = "items";
+    public static final String SUCCESS = "success";
 }

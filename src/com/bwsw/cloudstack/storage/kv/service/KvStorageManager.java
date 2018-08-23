@@ -101,4 +101,6 @@ public interface KvStorageManager extends PluggableService {
     KvResult deleteKeys(String storageId, Collection<String> keys);
 
     KvKeys listKeys(String storageId);
+
+    KvOperationResponse clear(String storageId);
 }

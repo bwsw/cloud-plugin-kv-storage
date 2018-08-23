@@ -42,4 +42,6 @@ public interface KvOperationManager {
     KvResult delete(KvStorage storage, Collection<String> keys);
 
     KvKeys list(KvStorage storage);
+
+    KvOperationResponse clear(KvStorage storage);
 }

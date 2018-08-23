@@ -30,6 +30,7 @@ import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvPair;
 import com.bwsw.cloudstack.storage.kv.response.KvResult;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
+import com.bwsw.cloudstack.storage.kv.response.KvSuccess;
 import com.bwsw.cloudstack.storage.kv.response.KvValue;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.user.AccountVO;
@@ -1064,6 +1065,37 @@ public class KvStorageManagerImplTest {
         when(_kvOperationManager.list(STORAGE)).thenReturn(result);
 
         KvKeys response = _kvStorageManager.listKeys(STORAGE.getId());
+        assertSame(result, response);
+    }
+
+    @Test
+    public void testClearNonexistentStorage() throws ExecutionException {
+        setNonexistentStorageCacheExpectations();
+        _kvStorageManager.clear(UUID);
+    }
+
+    @Test
+    public void testClearCacheException() throws ExecutionException {
+        seStorageCacheLoadingException();
+        _kvStorageManager.clear(UUID);
+    }
+
+    @Test
+    public void testClearOperationException() throws ExecutionException {
+        expectedException.expect(ServerApiException.class);
+        setStorageCacheExpectations(STORAGE);
+        when(_kvOperationManager.clear(STORAGE)).thenThrow(new ServerApiException());
+
+        _kvStorageManager.clear(STORAGE.getId());
+    }
+
+    @Test
+    public void testClear() throws ExecutionException {
+        setStorageCacheExpectations(STORAGE);
+        KvSuccess result = new KvSuccess();
+        when(_kvOperationManager.clear(STORAGE)).thenReturn(result);
+
+        KvOperationResponse response = _kvStorageManager.clear(STORAGE.getId());
         assertSame(result, response);
     }
 

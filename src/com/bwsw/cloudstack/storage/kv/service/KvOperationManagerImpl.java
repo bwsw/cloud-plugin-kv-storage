@@ -25,6 +25,7 @@ import com.bwsw.cloudstack.storage.kv.response.KvKeys;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvPair;
 import com.bwsw.cloudstack.storage.kv.response.KvResult;
+import com.bwsw.cloudstack.storage.kv.response.KvSuccess;
 import com.bwsw.cloudstack.storage.kv.response.KvValue;
 import com.cloud.exception.InvalidParameterValueException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -215,6 +216,22 @@ public class KvOperationManagerImpl implements KvOperationManager {
                 return new KvKeys(items);
             case HttpStatus.SC_NOT_FOUND:
                 throw getNonexistentStorageException();
+            default:
+                throw getUnexpectedStatusException(statusCode);
+            }
+        });
+    }
+
+    @Override
+    public KvOperationResponse clear(KvStorage storage) {
+        return execute(() -> new HttpPost(String.format("%sclear/%s", _url, encode(storage.getId()))), (statusCode, entity) -> {
+            switch (statusCode) {
+            case HttpStatus.SC_OK:
+                return new KvSuccess();
+            case HttpStatus.SC_NOT_FOUND:
+                throw getNonexistentStorageException();
+            case HttpStatus.SC_CONFLICT:
+                return new KvError(statusCode);
             default:
                 throw getUnexpectedStatusException(statusCode);
             }
