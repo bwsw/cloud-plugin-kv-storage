@@ -17,11 +17,21 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.cache.KvStorageCache;
 import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
+import com.bwsw.cloudstack.storage.kv.exception.InvalidEntityException;
+import com.bwsw.cloudstack.storage.kv.response.KvData;
+import com.bwsw.cloudstack.storage.kv.response.KvKey;
+import com.bwsw.cloudstack.storage.kv.response.KvKeys;
+import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
+import com.bwsw.cloudstack.storage.kv.response.KvPair;
+import com.bwsw.cloudstack.storage.kv.response.KvResult;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
+import com.bwsw.cloudstack.storage.kv.response.KvSuccess;
+import com.bwsw.cloudstack.storage.kv.response.KvValue;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.user.AccountVO;
 import com.cloud.user.dao.AccountDao;
@@ -33,6 +43,7 @@ import com.cloud.vm.dao.VMInstanceDao;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import org.apache.cloudstack.api.Identity;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.cloudstack.api.response.ListResponse;
@@ -60,10 +71,15 @@ import org.mockito.runners.MockitoJUnitRunner;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.greaterThan;
@@ -103,6 +119,10 @@ public class KvStorageManagerImplTest {
     private static final long PAGE_SIZE = 5L;
     private static final long START_INDEX = 10L;
     private static final long DEFAULT_INDEX = 0L;
+    private static final String KEY = "key";
+    private static final String VALUE = "value";
+    private static final Map<String, String> DATA = ImmutableMap.of("key1", "one", "key2", "two");
+    private static final KvStorage STORAGE = new KvStorage("e0123777-921b-4e62-a7cc-8135015ca571", false);
 
     @FunctionalInterface
     private interface ExpectationSetter {
@@ -159,6 +179,12 @@ public class KvStorageManagerImplTest {
 
     @Mock
     private SearchBuilder<AccountVO> _accountVOByUuidSearchBuilder;
+
+    @Mock
+    private KvStorageCache _kvStorageCache;
+
+    @Mock
+    private KvOperationManager _kvOperationManager;
 
     @InjectMocks
     private KvStorageManagerImpl _kvStorageManager = new KvStorageManagerImpl();
@@ -825,6 +851,254 @@ public class KvStorageManagerImplTest {
         }, storageManager -> storageManager.deleteVmStoragesForRecentlyDeletedVms(TTL));
     }
 
+    @Test
+    public void testGetValueNonexistentStorage() throws ExecutionException {
+        setNonexistentStorageCacheExpectations();
+        _kvStorageManager.getValue(UUID, KEY);
+    }
+
+    @Test
+    public void testGetValueCacheException() throws ExecutionException {
+        seStorageCacheLoadingException();
+        _kvStorageManager.getValue(UUID, KEY);
+    }
+
+    @Test
+    public void testGetValueOperationException() throws ExecutionException {
+        expectedException.expect(ServerApiException.class);
+        setStorageCacheExpectations(STORAGE);
+        when(_kvOperationManager.get(STORAGE, KEY)).thenThrow(new ServerApiException());
+
+        _kvStorageManager.getValue(STORAGE.getId(), KEY);
+    }
+
+    @Test
+    public void testGetValue() throws ExecutionException {
+        setStorageCacheExpectations(STORAGE);
+        KvValue result = new KvValue(VALUE);
+        when(_kvOperationManager.get(STORAGE, KEY)).thenReturn(result);
+
+        KvOperationResponse response = _kvStorageManager.getValue(STORAGE.getId(), KEY);
+        assertSame(result, response);
+    }
+
+    @Test
+    public void testGetValuesNonexistentStorage() throws ExecutionException {
+        setNonexistentStorageCacheExpectations();
+        _kvStorageManager.getValues(UUID, DATA.keySet());
+    }
+
+    @Test
+    public void testGetValuesCacheException() throws ExecutionException {
+        seStorageCacheLoadingException();
+        _kvStorageManager.getValues(UUID, DATA.keySet());
+    }
+
+    @Test
+    public void testGetValuesOperationException() throws ExecutionException {
+        expectedException.expect(ServerApiException.class);
+        setStorageCacheExpectations(STORAGE);
+        when(_kvOperationManager.get(STORAGE, DATA.keySet())).thenThrow(new ServerApiException());
+
+        _kvStorageManager.getValues(STORAGE.getId(), DATA.keySet());
+    }
+
+    @Test
+    public void testGetValues() throws ExecutionException {
+        setStorageCacheExpectations(STORAGE);
+        KvData result = new KvData(DATA);
+        when(_kvOperationManager.get(STORAGE, DATA.keySet())).thenReturn(result);
+
+        KvOperationResponse response = _kvStorageManager.getValues(STORAGE.getId(), DATA.keySet());
+        assertSame(result, response);
+    }
+
+    @Test
+    public void testSetValueNonexistentStorage() throws ExecutionException {
+        setNonexistentStorageCacheExpectations();
+        _kvStorageManager.setValue(UUID, KEY, VALUE);
+    }
+
+    @Test
+    public void testSetValueCacheException() throws ExecutionException {
+        seStorageCacheLoadingException();
+        _kvStorageManager.setValue(UUID, KEY, VALUE);
+    }
+
+    @Test
+    public void testSetValueOperationException() throws ExecutionException {
+        expectedException.expect(ServerApiException.class);
+        setStorageCacheExpectations(STORAGE);
+        when(_kvOperationManager.set(STORAGE, KEY, VALUE)).thenThrow(new ServerApiException());
+
+        _kvStorageManager.setValue(STORAGE.getId(), KEY, VALUE);
+    }
+
+    @Test
+    public void testSetValue() throws ExecutionException {
+        setStorageCacheExpectations(STORAGE);
+        KvPair result = new KvPair(KEY, VALUE);
+        when(_kvOperationManager.set(STORAGE, KEY, VALUE)).thenReturn(result);
+
+        KvPair response = _kvStorageManager.setValue(STORAGE.getId(), KEY, VALUE);
+        assertSame(result, response);
+    }
+
+    @Test
+    public void testSetValuesNonexistentStorage() throws ExecutionException {
+        setNonexistentStorageCacheExpectations();
+        _kvStorageManager.setValues(UUID, DATA);
+    }
+
+    @Test
+    public void testSetValuesCacheException() throws ExecutionException {
+        seStorageCacheLoadingException();
+        _kvStorageManager.setValues(UUID, DATA);
+    }
+
+    @Test
+    public void testSetValuesOperationException() throws ExecutionException {
+        expectedException.expect(ServerApiException.class);
+        setStorageCacheExpectations(STORAGE);
+        when(_kvOperationManager.set(STORAGE, DATA)).thenThrow(new ServerApiException());
+
+        _kvStorageManager.setValues(STORAGE.getId(), DATA);
+    }
+
+    @Test
+    public void testSetValues() throws ExecutionException {
+        setStorageCacheExpectations(STORAGE);
+        KvResult result = new KvResult(DATA.keySet().stream().collect(Collectors.toMap(Function.identity(), k -> true)));
+        when(_kvOperationManager.set(STORAGE, DATA)).thenReturn(result);
+
+        KvResult response = _kvStorageManager.setValues(STORAGE.getId(), DATA);
+        assertSame(result, response);
+    }
+
+    @Test
+    public void testDeleteKeyNonexistentStorage() throws ExecutionException {
+        setNonexistentStorageCacheExpectations();
+        _kvStorageManager.deleteKey(UUID, KEY);
+    }
+
+    @Test
+    public void testDeleteKeyCacheException() throws ExecutionException {
+        seStorageCacheLoadingException();
+        _kvStorageManager.deleteKey(UUID, KEY);
+    }
+
+    @Test
+    public void testDeleteKeyOperationException() throws ExecutionException {
+        expectedException.expect(ServerApiException.class);
+        setStorageCacheExpectations(STORAGE);
+        when(_kvOperationManager.delete(STORAGE, KEY)).thenThrow(new ServerApiException());
+
+        _kvStorageManager.deleteKey(STORAGE.getId(), KEY);
+    }
+
+    @Test
+    public void testDeleteKey() throws ExecutionException {
+        setStorageCacheExpectations(STORAGE);
+        KvKey result = new KvKey(KEY);
+        when(_kvOperationManager.delete(STORAGE, KEY)).thenReturn(result);
+
+        KvKey response = _kvStorageManager.deleteKey(STORAGE.getId(), KEY);
+        assertSame(result, response);
+    }
+
+    @Test
+    public void testDeleteKeysNonexistentStorage() throws ExecutionException {
+        setNonexistentStorageCacheExpectations();
+        _kvStorageManager.deleteKeys(UUID, DATA.keySet());
+    }
+
+    @Test
+    public void testDeleteKeysCacheException() throws ExecutionException {
+        seStorageCacheLoadingException();
+        _kvStorageManager.deleteKeys(UUID, DATA.keySet());
+    }
+
+    @Test
+    public void testDeleteKeysOperationException() throws ExecutionException {
+        expectedException.expect(ServerApiException.class);
+        setStorageCacheExpectations(STORAGE);
+        when(_kvOperationManager.delete(STORAGE, DATA.keySet())).thenThrow(new ServerApiException());
+
+        _kvStorageManager.deleteKeys(STORAGE.getId(), DATA.keySet());
+    }
+
+    @Test
+    public void testDeleteKeys() throws ExecutionException {
+        setStorageCacheExpectations(STORAGE);
+        KvResult result = new KvResult(DATA.keySet().stream().collect(Collectors.toMap(Function.identity(), k -> true)));
+        when(_kvOperationManager.delete(STORAGE, DATA.keySet())).thenReturn(result);
+
+        KvResult response = _kvStorageManager.deleteKeys(STORAGE.getId(), DATA.keySet());
+        assertSame(result, response);
+    }
+
+    @Test
+    public void testListKeysNonexistentStorage() throws ExecutionException {
+        setNonexistentStorageCacheExpectations();
+        _kvStorageManager.listKeys(UUID);
+    }
+
+    @Test
+    public void testListKeysCacheException() throws ExecutionException {
+        seStorageCacheLoadingException();
+        _kvStorageManager.listKeys(UUID);
+    }
+
+    @Test
+    public void testListKeysOperationException() throws ExecutionException {
+        expectedException.expect(ServerApiException.class);
+        setStorageCacheExpectations(STORAGE);
+        when(_kvOperationManager.list(STORAGE)).thenThrow(new ServerApiException());
+
+        _kvStorageManager.listKeys(STORAGE.getId());
+    }
+
+    @Test
+    public void testListKeys() throws ExecutionException {
+        setStorageCacheExpectations(STORAGE);
+        KvKeys result = new KvKeys(new ArrayList<>(DATA.keySet()));
+        when(_kvOperationManager.list(STORAGE)).thenReturn(result);
+
+        KvKeys response = _kvStorageManager.listKeys(STORAGE.getId());
+        assertSame(result, response);
+    }
+
+    @Test
+    public void testClearNonexistentStorage() throws ExecutionException {
+        setNonexistentStorageCacheExpectations();
+        _kvStorageManager.clear(UUID);
+    }
+
+    @Test
+    public void testClearCacheException() throws ExecutionException {
+        seStorageCacheLoadingException();
+        _kvStorageManager.clear(UUID);
+    }
+
+    @Test
+    public void testClearOperationException() throws ExecutionException {
+        expectedException.expect(ServerApiException.class);
+        setStorageCacheExpectations(STORAGE);
+        when(_kvOperationManager.clear(STORAGE)).thenThrow(new ServerApiException());
+
+        _kvStorageManager.clear(STORAGE.getId());
+    }
+
+    @Test
+    public void testClear() throws ExecutionException {
+        setStorageCacheExpectations(STORAGE);
+        KvSuccess result = new KvSuccess();
+        when(_kvOperationManager.clear(STORAGE)).thenReturn(result);
+
+        KvOperationResponse response = _kvStorageManager.clear(STORAGE.getId());
+        assertSame(result, response);
+    }
+
     private void testCreateAccountStorageInvalidName(String name) {
         setExceptionExpectation(InvalidParameterValueException.class, "name");
 
@@ -990,6 +1264,20 @@ public class KvStorageManagerImplTest {
                 return true;
             }
         }))).thenReturn(_updateRequest);
+    }
+
+    private void setNonexistentStorageCacheExpectations() throws ExecutionException {
+        setExceptionExpectation(InvalidParameterValueException.class, "KV storage does not exist");
+        when(_kvStorageCache.get(UUID)).thenReturn(Optional.empty());
+    }
+
+    private void seStorageCacheLoadingException() throws ExecutionException {
+        setExceptionExpectation(ServerApiException.class, "Failed to execute KV storage operation");
+        when(_kvStorageCache.get(UUID)).thenThrow(new ExecutionException(new InvalidEntityException()));
+    }
+
+    private void setStorageCacheExpectations(KvStorage storage) throws ExecutionException {
+        when(_kvStorageCache.get(storage.getId())).thenReturn(Optional.of(storage));
     }
 
     private void setExceptionExpectation(Class<? extends Exception> exceptionClass, String message) {

@@ -17,16 +17,31 @@
 
 package com.bwsw.cloudstack.storage.kv.service;
 
+import com.bwsw.cloudstack.storage.kv.api.ClearKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.CreateAccountKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.CreateTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteAccountKvStorageCmd;
+import com.bwsw.cloudstack.storage.kv.api.DeleteKvStorageKeyCmd;
+import com.bwsw.cloudstack.storage.kv.api.DeleteKvStorageKeysCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteTempKvStorageCmd;
+import com.bwsw.cloudstack.storage.kv.api.GetKvStorageValueCmd;
+import com.bwsw.cloudstack.storage.kv.api.GetKvStorageValuesCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
+import com.bwsw.cloudstack.storage.kv.api.ListKvStorageKeysCmd;
+import com.bwsw.cloudstack.storage.kv.api.SetKvStorageValueCmd;
+import com.bwsw.cloudstack.storage.kv.api.SetKvStorageValuesCmd;
 import com.bwsw.cloudstack.storage.kv.api.UpdateTempKvStorageCmd;
+import com.bwsw.cloudstack.storage.kv.cache.KvStorageCache;
+import com.bwsw.cloudstack.storage.kv.cache.KvStorageCacheFactory;
 import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.job.KvStorageJobManager;
+import com.bwsw.cloudstack.storage.kv.response.KvKey;
+import com.bwsw.cloudstack.storage.kv.response.KvKeys;
+import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
+import com.bwsw.cloudstack.storage.kv.response.KvPair;
+import com.bwsw.cloudstack.storage.kv.response.KvResult;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.bwsw.cloudstack.storage.kv.util.HttpUtils;
 import com.cloud.exception.InvalidParameterValueException;
@@ -38,6 +53,7 @@ import com.cloud.utils.db.SearchBuilder;
 import com.cloud.utils.db.SearchCriteria;
 import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.dao.VMInstanceDao;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import org.apache.cloudstack.api.ApiErrorCode;
 import org.apache.cloudstack.api.Identity;
 import org.apache.cloudstack.api.ServerApiException;
@@ -64,11 +80,14 @@ import org.elasticsearch.rest.RestStatus;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -109,6 +128,11 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     @Inject
     private KvStorageJobManager _kvStorageJobManager;
 
+    @Inject
+    private KvStorageCacheFactory _kvStorageCacheFactory;
+
+    private KvOperationManager _kvOperationManager;
+
     private RestHighLevelClient _restHighLevelClient;
 
     private SearchBuilder<VMInstanceVO> _vmInstanceVOByUuidSearchBuilder;
@@ -116,6 +140,8 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     private SearchBuilder<VMInstanceVO> _vmInstanceVOByRemovedSearchBuilder;
 
     private SearchBuilder<AccountVO> _accountVOByUuidSearchBuilder;
+
+    private KvStorageCache _kvStorageCache;
 
     @Override
     public KvStorage createAccountStorage(Long accountId, String name, String description, Boolean historyEnabled) {
@@ -342,6 +368,46 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
+    public KvOperationResponse getValue(String storageId, String key) {
+        return execute(storageId, storage -> _kvOperationManager.get(storage, key));
+    }
+
+    @Override
+    public KvOperationResponse getValues(String storageId, Collection<String> keys) {
+        return execute(storageId, storage -> _kvOperationManager.get(storage, keys));
+    }
+
+    @Override
+    public KvPair setValue(String storageId, String key, String value) {
+        return execute(storageId, storage -> _kvOperationManager.set(storage, key, value));
+    }
+
+    @Override
+    public KvResult setValues(String storageId, Map<String, String> data) {
+        return execute(storageId, storage -> _kvOperationManager.set(storage, data));
+    }
+
+    @Override
+    public KvKey deleteKey(String storageId, String key) {
+        return execute(storageId, storage -> _kvOperationManager.delete(storage, key));
+    }
+
+    @Override
+    public KvResult deleteKeys(String storageId, Collection<String> keys) {
+        return execute(storageId, storage -> _kvOperationManager.delete(storage, keys));
+    }
+
+    @Override
+    public KvKeys listKeys(String storageId) {
+        return execute(storageId, storage -> _kvOperationManager.list(storage));
+    }
+
+    @Override
+    public KvOperationResponse clear(String storageId) {
+        return execute(storageId, storage -> _kvOperationManager.clear(storage));
+    }
+
+    @Override
     public List<Class<?>> getCommands() {
         List<Class<?>> commands = new ArrayList<>();
         commands.add(ListAccountKvStoragesCmd.class);
@@ -350,6 +416,14 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         commands.add(CreateTempKvStorageCmd.class);
         commands.add(UpdateTempKvStorageCmd.class);
         commands.add(DeleteTempKvStorageCmd.class);
+        commands.add(GetKvStorageValueCmd.class);
+        commands.add(GetKvStorageValuesCmd.class);
+        commands.add(SetKvStorageValueCmd.class);
+        commands.add(SetKvStorageValuesCmd.class);
+        commands.add(DeleteKvStorageKeyCmd.class);
+        commands.add(DeleteKvStorageKeysCmd.class);
+        commands.add(ListKvStorageKeysCmd.class);
+        commands.add(ClearKvStorageCmd.class);
         return commands;
     }
 
@@ -360,7 +434,8 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     @Override
     public ConfigKey<?>[] getConfigKeys() {
-        return new ConfigKey[] {KvStorageElasticsearchList, KvStorageElasticsearchUsername, KvStorageElasticsearchPassword, KvStorageVmHistoryEnabled};
+        return new ConfigKey[] {KvStorageElasticsearchList, KvStorageElasticsearchUsername, KvStorageElasticsearchPassword, KvStorageVmHistoryEnabled, KvStorageCacheMaxSize,
+                KvStorageUrl};
     }
 
     @Override
@@ -389,6 +464,9 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         _vmInstanceVOByRemovedSearchBuilder = _vmInstanceDao.createSearchBuilder();
         _vmInstanceVOByRemovedSearchBuilder.and(_vmInstanceVOByRemovedSearchBuilder.entity().getRemoved(), SearchCriteria.Op.NNULL);
         _vmInstanceVOByRemovedSearchBuilder.and(REMOVED_GTE_CONDITION, _vmInstanceVOByRemovedSearchBuilder.entity().getRemoved(), SearchCriteria.Op.GTEQ);
+
+        _kvStorageCache = _kvStorageCacheFactory.getCache(KvStorageCacheMaxSize.value(), _restHighLevelClient);
+        _kvOperationManager = new KvOperationManagerImpl(KvStorageUrl.value());
 
         return true;
     }
@@ -483,4 +561,17 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         }
     }
 
+    private <T extends KvOperationResponse> T execute(String storageId, Function<KvStorage, T> retriever) {
+        Optional<KvStorage> storage;
+        try {
+            storage = _kvStorageCache.get(storageId);
+            if (!storage.isPresent()) {
+                throw new InvalidParameterValueException("KV storage does not exist");
+            }
+        } catch (ExecutionException | UncheckedExecutionException e) {
+            s_logger.error("Unable to execute storage operation", e);
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to execute KV storage operation");
+        }
+        return retriever.apply(storage.get());
+    }
 }

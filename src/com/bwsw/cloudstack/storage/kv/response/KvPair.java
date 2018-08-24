@@ -15,15 +15,39 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.bwsw.cloudstack.storage.kv.api;
+package com.bwsw.cloudstack.storage.kv.response;
 
-public class ApiConstants {
+import com.google.gson.annotations.SerializedName;
 
-    public static final String STORAGE_ID = "storageid";
-    public static final String HISTORY_ENABLED = "historyenabled";
-    public static final String TTL = "ttl";
-    public static final String EXPIRATION_TIMESTAMP = "expirationtimestamp";
-    public static final String CODE = "code";
-    public static final String KEYS = "keys";
-    public static final String ITEMS = "items";
+public class KvPair extends KvOperationResponse {
+
+    @SerializedName("key")
+    private String key;
+
+    @SerializedName("value")
+    private String value;
+
+    public KvPair() {
+    }
+
+    public KvPair(String key, String value) {
+        this.key = key;
+        this.value = value;
+    }
+
+    public String getKey() {
+        return key;
+    }
+
+    public void setKey(String key) {
+        this.key = key;
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    public void setValue(String value) {
+        this.value = value;
+    }
 }

@@ -35,6 +35,8 @@ The plugin does not work with built-in KafkaEventBus and RabbitMQEventBus.
 | storage.kv.elasticsearch.username | Elasticsearch username for authentication; should be empty if authentication is disabled | |
 | storage.kv.elasticsearch.password | Elasticsearch password for authentication; should be empty if authentication is disabled | |
 | storage.kv.vm.history.enabled | true if VM storages should keep an operation history, false otherwise | false |
+| storage.kv.cache.size.max | maximum size of storage cache | 10000 |
+| storage.kv.url | KV storage URL | |
 
 *default.page.size* is used as a default value for pagesize parameter in [listAccountKvStorages](#listaccountkvstorages) command. Its value should be less or equal to Elasticsearch 
 *index.max_result_window* otherwise listAccountKvStorages requests without pagesize parameter will fail.
@@ -49,6 +51,11 @@ The documentation can be found at https://git.bw-sw.com/cloudstack-ecosystem/cs-
 
 # API
 
+* [Storage management](#storage-management)
+* [Stotage operations](#storage-operations)
+
+## Storage management
+
 The plugin provides following API commands to manage key/value storages:
 
 * [createAccountKvStorage (A)](#createaccountkvstorage)
@@ -59,8 +66,6 @@ The plugin provides following API commands to manage key/value storages:
 * [deleteTempKvStorage (A)](#deletetempkvstorage)
 
 (A) implies that the command is asynchronous.
-
-## Commands
 
 ### createAccountKvStorage
 
@@ -151,6 +156,165 @@ Deletes a temporal KV storage.
 
 See [async command response tags](#async-command-response-tags).
 
+## Storage operations
+
+* [getKvStorageValue](#getKvStorageValue)
+* [getKvStorageValues](#getKvStorageValues)
+* [setKvStorageValue](#setkvstoragevalue)
+* [setKvStorageValues](#setkvstoragevalues)
+* [deleteKvStorageKey](#deletekvstoragekey)
+* [deleteKvStorageKeys](#deletekvstoragekeys)
+* [listKvStorageKeys](#listkvstoragekeys)
+* [clearKvStorage](#clearkvstorage)
+
+In all storage operation commands if the request is invalid or an error occurs while processing it the standard error response is returned.
+
+### getKvStorageValue
+
+Gets the value by the key.
+
+**Request parameters**
+
+| Parameter Name | Description | Required |
+| -------------- | ----------- | -------- |
+| storageid | the ID of the storage | true |
+| key | the key to retrieve value for | true |
+
+**Response tags**
+
+| Response Name | Description |
+| -------------- | ---------- |
+| kvresult | success response |
+| &nbsp;value | the value associated with the key |
+| kverror | failure response (see [KV error response tags](#kv-error-response-tags)). If the key does not exist 404 code is returned. |
+
+### getKvStorageValues
+
+Get values by keys.
+
+**Request parameters**
+
+| Parameter Name | Description | Required |
+| -------------- | ----------- | -------- |
+| storageid | the ID of the storage | true |
+| keys | keys to retrieve value for | true |
+
+**Response tags**
+
+| Response Name | Description |
+| -------------- | ---------- |
+| kvresult | success response |
+| &nbsp;items | key/value pairs as the map |
+
+### setKvStorageValue
+
+Sets the value for the key.
+
+**Request parameters**
+
+| Parameter Name | Description | Required |
+| -------------- | ----------- | -------- |
+| storageid | the ID of the storage | true |
+| key | the key | true |
+| value | the value | true |
+
+**Response tags**
+
+| Response Name | Description |
+| -------------- | ---------- |
+| kvresult | success response |
+| &nbsp;key | the key |
+| &nbsp;value | the value |
+
+### setKvStorageValues
+
+Sets values for the keys.
+
+**Request parameters**
+
+| Parameter Name | Description | Required |
+| -------------- | ----------- | -------- |
+| storageid | the ID of the storage | true |
+| items | key/value pairs; should be specified in the request in the way items[0].key1=value1&items[0].key2=value2 | true |
+
+**Response tags**
+
+| Response Name | Description |
+| -------------- | ---------- |
+| kvresult | success response |
+| &nbsp;items | keys associated with boolean values (as a result of set operation) as map  |
+
+### deleteKvStorageKey
+
+Removes the key.
+
+**Request parameters**
+
+| Parameter Name | Description | Required |
+| -------------- | ----------- | -------- |
+| storageid | the ID of the storage | true |
+| key | the key to be deleted | true |
+
+**Response tags**
+
+| Response Name | Description |
+| -------------- | ---------- |
+| kvresult | success response |
+| &nbsp;key | the key  |
+
+### deleteKvStorageKeys
+
+Removes keys.
+
+**Request parameters**
+
+| Parameter Name | Description | Required |
+| -------------- | ----------- | -------- |
+| storageid | the ID of the storage | true |
+| keys | keys to be deleted | true |
+
+**Response tags**
+
+| Response Name | Description |
+| -------------- | ---------- |
+| kvresult | success response |
+| &nbsp;items | keys associated with boolean values (as a result of set operation) as map |
+
+### listKvStorageKeys
+
+Lists keys.
+
+**Request parameters**
+
+| Parameter Name | Description | Required |
+| -------------- | ----------- | -------- |
+| storageid | the ID of the storage | true |
+
+**Response tags**
+
+| Response Name | Description |
+| -------------- | ---------- |
+| kvresult | success response |
+| &nbsp;items | keys in the storage as a collection |
+
+### clearKvStorage
+
+Clears the storage.
+
+**Request parameters**
+
+| Parameter Name | Description | Required |
+| -------------- | ----------- | -------- |
+| storageid | the ID of the storage | true |
+
+**Response tags**
+
+| Response Name | Description |
+| -------------- | ---------- |
+| kvresult | success response |
+| &nbsp;success | always true if kvresult is present |
+| kverror | failure response (see [KV error response tags](#kv-error-response-tags)). |
+
 ## Response tags
 
 ### Storage response tags
@@ -171,3 +335,9 @@ See [async command response tags](#async-command-response-tags).
 | -------------- | ---------- |
 | displaytext | any text associated with success or failure |
 | success | true if operation is executed successfully |
+
+### KV error response tags
+
+| Response Name | Description |
+| -------------- | ---------- |
+| code | error code |
