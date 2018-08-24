@@ -35,15 +35,15 @@ public class SetKvStorageValuesCmd extends BaseKvStorageCmd {
 
     public static final String API_NAME = "setKvStorageValues";
 
-    @Parameter(name = ApiConstants.DATA, type = CommandType.MAP, collectionType = CommandType.OBJECT, description = "key/value pairs")
-    private Map<String, String> data;
+    @Parameter(name = ApiConstants.ITEMS, required = true, type = CommandType.MAP, collectionType = CommandType.OBJECT, description = "key/value pairs")
+    private Map<String, String> items;
 
     @SuppressWarnings("unchecked")
     public Map<String, String> getData() {
-        if (data == null || data.isEmpty()) {
-            return data;
+        if (items == null || items.isEmpty()) {
+            return items;
         }
-        Collection<String> values = data.values();
+        Collection<String> values = items.values();
         return (Map<String, String>)(values.toArray())[0];
     }
 
