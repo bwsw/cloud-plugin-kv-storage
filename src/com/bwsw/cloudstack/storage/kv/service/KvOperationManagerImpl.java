@@ -130,7 +130,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
         }
         return execute(() -> {
             StringEntity entity = new StringEntity(value, TEXT_PLAIN_CONTENT_TYPE);
-            HttpPut request = new HttpPut(String.format("%s/set/%s/%s", _url, encode(storage.getId()), encode(key)));
+            HttpPut request = new HttpPut(String.format("%sset/%s/%s", _url, encode(storage.getId()), encode(key)));
             request.setEntity(entity);
             return request;
         }, (statusCode, entity) -> {
