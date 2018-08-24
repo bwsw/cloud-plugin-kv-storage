@@ -33,7 +33,7 @@ import javax.inject.Inject;
 
 public abstract class BaseKvStorageCmd extends BaseCmd {
 
-    @Parameter(name = com.bwsw.cloudstack.storage.kv.api.ApiConstants.STORAGE_ID, type = CommandType.STRING, required = true, description = "the KV storage id")
+    @Parameter(name = ApiConstants.STORAGE_ID, type = CommandType.STRING, required = true, description = "the KV storage id")
     private String storageId;
 
     @Inject
