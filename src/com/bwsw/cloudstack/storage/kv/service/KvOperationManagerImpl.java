@@ -93,7 +93,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
             case HttpStatus.SC_OK:
                 return new KvValue(EntityUtils.toString(entity, CHARSET));
             case HttpStatus.SC_NOT_FOUND:
-                new KvError(statusCode);
+                return new KvError(statusCode);
             default:
                 throw getUnexpectedStatusException(statusCode);
             }

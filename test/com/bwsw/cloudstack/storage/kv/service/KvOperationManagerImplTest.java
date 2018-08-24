@@ -99,7 +99,6 @@ public class KvOperationManagerImplTest {
 
     @Test
     public void testGetByKeyNotFoundResponse() {
-        expectedException.expect(ServerApiException.class);
         stubFor(getGetByKeyPath().willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
 
         KvOperationResponse response = kvOperationManager.get(STORAGE, KEY);
