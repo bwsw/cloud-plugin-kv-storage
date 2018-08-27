@@ -526,7 +526,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
                     entityByUuid = new HashMap<>();
                 }
                 for (KvStorage storage : response.getResults()) {
-                    T entity = entityByUuid.get(storage.getId());
+                    T entity = entityByUuid.get(entityUuidRetriever.apply(storage));
                     if (entity == null || removedChecker.test(entity)) {
                         s_logger.info("Deleting " + storage.getType().name() + " storage " + storage.getId() + " for the removed entity " + entityUuidRetriever.apply(storage));
                         storage.setDeleted(true);
