@@ -4,6 +4,9 @@ stages:
   - prepare
   - build
   - test
+  - package
+  - release
+  - tag
   - deploy
   - mirror
 
@@ -14,6 +17,10 @@ variables:
   CLOUDSTACK_VERSION: "4.11.1.0"
   UPSTREAM_REPOSITORY: "git@github.com:bwsw/cloud-plugin-kv-storage.git"
   UPSTREAM_BRANCH: "master"
+  DOCKER_IMAGE: "$CI_REGISTRY_IMAGE/simulator:$CI_COMMIT_REF_SLUG"
+  DOCKER_IMAGE_LATEST: "$CI_REGISTRY_IMAGE/simulator:latest"
+  DOCKER_PLUGIN_PATH: "target/cloud-plugin-kv-storage-*-shaded.jar"
+  DOCKER_PLUGIN_ARTIFACT: "cloud-plugin-kv-storage.jar"
 
 cache:
   paths:
@@ -45,6 +52,53 @@ test:
     - mvn $MAVEN_CLI_OPTS test
   tags:
     - build-in-docker
+    - cs-eco-builder
+
+package:
+  stage: package
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  script:
+    - mvn $MAVEN_CLI_OPTS package
+  artifacts:
+   name: "$CI_COMMIT_REF_SLUG"
+   paths:
+     - $DOCKER_PLUGIN_PATH
+  tags:
+    - build-in-docker
+    - cs-eco-builder
+
+release:
+  stage: release
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  cache: {}
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+  script:
+    - cp $DOCKER_PLUGIN_PATH "simulator/$DOCKER_PLUGIN_ARTIFACT"
+    - docker build -t $DOCKER_IMAGE --build-arg PLUGIN_PATH=$DOCKER_PLUGIN_ARTIFACT simulator
+    - docker push $DOCKER_IMAGE
+  dependencies:
+    - package
+  tags:
+    - build-as-docker
+    - cs-eco-builder
+
+tag-master:
+  stage: tag
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  cache: {}
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+  script:
+    - docker tag $DOCKER_IMAGE $DOCKER_IMAGE_LATEST
+    - docker push $DOCKER_IMAGE_LATEST
+  only:
+    - master
+  tags:
+    - build-as-docker
     - cs-eco-builder
 
 deploy:
