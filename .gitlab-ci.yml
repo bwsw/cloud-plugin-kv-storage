@@ -17,8 +17,8 @@ variables:
   CLOUDSTACK_VERSION: "4.11.1.0"
   UPSTREAM_REPOSITORY: "git@github.com:bwsw/cloud-plugin-kv-storage.git"
   UPSTREAM_BRANCH: "master"
-  DOCKER_IMAGE: "$CI_REGISTRY_IMAGE-simulator:$CI_COMMIT_REF_SLUG"
-  DOCKER_IMAGE_LATEST: "$CI_REGISTRY_IMAGE-simulator:latest"
+  DOCKER_IMAGE: "$CI_REGISTRY_IMAGE/simulator:$CI_COMMIT_REF_SLUG"
+  DOCKER_IMAGE_LATEST: "$CI_REGISTRY_IMAGE/simulator:latest"
   DOCKER_PLUGIN_PATH: "target/cloud-plugin-kv-storage-*-shaded.jar"
   DOCKER_PLUGIN_ARTIFACT: "cloud-plugin-kv-storage.jar"
 
