@@ -56,6 +56,8 @@ test:
 
 package:
   stage: package
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
   script:
     - mvn $MAVEN_CLI_OPTS package
   artifacts:
@@ -68,6 +70,8 @@ package:
 
 release:
   stage: release
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
   cache: {}
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
@@ -83,6 +87,8 @@ release:
 
 tag-master:
   stage: tag
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
   cache: {}
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
