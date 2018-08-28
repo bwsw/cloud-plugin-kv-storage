@@ -15,14 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.bwsw.cloudstack.storage.kv.entity;
+package com.bwsw.cloudstack.storage.kv.security;
 
-public class EntityConstants {
+public interface KeyGenerator {
 
-    public static final String HISTORY_ENABLED = "history_enabled";
-    public static final String DELETED = "deleted";
-    public static final String EXPIRATION_TIMESTAMP = "expiration_timestamp";
-    public static final String SECRET_KEY = "secret_key";
-    public static final String ITEMS = "items";
-    public static final String SUCCESS = "success";
+    String generate();
 }

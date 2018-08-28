@@ -26,6 +26,7 @@ import com.bwsw.cloudstack.storage.kv.api.DeleteKvStorageKeysCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.GetKvStorageValueCmd;
 import com.bwsw.cloudstack.storage.kv.api.GetKvStorageValuesCmd;
+import com.bwsw.cloudstack.storage.kv.api.GetVmKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListKvStorageKeysCmd;
 import com.bwsw.cloudstack.storage.kv.api.SetKvStorageValueCmd;
@@ -43,6 +44,7 @@ import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvPair;
 import com.bwsw.cloudstack.storage.kv.response.KvResult;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
+import com.bwsw.cloudstack.storage.kv.security.KeyGenerator;
 import com.bwsw.cloudstack.storage.kv.util.HttpUtils;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.user.AccountVO;
@@ -131,6 +133,9 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     @Inject
     private KvStorageCacheFactory _kvStorageCacheFactory;
 
+    @Inject
+    private KeyGenerator _keyGenerator;
+
     private KvOperationManager _kvOperationManager;
 
     private RestHighLevelClient _restHighLevelClient;
@@ -155,7 +160,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         if (historyEnabled == null) {
             historyEnabled = false;
         }
-        KvStorage storage = new KvStorage(UUID.randomUUID().toString(), accountVO.getUuid(), name, description, historyEnabled);
+        KvStorage storage = new KvStorage(UUID.randomUUID().toString(), _keyGenerator.generate(), accountVO.getUuid(), name, description, historyEnabled);
         return createStorage(storage);
     }
 
@@ -239,7 +244,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     @Override
     public KvStorage createTempStorage(Integer ttl) {
         checkTtl(ttl);
-        KvStorage storage = new KvStorage(UUID.randomUUID().toString(), ttl, KvStorage.getCurrentTimestamp() + ttl);
+        KvStorage storage = new KvStorage(UUID.randomUUID().toString(), _keyGenerator.generate(), ttl, KvStorage.getCurrentTimestamp() + ttl);
         return createStorage(storage);
     }
 
@@ -302,7 +307,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         if (historyEnabled == null) {
             historyEnabled = false;
         }
-        KvStorage storage = new KvStorage(vmInstanceVO.getUuid(), historyEnabled);
+        KvStorage storage = new KvStorage(vmInstanceVO.getUuid(), _keyGenerator.generate(), historyEnabled);
         return createStorage(storage);
     }
 
@@ -318,6 +323,25 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         } catch (IOException e) {
             s_logger.error("Unable to get/create a storage for VM " + vmId, e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to get/create a storage for VM " + vmId, e);
+        }
+    }
+
+    @Override
+    public KvStorage getVmStorage(Long vmId) {
+        VMInstanceVO vmInstanceVO = _vmInstanceDao.findById(vmId);
+        if (vmInstanceVO == null) {
+            throw new InvalidParameterValueException("Unable to find a VM with the specified id");
+        }
+        GetRequest getRequest = _kvRequestBuilder.getGetRequest(vmInstanceVO.getUuid());
+        try {
+            KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
+            if (storage == null || storage.getDeleted() != null && storage.getDeleted()) {
+                throw new InvalidParameterValueException("The storage does not exist");
+            }
+            return storage;
+        } catch (IOException e) {
+            s_logger.error("Unable to retrieve a storage", e);
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to retrieve VM storage", e);
         }
     }
 
@@ -424,6 +448,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         commands.add(DeleteKvStorageKeysCmd.class);
         commands.add(ListKvStorageKeysCmd.class);
         commands.add(ClearKvStorageCmd.class);
+        commands.add(GetVmKvStorageCmd.class);
         return commands;
     }
 

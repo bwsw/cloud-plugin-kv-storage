@@ -53,9 +53,10 @@ public class KvStorageCacheImplTest {
 
     private static final String ID = "e0123777-921b-4e62-a7cc-8135015ca571";
     private static final String UUID = "35e7200d-0fda-4ca9-ad3e-3b3b37a77e32";
+    private static final String SECRET_KEY = "secret";
     private static final AccountVO ACCOUNT_VO = new AccountVO();
-    private static final KvStorage ACCOUNT_STORAGE = new KvStorage(ID, UUID, "test", null, false);
-    private static final KvStorage VM_STORAGE = new KvStorage(ID, false);
+    private static final KvStorage ACCOUNT_STORAGE = new KvStorage(ID, SECRET_KEY, UUID, "test", null, false);
+    private static final KvStorage VM_STORAGE = new KvStorage(ID, SECRET_KEY, false);
 
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
@@ -112,7 +113,7 @@ public class KvStorageCacheImplTest {
 
     @Test
     public void testGetTempStorage() throws ExecutionException {
-        Optional<KvStorage> cachedStorage = Optional.of(new KvStorage(ID, 60000, System.currentTimeMillis()));
+        Optional<KvStorage> cachedStorage = Optional.of(new KvStorage(ID, SECRET_KEY, 60000, System.currentTimeMillis()));
         when(_cache.get(ID)).thenReturn(cachedStorage);
 
         Optional<KvStorage> result = testGet();

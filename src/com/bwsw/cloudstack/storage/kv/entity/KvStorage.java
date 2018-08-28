@@ -37,11 +37,13 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @SerializedName(ApiConstants.ID)
     private String id;
-
     private KvStorageType type;
 
     @SerializedName(EntityConstants.DELETED)
     private Boolean deleted;
+
+    @SerializedName(com.bwsw.cloudstack.storage.kv.api.ApiConstants.SECRET_KEY)
+    private String secretKey;
 
     @SerializedName(ApiConstants.ACCOUNT)
     private String account;
@@ -64,27 +66,30 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
     public KvStorage() {
     }
 
-    public KvStorage(String id, boolean historyEnabled) {
+    public KvStorage(String id, String secretKey, boolean historyEnabled) {
         this.id = id;
         this.type = KvStorageType.VM;
         this.deleted = false;
+        this.secretKey = secretKey;
         this.historyEnabled = historyEnabled;
     }
 
-    public KvStorage(String id, String account, String name, String description, boolean historyEnabled) {
+    public KvStorage(String id, String secretKey, String account, String name, String description, boolean historyEnabled) {
         this.id = id;
         this.type = KvStorageType.ACCOUNT;
         this.deleted = false;
+        this.secretKey = secretKey;
         this.account = account;
         this.name = name;
         this.description = description;
         this.historyEnabled = historyEnabled;
     }
 
-    public KvStorage(String id, Integer ttl, Long expirationTimestamp) {
+    public KvStorage(String id, String secretKey, Integer ttl, Long expirationTimestamp) {
         this.id = id;
         this.type = KvStorageType.TEMP;
         this.deleted = false;
+        this.secretKey = secretKey;
         this.ttl = ttl;
         this.expirationTimestamp = expirationTimestamp;
         this.historyEnabled = false;
@@ -112,6 +117,15 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
 
     public void setDeleted(Boolean deleted) {
         this.deleted = deleted;
+    }
+
+    @JsonProperty(EntityConstants.SECRET_KEY)
+    public String getSecretKey() {
+        return secretKey;
+    }
+
+    public void setSecretKey(String secretKey) {
+        this.secretKey = secretKey;
     }
 
     public String getAccount() {

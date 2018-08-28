@@ -60,6 +60,7 @@ import static org.junit.Assert.assertNotNull;
 public class KvRequestBuilderImplTest {
 
     private static final String UUID = "61d12f36-0201-4035-b6fc-c7f768f583f1";
+    private static final String SECRET_KEY = "secretkey";
     private static final List<String> UUID_LIST = ImmutableList.of("40de546f-f418-46df-9bde-b3fb2aebc035", "8d48167c-3bfc-47dd-b152-795a7fab4eff");
     private static final int FROM = 10;
     private static final int SIZE = 5;
@@ -76,11 +77,12 @@ public class KvRequestBuilderImplTest {
 
     @DataProvider
     public static Object[][] storages() {
-        return new Object[][] {{get("id val", KvStorage.KvStorageType.ACCOUNT, "account val", "name val", "description val", null, null, true, false),
-                "{\"type\":\"ACCOUNT\",\"deleted\":false,\"account\":\"account val\",\"name\":\"name val\",\"description\":\"description val\",\"history_enabled\":true}"},
-                {get("id val", KvStorage.KvStorageType.VM, null, null, null, null, null, true, false), "{\"type\":\"VM\",\"deleted\":false,\"history_enabled\":true}"},
-                {get("id val", KvStorage.KvStorageType.TEMP, null, null, null, 300000, 1527067849287L, true, false),
-                        "{\"type\":\"TEMP\",\"deleted\":false,\"ttl\":300000,\"history_enabled\":true,\"expiration_timestamp\":1527067849287}"}};
+        return new Object[][] {{get("id val", KvStorage.KvStorageType.ACCOUNT, "account secret", "account val", "name val", "description val", null, null, true, false),
+                "{\"type\":\"ACCOUNT\",\"deleted\":false,\"account\":\"account val\",\"name\":\"name val\",\"description\":\"description val\",\"secret_key\":\"account secret\","
+                        + "\"history_enabled\":true}"}, {get("id val", KvStorage.KvStorageType.VM, "vm secret", null, null, null, null, null, true, false),
+                "{\"type\":\"VM\",\"deleted\":false,\"secret_key\":\"vm secret\",\"history_enabled\":true}"},
+                {get("id val", KvStorage.KvStorageType.TEMP, "temp secret", null, null, null, 300000, 1527067849287L, true, false),
+                        "{\"type\":\"TEMP\",\"deleted\":false,\"ttl\":300000,\"secret_key\":\"temp secret\",\"history_enabled\":true,\"expiration_timestamp\":1527067849287}"}};
     }
 
     @Test
@@ -124,16 +126,18 @@ public class KvRequestBuilderImplTest {
 
     @Test
     public void testGetDeleteRequestHistoryEnabledStorage() throws JsonProcessingException {
-        KvStorage storage = new KvStorage(UUID, true);
+        KvStorage storage = new KvStorage(UUID, SECRET_KEY, true);
+        storage.setDeleted(true);
 
-        testDeleteStorageRequest(storage, "{\"type\":\"VM\",\"deleted\":false,\"history_enabled\":true}");
+        testDeleteStorageRequest(storage, "{\"type\":\"VM\",\"deleted\":true,\"secret_key\":\"secretkey\",\"history_enabled\":true}");
     }
 
     @Test
     public void testGetDeleteRequestHistoryDisabledStorage() throws JsonProcessingException {
-        KvStorage storage = new KvStorage(UUID, false);
+        KvStorage storage = new KvStorage(UUID, SECRET_KEY, false);
+        storage.setDeleted(true);
 
-        testDeleteStorageRequest(storage, "{\"type\":\"VM\",\"deleted\":false,\"history_enabled\":false}");
+        testDeleteStorageRequest(storage, "{\"type\":\"VM\",\"deleted\":true,\"secret_key\":\"secretkey\",\"history_enabled\":false}");
     }
 
     @Test
@@ -152,7 +156,7 @@ public class KvRequestBuilderImplTest {
 
     @Test
     public void testGetUpdateTTLRequest() {
-        KvStorage storage = new KvStorage(UUID, TTL, TIMESTAMP);
+        KvStorage storage = new KvStorage(UUID, SECRET_KEY, TTL, TIMESTAMP);
 
         UpdateRequest request = _kvRequestBuilder.getUpdateTTLRequest(storage);
 
@@ -202,7 +206,7 @@ public class KvRequestBuilderImplTest {
 
     @Test
     public void testGetMarkDeletedRequest() {
-        KvStorage storage = new KvStorage(UUID, TTL, TIMESTAMP);
+        KvStorage storage = new KvStorage(UUID, SECRET_KEY, TTL, TIMESTAMP);
 
         UpdateRequest request = _kvRequestBuilder.getMarkDeletedRequest(storage);
 
@@ -289,11 +293,12 @@ public class KvRequestBuilderImplTest {
         assertEquals(index, request.index());
     }
 
-    private static KvStorage get(String id, KvStorage.KvStorageType type, String account, String name, String description, Integer ttl, Long expirationTimestamp,
+    private static KvStorage get(String id, KvStorage.KvStorageType type, String secretKey, String account, String name, String description, Integer ttl, Long expirationTimestamp,
             boolean historyEnabled, boolean deleted) {
         KvStorage storage = new KvStorage();
         storage.setId(id);
         storage.setType(type);
+        storage.setSecretKey(secretKey);
         storage.setAccount(account);
         storage.setName(name);
         storage.setDescription(description);

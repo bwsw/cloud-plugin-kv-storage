@@ -66,7 +66,7 @@ import static org.junit.Assert.assertTrue;
 public class KvOperationManagerImplTest {
 
     private static final String URL_TEMPLATE = "http://localhost:%d";
-    private static final KvStorage STORAGE = new KvStorage("e0123777-921b-4e62-a7cc-8135015ca571", false);
+    private static final KvStorage STORAGE = new KvStorage("e0123777-921b-4e62-a7cc-8135015ca571", "secret", false);
     private static final String KEY = "key";
     private static final String VALUE = "value";
     private static final Map<String, String> DATA = ImmutableMap.of("key1", "one", "key2", "two");

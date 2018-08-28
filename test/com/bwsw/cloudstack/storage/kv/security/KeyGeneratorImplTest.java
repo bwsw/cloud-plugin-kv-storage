@@ -15,14 +15,31 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.bwsw.cloudstack.storage.kv.entity;
+package com.bwsw.cloudstack.storage.kv.security;
 
-public class EntityConstants {
+import org.junit.Test;
 
-    public static final String HISTORY_ENABLED = "history_enabled";
-    public static final String DELETED = "deleted";
-    public static final String EXPIRATION_TIMESTAMP = "expiration_timestamp";
-    public static final String SECRET_KEY = "secret_key";
-    public static final String ITEMS = "items";
-    public static final String SUCCESS = "success";
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+
+public class KeyGeneratorImplTest {
+
+    private KeyGeneratorImpl _keyGenerator = new KeyGeneratorImpl();
+
+    @Test
+    public void testGenerate() {
+        List<String> secretKeys = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            secretKeys.add(_keyGenerator.generate());
+        }
+        secretKeys.forEach(key -> {
+            assertNotNull(key);
+            assertFalse(key.isEmpty());
+        });
+        assertEquals(secretKeys.size(), secretKeys.stream().distinct().count());
+    }
 }

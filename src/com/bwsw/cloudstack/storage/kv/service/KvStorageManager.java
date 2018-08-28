@@ -76,6 +76,8 @@ public interface KvStorageManager extends PluggableService {
 
     KvStorage getOrCreateVmStorage(String vmId);
 
+    KvStorage getVmStorage(Long vmId);
+
     boolean deleteVmStorage(String vmId);
 
     void deleteExpungedVmStorages();
