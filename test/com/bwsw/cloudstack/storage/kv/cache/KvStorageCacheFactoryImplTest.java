@@ -19,11 +19,9 @@ package com.bwsw.cloudstack.storage.kv.cache;
 
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidEntityException;
+import com.bwsw.cloudstack.storage.kv.security.AccessChecker;
 import com.bwsw.cloudstack.storage.kv.service.KvExecutor;
 import com.bwsw.cloudstack.storage.kv.service.KvRequestBuilder;
-import com.cloud.user.AccountManager;
-import com.cloud.user.dao.AccountDao;
-import com.cloud.vm.dao.VMInstanceDao;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import org.elasticsearch.action.get.GetRequest;
@@ -56,13 +54,7 @@ public class KvStorageCacheFactoryImplTest {
     public ExpectedException expectedException = ExpectedException.none();
 
     @Mock
-    private AccountManager _accountManager;
-
-    @Mock
-    private AccountDao _accountDao;
-
-    @Mock
-    private VMInstanceDao _vmInstanceDao;
+    private AccessChecker _accessChecker;
 
     @Mock
     private KvRequestBuilder _kvRequestBuilder;
@@ -87,9 +79,7 @@ public class KvStorageCacheFactoryImplTest {
         assertNotNull(cache);
         Object innerCacheObject = ReflectionTestUtils.getField(cache, "_cache");
         assertTrue(innerCacheObject instanceof LoadingCache);
-        assertSame(_accountManager, ReflectionTestUtils.getField(cache, "_accountManager"));
-        assertSame(_accountDao, ReflectionTestUtils.getField(cache, "_accountDao"));
-        assertSame(_vmInstanceDao, ReflectionTestUtils.getField(cache, "_vmInstanceDao"));
+        assertSame(_accessChecker, ReflectionTestUtils.getField(cache, "_accessChecker"));
     }
 
     @Test

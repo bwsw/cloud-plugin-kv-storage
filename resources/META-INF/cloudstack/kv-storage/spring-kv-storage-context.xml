@@ -39,6 +39,8 @@
 
     <bean id="kvStorageCacheFactory" class="com.bwsw.cloudstack.storage.kv.cache.KvStorageCacheFactoryImpl"/>
 
-    <bean id="kvKeyGenerator" class="com.bwsw.cloudstack.storage.kv.security.KeyGeneratorImpl" />
+    <bean id="kvKeyGenerator" class="com.bwsw.cloudstack.storage.kv.security.KeyGeneratorImpl"/>
+
+    <bean id="kvAccessChecker" class="com.bwsw.cloudstack.storage.kv.security.AccessCheckerImpl"/>
 
 </beans>

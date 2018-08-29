@@ -99,6 +99,13 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     }
 
     @Override
+    public UpdateRequest getUpdateSecretKey(KvStorage storage) {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(EntityConstants.SECRET_KEY, storage.getSecretKey());
+        return new UpdateRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId()).doc(parameters);
+    }
+
+    @Override
     public SearchRequest getSearchRequest(String accountUuid, int from, int size) {
         SearchRequest searchRequest = new SearchRequest(STORAGE_REGISTRY_INDEX);
 

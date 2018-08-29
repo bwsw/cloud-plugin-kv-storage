@@ -32,8 +32,10 @@ import com.bwsw.cloudstack.storage.kv.response.KvResult;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.bwsw.cloudstack.storage.kv.response.KvSuccess;
 import com.bwsw.cloudstack.storage.kv.response.KvValue;
+import com.bwsw.cloudstack.storage.kv.security.AccessChecker;
 import com.bwsw.cloudstack.storage.kv.security.KeyGenerator;
 import com.cloud.exception.InvalidParameterValueException;
+import com.cloud.exception.PermissionDeniedException;
 import com.cloud.user.AccountVO;
 import com.cloud.user.dao.AccountDao;
 import com.cloud.utils.db.Filter;
@@ -190,6 +192,9 @@ public class KvStorageManagerImplTest {
 
     @Mock
     private KeyGenerator _keyGenerator;
+
+    @Mock
+    private AccessChecker _accessChecker;
 
     @InjectMocks
     private KvStorageManagerImpl _kvStorageManager = new KvStorageManagerImpl();
@@ -908,6 +913,53 @@ public class KvStorageManagerImplTest {
                 fail(e.getMessage());
             }
         }, storageManager -> storageManager.deleteVmStoragesForRecentlyDeletedVms(TTL));
+    }
+
+    @Test
+    public void testRegenerateSecretKeyNonexistentStorage() throws IOException {
+        setExceptionExpectation(InvalidParameterValueException.class, "storage");
+        when(_kvRequestBuilder.getGetRequest(UUID)).thenReturn(_getRequest);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(null);
+
+        _kvStorageManager.regenerateSecretKey(UUID);
+    }
+
+    @Test
+    public void testRegenerateSecretKeyInvalidStorage() throws IOException {
+        setExceptionExpectation(InvalidParameterValueException.class, "storage");
+        when(_kvRequestBuilder.getGetRequest(UUID)).thenReturn(_getRequest);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(STORAGE);
+        doThrow(new InvalidEntityException()).when(_accessChecker).check(STORAGE);
+
+        _kvStorageManager.regenerateSecretKey(UUID);
+    }
+
+    @Test
+    public void testRegenerateSecretKeyPermissionDenied() throws IOException {
+        expectedException.expect(PermissionDeniedException.class);
+        when(_kvRequestBuilder.getGetRequest(UUID)).thenReturn(_getRequest);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(STORAGE);
+        doThrow(new PermissionDeniedException("denied")).when(_accessChecker).check(STORAGE);
+
+        _kvStorageManager.regenerateSecretKey(UUID);
+    }
+
+    @Test
+    public void testRegenerateSecretKey() throws IOException {
+        String secretKey = "new secret key";
+
+        when(_kvRequestBuilder.getGetRequest(UUID)).thenReturn(_getRequest);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(STORAGE);
+        doNothing().when(_accessChecker).check(STORAGE);
+        when(_keyGenerator.generate()).thenReturn(secretKey);
+        when(_kvRequestBuilder.getUpdateSecretKey(STORAGE)).thenReturn(_updateRequest);
+        doNothing().when(_kvExecutor).update(_restHighLevelClient, _updateRequest);
+
+        KvStorage storage = _kvStorageManager.regenerateSecretKey(UUID);
+        assertNotNull(storage);
+        assertEquals(secretKey, storage.getSecretKey());
+
+        verify(_kvExecutor).update(_restHighLevelClient, _updateRequest);
     }
 
     @Test

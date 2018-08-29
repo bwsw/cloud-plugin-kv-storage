@@ -41,6 +41,8 @@ public interface KvRequestBuilder {
 
     UpdateRequest getUpdateTTLRequest(KvStorage storage);
 
+    UpdateRequest getUpdateSecretKey(KvStorage storage);
+
     SearchRequest getSearchRequest(String accountUuid, int from, int size);
 
     SearchRequest getDeletedStoragesRequest(int size, int scrollTimeout);

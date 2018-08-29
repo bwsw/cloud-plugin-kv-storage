@@ -88,6 +88,10 @@ public interface KvStorageManager extends PluggableService {
 
     void cleanupStorages();
 
+    // common management operations
+
+    KvStorage regenerateSecretKey(String storageId);
+
     // storage operations
 
     KvOperationResponse getValue(String storageId, String key);

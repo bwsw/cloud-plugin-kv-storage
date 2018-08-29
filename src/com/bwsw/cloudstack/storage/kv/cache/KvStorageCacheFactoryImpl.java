@@ -19,11 +19,9 @@ package com.bwsw.cloudstack.storage.kv.cache;
 
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidEntityException;
+import com.bwsw.cloudstack.storage.kv.security.AccessChecker;
 import com.bwsw.cloudstack.storage.kv.service.KvExecutor;
 import com.bwsw.cloudstack.storage.kv.service.KvRequestBuilder;
-import com.cloud.user.AccountManager;
-import com.cloud.user.dao.AccountDao;
-import com.cloud.vm.dao.VMInstanceDao;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -37,13 +35,7 @@ import java.util.concurrent.TimeUnit;
 public class KvStorageCacheFactoryImpl implements KvStorageCacheFactory {
 
     @Inject
-    private AccountManager _accountManager;
-
-    @Inject
-    private AccountDao _accountDao;
-
-    @Inject
-    private VMInstanceDao _vmInstanceDao;
+    private AccessChecker _accessChecker;
 
     @Inject
     private KvRequestBuilder _kvRequestBuilder;
@@ -71,6 +63,6 @@ public class KvStorageCacheFactoryImpl implements KvStorageCacheFactory {
                         return Optional.of(storage);
                     }
                 });
-        return new KvStorageCacheImpl(cache, _accountManager, _accountDao, _vmInstanceDao);
+        return new KvStorageCacheImpl(cache, _accessChecker);
     }
 }

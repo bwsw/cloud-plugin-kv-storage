@@ -67,6 +67,7 @@ public class KvRequestBuilderImplTest {
     private static final int TTL = 300000;
     private static final long TIMESTAMP = System.currentTimeMillis();
     private static final String SCROLL_ID = "scrollId";
+    private static final KvStorage TEMP_STORAGE = new KvStorage(UUID, SECRET_KEY, TTL, TIMESTAMP);
 
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
@@ -156,11 +157,16 @@ public class KvRequestBuilderImplTest {
 
     @Test
     public void testGetUpdateTTLRequest() {
-        KvStorage storage = new KvStorage(UUID, SECRET_KEY, TTL, TIMESTAMP);
+        UpdateRequest request = _kvRequestBuilder.getUpdateTTLRequest(TEMP_STORAGE);
 
-        UpdateRequest request = _kvRequestBuilder.getUpdateTTLRequest(storage);
+        checkUpdateRequest(request, TEMP_STORAGE, ImmutableMap.of("ttl", TEMP_STORAGE.getTtl(), EntityConstants.EXPIRATION_TIMESTAMP, TEMP_STORAGE.getExpirationTimestamp()));
+    }
 
-        checkUpdateRequest(request, storage, ImmutableMap.of("ttl", storage.getTtl(), EntityConstants.EXPIRATION_TIMESTAMP, storage.getExpirationTimestamp()));
+    @Test
+    public void testGetUpdateSecretKeyRequest() {
+        UpdateRequest request = _kvRequestBuilder.getUpdateSecretKey(TEMP_STORAGE);
+
+        checkUpdateRequest(request, TEMP_STORAGE, ImmutableMap.of(EntityConstants.SECRET_KEY, TEMP_STORAGE.getSecretKey()));
     }
 
     @Test
