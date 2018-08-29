@@ -24,43 +24,37 @@ import com.cloud.exception.InsufficientCapacityException;
 import com.cloud.exception.NetworkRuleConflictException;
 import com.cloud.exception.ResourceAllocationException;
 import com.cloud.exception.ResourceUnavailableException;
-import com.cloud.user.Account;
-import com.cloud.uservm.UserVm;
 import org.apache.cloudstack.acl.RoleType;
-import org.apache.cloudstack.acl.SecurityChecker;
-import org.apache.cloudstack.api.ACL;
 import org.apache.cloudstack.api.APICommand;
-import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.api.BaseCmd;
 import org.apache.cloudstack.api.Parameter;
 import org.apache.cloudstack.api.ResponseObject;
 import org.apache.cloudstack.api.ServerApiException;
-import org.apache.cloudstack.api.response.UserVmResponse;
+import org.apache.cloudstack.context.CallContext;
 
 import javax.inject.Inject;
 
-@APICommand(name = GetVmKvStorageCmd.API_NAME, description = "Gets KV storage for the virtual machine", responseObject = KvStorage.class, requestHasSensitiveInfo = false,
+@APICommand(name = GetKvStorageCmd.API_NAME, description = "Gets KV storage by id", responseObject = KvStorage.class, requestHasSensitiveInfo = false,
         responseHasSensitiveInfo = false, responseView = ResponseObject.ResponseView.Restricted,
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User})
-public class GetVmKvStorageCmd extends BaseCmd {
+public class GetKvStorageCmd extends BaseCmd {
 
-    public static final String API_NAME = "getVmKvStorage";
+    public static final String API_NAME = "getKvStorage";
 
-    @ACL(accessType = SecurityChecker.AccessType.OperateEntry)
-    @Parameter(name = ApiConstants.VIRTUAL_MACHINE_ID, type = CommandType.UUID, entityType = UserVmResponse.class, required = true, description = "the ID of the virtual machine")
-    private Long id;
+    @Parameter(name = com.bwsw.cloudstack.storage.kv.api.ApiConstants.STORAGE_ID, type = CommandType.STRING, required = true, description = "the KV storage id")
+    private String storageId;
 
     @Inject
     private KvStorageManager _kvStorageManager;
 
-    public Long getId() {
-        return id;
+    public String getStorageId() {
+        return storageId;
     }
 
     @Override
     public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException, ConcurrentOperationException, ResourceAllocationException,
             NetworkRuleConflictException {
-        KvStorage response = _kvStorageManager.getVmStorage(getId());
+        KvStorage response = _kvStorageManager.getKvStorage(getStorageId());
         response.setResponseName(getCommandName());
         response.setObjectName("kvstorage");
         setResponseObject(response);
@@ -73,13 +67,7 @@ public class GetVmKvStorageCmd extends BaseCmd {
 
     @Override
     public long getEntityOwnerId() {
-        UserVm vm = _responseGenerator.findUserVmById(getId());
-        if (vm != null) {
-            return vm.getAccountId();
-        }
-
-        // no account info given, parent this command to SYSTEM so ERROR events are tracked
-        return Account.ACCOUNT_ID_SYSTEM;
+        return CallContext.current().getCallingAccount().getAccountId();
     }
 
 }

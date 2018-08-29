@@ -24,9 +24,9 @@ import com.bwsw.cloudstack.storage.kv.api.DeleteAccountKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteKvStorageKeyCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteKvStorageKeysCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteTempKvStorageCmd;
+import com.bwsw.cloudstack.storage.kv.api.GetKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.GetKvStorageValueCmd;
 import com.bwsw.cloudstack.storage.kv.api.GetKvStorageValuesCmd;
-import com.bwsw.cloudstack.storage.kv.api.GetVmKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListKvStorageKeysCmd;
 import com.bwsw.cloudstack.storage.kv.api.RegenerateKvStorageSecretKeyCmd;
@@ -39,6 +39,7 @@ import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidEntityException;
+import com.bwsw.cloudstack.storage.kv.exception.NonexistentKvStorageException;
 import com.bwsw.cloudstack.storage.kv.job.KvStorageJobManager;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
 import com.bwsw.cloudstack.storage.kv.response.KvKeys;
@@ -50,6 +51,7 @@ import com.bwsw.cloudstack.storage.kv.security.AccessChecker;
 import com.bwsw.cloudstack.storage.kv.security.KeyGenerator;
 import com.bwsw.cloudstack.storage.kv.util.HttpUtils;
 import com.cloud.exception.InvalidParameterValueException;
+import com.cloud.exception.PermissionDeniedException;
 import com.cloud.user.AccountVO;
 import com.cloud.user.dao.AccountDao;
 import com.cloud.utils.component.ComponentLifecycleBase;
@@ -265,7 +267,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         try {
             KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
             if (storage == null || storage.getDeleted() != null && storage.getDeleted()) {
-                throw new InvalidParameterValueException("The storage does not exist");
+                throw new NonexistentKvStorageException();
             }
             if (!KvStorage.KvStorageType.TEMP.equals(storage.getType())) {
                 throw new InvalidParameterValueException("The storage type is not temp");
@@ -334,16 +336,12 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
-    public KvStorage getVmStorage(Long vmId) {
-        VMInstanceVO vmInstanceVO = _vmInstanceDao.findById(vmId);
-        if (vmInstanceVO == null) {
-            throw new InvalidParameterValueException("Unable to find a VM with the specified id");
-        }
+    public KvStorage getKvStorage(String storageId) {
         try {
-            return getStorage(vmInstanceVO.getUuid());
+            return getStorage(storageId);
         } catch (IOException e) {
             s_logger.error("Unable to retrieve a storage", e);
-            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to retrieve VM storage", e);
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to retrieve the storage", e);
         }
     }
 
@@ -402,8 +400,6 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             UpdateRequest request = _kvRequestBuilder.getUpdateSecretKey(storage);
             _kvExecutor.update(_restHighLevelClient, request);
             return storage;
-        }catch (InvalidEntityException e) {
-            throw new InvalidParameterValueException("The storage does not exist");
         } catch (IOException e) {
             s_logger.error("Unable to regenerate a secret key for KV storage " + storageId, e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to regenerate a secret key for KV storage " + storageId, e);
@@ -467,7 +463,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         commands.add(DeleteKvStorageKeysCmd.class);
         commands.add(ListKvStorageKeysCmd.class);
         commands.add(ClearKvStorageCmd.class);
-        commands.add(GetVmKvStorageCmd.class);
+        commands.add(GetKvStorageCmd.class);
         commands.add(RegenerateKvStorageSecretKeyCmd.class);
         return commands;
     }
@@ -544,7 +540,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         try {
             KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
             if (storage == null) {
-                throw new InvalidParameterValueException("The storage does not exist");
+                throw new NonexistentKvStorageException();
             }
             validator.accept(storage);
             storage.setDeleted(true);
@@ -611,7 +607,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         try {
             storage = _kvStorageCache.get(storageId);
             if (!storage.isPresent()) {
-                throw new InvalidParameterValueException("KV storage does not exist");
+                throw new NonexistentKvStorageException();
             }
         } catch (ExecutionException | UncheckedExecutionException e) {
             s_logger.error("Unable to execute storage operation", e);
@@ -620,11 +616,16 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         return retriever.apply(storage.get());
     }
 
-    private KvStorage getStorage(String storageId) throws IOException {
+    private KvStorage getStorage(String storageId) throws IOException, PermissionDeniedException {
         GetRequest getRequest = _kvRequestBuilder.getGetRequest(storageId);
         KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
         if (storage == null || storage.getDeleted() != null && storage.getDeleted()) {
-            throw new InvalidParameterValueException("The storage does not exist");
+            throw new NonexistentKvStorageException();
+        }
+        try {
+            _accessChecker.check(storage);
+        } catch (InvalidEntityException e) {
+            throw new NonexistentKvStorageException();
         }
         return storage;
     }

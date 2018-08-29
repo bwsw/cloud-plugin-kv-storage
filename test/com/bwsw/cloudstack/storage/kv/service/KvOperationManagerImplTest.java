@@ -18,6 +18,7 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.exception.NonexistentKvStorageException;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvError;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
@@ -469,7 +470,6 @@ public class KvOperationManagerImplTest {
     }
 
     private void expectNonexistentStorage() {
-        expectedException.expect(InvalidParameterValueException.class);
-        expectedException.expectMessage("KV storage does not exist");
+        expectedException.expect(NonexistentKvStorageException.class);
     }
 }

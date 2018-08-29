@@ -18,6 +18,7 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.exception.NonexistentKvStorageException;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvError;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
@@ -116,7 +117,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
                 @SuppressWarnings("unchecked") Map<String, String> items = objectMapper.readValue(EntityUtils.toString(entity, CHARSET), Map.class);
                 return new KvData(items);
             case HttpStatus.SC_NOT_FOUND:
-                throw getNonexistentStorageException();
+                throw new NonexistentKvStorageException();
             default:
                 throw getUnexpectedStatusException(statusCode);
             }
@@ -138,7 +139,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
             case HttpStatus.SC_OK:
                 return new KvPair(key, value);
             case HttpStatus.SC_NOT_FOUND:
-                throw getNonexistentStorageException();
+                throw new NonexistentKvStorageException();
             case HttpStatus.SC_BAD_REQUEST:
                 throw new InvalidParameterValueException("Key/value pair is invalid");
             default:
@@ -163,7 +164,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
                 @SuppressWarnings("unchecked") Map<String, Boolean> items = objectMapper.readValue(EntityUtils.toString(entity, CHARSET), Map.class);
                 return new KvResult(items);
             case HttpStatus.SC_NOT_FOUND:
-                throw getNonexistentStorageException();
+                throw new NonexistentKvStorageException();
             default:
                 throw getUnexpectedStatusException(statusCode);
             }
@@ -177,7 +178,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
             case HttpStatus.SC_OK:
                 return new KvKey(key);
             case HttpStatus.SC_NOT_FOUND:
-                throw getNonexistentStorageException();
+                throw new NonexistentKvStorageException();
             default:
                 throw getUnexpectedStatusException(statusCode);
             }
@@ -200,7 +201,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
                 @SuppressWarnings("unchecked") Map<String, Boolean> items = objectMapper.readValue(EntityUtils.toString(entity, CHARSET), Map.class);
                 return new KvResult(items);
             case HttpStatus.SC_NOT_FOUND:
-                throw getNonexistentStorageException();
+                throw new NonexistentKvStorageException();
             default:
                 throw getUnexpectedStatusException(statusCode);
             }
@@ -215,7 +216,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
                 @SuppressWarnings("unchecked") List<String> items = objectMapper.readValue(EntityUtils.toString(entity, CHARSET), List.class);
                 return new KvKeys(items);
             case HttpStatus.SC_NOT_FOUND:
-                throw getNonexistentStorageException();
+                throw new NonexistentKvStorageException();
             default:
                 throw getUnexpectedStatusException(statusCode);
             }
@@ -229,7 +230,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
             case HttpStatus.SC_OK:
                 return new KvSuccess();
             case HttpStatus.SC_NOT_FOUND:
-                throw getNonexistentStorageException();
+                throw new NonexistentKvStorageException();
             case HttpStatus.SC_CONFLICT:
                 return new KvError(statusCode);
             default:
@@ -271,7 +272,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
     }
 
     private InvalidParameterValueException getNonexistentStorageException() {
-        return new InvalidParameterValueException("KV storage does not exist");
+        return new NonexistentKvStorageException();
     }
 
     private RuntimeException getUnexpectedStatusException(int statusCode) {
