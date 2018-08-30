@@ -47,4 +47,14 @@ public class KvStorageCacheImpl implements KvStorageCache {
         }
         return cachedStorage;
     }
+
+    @Override
+    public void invalidateAll(Iterable<String> ids) {
+        _cache.invalidateAll(ids);
+    }
+
+    @Override
+    public void invalidateAll() {
+        _cache.invalidateAll();
+    }
 }

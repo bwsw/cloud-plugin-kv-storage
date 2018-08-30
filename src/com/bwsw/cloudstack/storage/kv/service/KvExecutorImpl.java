@@ -103,6 +103,16 @@ public class KvExecutorImpl implements KvExecutor {
     }
 
     @Override
+    public ScrollableListResponse<String> scrollIds(RestHighLevelClient client, SearchRequest request) throws IOException {
+        return parseScrollIds(client.search(request));
+    }
+
+    @Override
+    public ScrollableListResponse<String> scrollIds(RestHighLevelClient client, SearchScrollRequest request) throws IOException {
+        return parseScrollIds(client.searchScroll(request));
+    }
+
+    @Override
     public void create(RestHighLevelClient client, CreateStorageRequest request) throws IOException {
         index(client, request.getRegistryRequest());
         createIndex(client, request.getStorageIndexRequest());
@@ -140,6 +150,17 @@ public class KvExecutorImpl implements KvExecutor {
             throw new CloudRuntimeException("Failed to execute search operation");
         }
         return new ScrollableListResponse<>(response.getScrollId(), parseResults(response, elementClass));
+    }
+
+    private ScrollableListResponse<String> parseScrollIds(SearchResponse response) {
+        if (response.status() != RestStatus.OK || response.getHits() == null) {
+            throw new CloudRuntimeException("Failed to execute search operation");
+        }
+        List<String> results = new ArrayList<>();
+        for (SearchHit searchHit : response.getHits()) {
+            results.add(searchHit.getId());
+        }
+        return new ScrollableListResponse<>(response.getScrollId(), results);
     }
 
     private <T extends ResponseEntity> T parseResult(String source, Class<T> elementClass, String id) throws IOException {

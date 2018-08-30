@@ -17,6 +17,7 @@
 
 package com.bwsw.cloudstack.storage.kv.cache;
 
+import com.bwsw.cloudstack.storage.kv.client.KvStorageClientManager;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidEntityException;
 import com.bwsw.cloudstack.storage.kv.security.AccessChecker;
@@ -63,6 +64,9 @@ public class KvStorageCacheFactoryImplTest {
     private KvExecutor _kvExecutor;
 
     @Mock
+    private KvStorageClientManager _kvStorageClientManager;
+
+    @Mock
     private RestHighLevelClient _restHighLevelClient;
 
     @Mock
@@ -74,7 +78,7 @@ public class KvStorageCacheFactoryImplTest {
     @SuppressWarnings("unchecked")
     @Test
     public void testGetCache() {
-        KvStorageCache cache = _kvStorageCacheFactory.getCache(100, _restHighLevelClient);
+        KvStorageCache cache = _kvStorageCacheFactory.getCache();
 
         assertNotNull(cache);
         Object innerCacheObject = ReflectionTestUtils.getField(cache, "_cache");
@@ -88,6 +92,7 @@ public class KvStorageCacheFactoryImplTest {
 
         KvStorage storage = getStorage(KvStorage.KvStorageType.VM, false);
         when(_kvRequestBuilder.getGetRequest(storage.getId())).thenReturn(getRequest);
+        when(_kvStorageClientManager.getEsClient()).thenReturn(_restHighLevelClient);
         when(_kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class)).thenReturn(storage);
 
         Optional<KvStorage> result = innerCache.get(storage.getId());
@@ -100,6 +105,7 @@ public class KvStorageCacheFactoryImplTest {
         LoadingCache<String, Optional<KvStorage>> innerCache = getInnerCache();
 
         when(_kvRequestBuilder.getGetRequest(ID)).thenReturn(getRequest);
+        when(_kvStorageClientManager.getEsClient()).thenReturn(_restHighLevelClient);
         when(_kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class)).thenReturn(null);
 
         Optional<KvStorage> result = innerCache.get(ID);
@@ -112,6 +118,7 @@ public class KvStorageCacheFactoryImplTest {
 
         KvStorage storage = getStorage(KvStorage.KvStorageType.VM, true);
         when(_kvRequestBuilder.getGetRequest(storage.getId())).thenReturn(getRequest);
+        when(_kvStorageClientManager.getEsClient()).thenReturn(_restHighLevelClient);
         when(_kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class)).thenReturn(storage);
 
         Optional<KvStorage> result = innerCache.get(storage.getId());
@@ -135,6 +142,7 @@ public class KvStorageCacheFactoryImplTest {
 
         LoadingCache<String, Optional<KvStorage>> innerCache = getInnerCache();
         when(_kvRequestBuilder.getGetRequest(ID)).thenReturn(getRequest);
+        when(_kvStorageClientManager.getEsClient()).thenReturn(_restHighLevelClient);
         when(_kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class)).thenThrow(new IOException());
 
         innerCache.get(ID);
@@ -147,6 +155,7 @@ public class KvStorageCacheFactoryImplTest {
         LoadingCache<String, Optional<KvStorage>> innerCache = getInnerCache();
 
         when(_kvRequestBuilder.getGetRequest(storage.getId())).thenReturn(getRequest);
+        when(_kvStorageClientManager.getEsClient()).thenReturn(_restHighLevelClient);
         when(_kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class)).thenReturn(storage);
 
         innerCache.get(storage.getId());
@@ -154,7 +163,7 @@ public class KvStorageCacheFactoryImplTest {
 
     @SuppressWarnings("unchecked")
     private LoadingCache<String, Optional<KvStorage>> getInnerCache() {
-        KvStorageCache cache = _kvStorageCacheFactory.getCache(100, _restHighLevelClient);
+        KvStorageCache cache = _kvStorageCacheFactory.getCache();
 
         assertNotNull(cache);
         Object innerCacheObject = ReflectionTestUtils.getField(cache, "_cache");

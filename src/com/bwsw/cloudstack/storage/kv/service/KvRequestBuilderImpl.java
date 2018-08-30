@@ -158,6 +158,13 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     }
 
     @Override
+    public SearchRequest getLastUpdatedStoragesRequest(long lastUpdated, int size, int scrollTimeout) {
+        SearchRequest request = getSearchRequest(size, scrollTimeout, QueryBuilders.rangeQuery(EntityConstants.LAST_UPDATED).gte(lastUpdated));
+        request.source().fetchSource(new String[] {ID_FIELD}, null);
+        return request;
+    }
+
+    @Override
     public SearchScrollRequest getScrollRequest(String scrollId, int scrollTimeout) {
         SearchScrollRequest request = new SearchScrollRequest(scrollId);
         request.scroll(TimeValue.timeValueMillis(scrollTimeout));

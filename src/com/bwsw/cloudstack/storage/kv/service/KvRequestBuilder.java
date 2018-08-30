@@ -53,6 +53,8 @@ public interface KvRequestBuilder {
 
     SearchRequest getAccountStoragesRequest(String accountUuid, int size, int scrollTimeout);
 
+    SearchRequest getLastUpdatedStoragesRequest(long lastUpdated, int size, int scrollTimeout);
+
     SearchScrollRequest getScrollRequest(String scrollId, int scrollTimeout);
 
     DeleteStorageRequest getDeleteRequest(KvStorage storage) throws JsonProcessingException;

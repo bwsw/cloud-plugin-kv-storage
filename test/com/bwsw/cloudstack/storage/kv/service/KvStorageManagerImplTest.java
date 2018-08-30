@@ -18,6 +18,7 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.cache.KvStorageCache;
+import com.bwsw.cloudstack.storage.kv.client.KvStorageClientManager;
 import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
@@ -66,6 +67,7 @@ import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.hamcrest.CustomMatcher;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -151,6 +153,9 @@ public class KvStorageManagerImplTest {
     private KvExecutor _kvExecutor;
 
     @Mock
+    private KvStorageClientManager _kvStorageClientManager;
+
+    @Mock
     private RestHighLevelClient _restHighLevelClient;
 
     @Mock
@@ -205,6 +210,11 @@ public class KvStorageManagerImplTest {
     private KvStorageManagerImpl _kvStorageManager = new KvStorageManagerImpl();
 
     private SearchRequest _searchRequest = new SearchRequest();
+
+    @Before
+    public void before() {
+        when(_kvStorageClientManager.getEsClient()).thenReturn(_restHighLevelClient);
+    }
 
     @Test
     public void testCreateAccountStorageInvalidAccount() {

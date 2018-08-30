@@ -45,6 +45,10 @@ public interface KvExecutor {
 
     <T extends ResponseEntity> ScrollableListResponse<T> scroll(RestHighLevelClient client, SearchScrollRequest request, Class<T> elementClass) throws IOException;
 
+    ScrollableListResponse<String> scrollIds(RestHighLevelClient client, SearchRequest request) throws IOException;
+
+    ScrollableListResponse<String> scrollIds(RestHighLevelClient client, SearchScrollRequest request) throws IOException;
+
     void create(RestHighLevelClient client, CreateStorageRequest request) throws IOException;
 
     boolean delete(RestHighLevelClient client, DeleteStorageRequest request) throws IOException;

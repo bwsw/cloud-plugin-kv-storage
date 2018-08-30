@@ -34,7 +34,7 @@ import com.bwsw.cloudstack.storage.kv.api.SetKvStorageValueCmd;
 import com.bwsw.cloudstack.storage.kv.api.SetKvStorageValuesCmd;
 import com.bwsw.cloudstack.storage.kv.api.UpdateTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.cache.KvStorageCache;
-import com.bwsw.cloudstack.storage.kv.cache.KvStorageCacheFactory;
+import com.bwsw.cloudstack.storage.kv.client.KvStorageClientManager;
 import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
@@ -50,7 +50,6 @@ import com.bwsw.cloudstack.storage.kv.response.KvResult;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.bwsw.cloudstack.storage.kv.security.AccessChecker;
 import com.bwsw.cloudstack.storage.kv.security.KeyGenerator;
-import com.bwsw.cloudstack.storage.kv.util.HttpUtils;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.exception.PermissionDeniedException;
 import com.cloud.user.AccountVO;
@@ -69,20 +68,12 @@ import org.apache.cloudstack.api.response.ListResponse;
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.commons.lang.time.DateUtils;
-import org.apache.http.HttpHost;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.log4j.Logger;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
-import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.rest.RestStatus;
 
@@ -138,9 +129,6 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     private KvStorageJobManager _kvStorageJobManager;
 
     @Inject
-    private KvStorageCacheFactory _kvStorageCacheFactory;
-
-    @Inject
     private KeyGenerator _keyGenerator;
 
     @Inject
@@ -149,17 +137,19 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     @Inject
     private ExceptionFactory _exceptionFactory;
 
-    private KvOperationManager _kvOperationManager;
+    @Inject
+    private KvStorageCache _kvStorageCache;
 
-    private RestHighLevelClient _restHighLevelClient;
+    @Inject
+    private KvStorageClientManager _kvStorageClientManager;
+
+    private KvOperationManager _kvOperationManager;
 
     private SearchBuilder<VMInstanceVO> _vmInstanceVOByUuidSearchBuilder;
 
     private SearchBuilder<VMInstanceVO> _vmInstanceVOByRemovedSearchBuilder;
 
     private SearchBuilder<AccountVO> _accountVOByUuidSearchBuilder;
-
-    private KvStorageCache _kvStorageCache;
 
     @Override
     public KvStorage createAccountStorage(Long accountId, String name, String description, Boolean historyEnabled) {
@@ -193,7 +183,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         }
         SearchRequest searchRequest = _kvRequestBuilder.getSearchRequest(accountVO.getUuid(), startIndex.intValue(), pageSize.intValue());
         try {
-            return _kvExecutor.search(_restHighLevelClient, searchRequest, KvStorageResponse.class);
+            return _kvExecutor.search(_kvStorageClientManager.getEsClient(), searchRequest, KvStorageResponse.class);
         } catch (IOException e) {
             s_logger.error("Unable to retrieve storage", e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to retrieve storages", e);
@@ -224,18 +214,19 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         }
         SearchRequest searchRequest = _kvRequestBuilder.getAccountStoragesRequest(accountVO.getUuid(), DELETE_BATCH_SIZE, DELETE_BATCH_TIMEOUT);
         try {
-            ScrollableListResponse<KvStorage> response = _kvExecutor.scroll(_restHighLevelClient, searchRequest, KvStorage.class);
+            ScrollableListResponse<KvStorage> response = _kvExecutor.scroll(_kvStorageClientManager.getEsClient(), searchRequest, KvStorage.class);
             while (response != null && response.getResults() != null && !response.getResults().isEmpty()) {
                 for (KvStorage storage : response.getResults()) {
                     storage.setDeleted(true);
                     s_logger.info("Deleting the KV storage " + storage.getId() + " for the account " + storage.getAccount());
-                    if (!_kvExecutor.delete(_restHighLevelClient, _kvRequestBuilder.getDeleteRequest(storage))) {
+                    if (!_kvExecutor.delete(_kvStorageClientManager.getEsClient(), _kvRequestBuilder.getDeleteRequest(storage))) {
                         s_logger.error("Unable to delete account KV storage " + storage.getId());
                     } else {
                         s_logger.info("The KV storage " + storage.getId() + " for the account " + storage.getAccount() + " has been deleted");
                     }
                 }
-                response = _kvExecutor.scroll(_restHighLevelClient, _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
+                response = _kvExecutor
+                        .scroll(_kvStorageClientManager.getEsClient(), _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
             }
         } catch (Exception e) {
             s_logger.error("Failed to delete storages for an account " + accountVO.getUuid(), e);
@@ -269,7 +260,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         checkTtl(ttl);
         GetRequest getRequest = _kvRequestBuilder.getGetRequest(storageId);
         try {
-            KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
+            KvStorage storage = _kvExecutor.get(_kvStorageClientManager.getEsClient(), getRequest, KvStorage.class);
             if (storage == null || storage.getDeleted() != null && storage.getDeleted()) {
                 throw _exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
             }
@@ -278,7 +269,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             }
             storage.setExpirationTimestamp(storage.getExpirationTimestamp() - storage.getTtl() + ttl);
             storage.setTtl(ttl);
-            _kvExecutor.update(_restHighLevelClient, _kvRequestBuilder.getUpdateTTLRequest(storage));
+            _kvExecutor.update(_kvStorageClientManager.getEsClient(), _kvRequestBuilder.getUpdateTTLRequest(storage));
             return storage;
         } catch (IOException e) {
             s_logger.error("Unable to update a storage", e);
@@ -299,7 +290,8 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     public void expireTempStorages() {
         try {
             Request request = _kvRequestBuilder.getExpireTempStorageRequest(KvStorage.getCurrentTimestamp());
-            Response response = _restHighLevelClient.getLowLevelClient().performRequest(request.getMethod(), request.getEndpoint(), request.getParameters(), request.getEntity());
+            Response response = _kvStorageClientManager.getEsClient().getLowLevelClient()
+                    .performRequest(request.getMethod(), request.getEndpoint(), request.getParameters(), request.getEntity());
             if (response.getStatusLine().getStatusCode() == RestStatus.OK.getStatus()) {
                 s_logger.info("Temp storages have been expired");
             } else {
@@ -328,7 +320,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     public KvStorage getOrCreateVmStorage(String vmId) {
         GetRequest getRequest = _kvRequestBuilder.getGetRequest(vmId);
         try {
-            KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
+            KvStorage storage = _kvExecutor.get(_kvStorageClientManager.getEsClient(), getRequest, KvStorage.class);
             if (storage == null) {
                 storage = createVmStorage(vmId);
             }
@@ -381,13 +373,14 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     public void cleanupStorages() {
         SearchRequest searchRequest = _kvRequestBuilder.getDeletedStoragesRequest(DELETE_BATCH_SIZE, DELETE_BATCH_TIMEOUT);
         try {
-            ScrollableListResponse<KvStorage> response = _kvExecutor.scroll(_restHighLevelClient, searchRequest, KvStorage.class);
+            ScrollableListResponse<KvStorage> response = _kvExecutor.scroll(_kvStorageClientManager.getEsClient(), searchRequest, KvStorage.class);
             while (response != null && response.getResults() != null && !response.getResults().isEmpty()) {
                 for (KvStorage storage : response.getResults()) {
                     s_logger.info("Clean up the storage " + storage.getId());
-                    _kvExecutor.delete(_restHighLevelClient, _kvRequestBuilder.getDeleteRequest(storage));
+                    _kvExecutor.delete(_kvStorageClientManager.getEsClient(), _kvRequestBuilder.getDeleteRequest(storage));
                 }
-                response = _kvExecutor.scroll(_restHighLevelClient, _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
+                response = _kvExecutor
+                        .scroll(_kvStorageClientManager.getEsClient(), _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
             }
         } catch (Exception e) {
             s_logger.error("Unable to cleanup storages", e);
@@ -402,7 +395,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             _accessChecker.check(storage);
             storage.setSecretKey(_keyGenerator.generate());
             UpdateRequest request = _kvRequestBuilder.getUpdateSecretKey(storage);
-            _kvExecutor.update(_restHighLevelClient, request);
+            _kvExecutor.update(_kvStorageClientManager.getEsClient(), request);
             return storage;
         } catch (IOException e) {
             s_logger.error("Unable to regenerate a secret key for KV storage " + storageId, e);
@@ -485,20 +478,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     @Override
     public boolean configure(String name, Map<String, Object> params) {
-        try {
-            RestClientBuilder restClientBuilder = RestClient.builder(HttpUtils.getHttpHosts(KvStorageElasticsearchList.value()).toArray(new HttpHost[] {}));
-            String username = KvStorageElasticsearchUsername.value();
-            if (!Strings.isNullOrEmpty(username)) {
-                CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-                credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(username, KvStorageElasticsearchPassword.value()));
-                restClientBuilder = restClientBuilder.setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
-            }
-            _restHighLevelClient = new RestHighLevelClient(restClientBuilder);
-        } catch (IllegalArgumentException e) {
-            s_logger.error("Failed to create ElasticSearch client", e);
-            return false;
-        }
-        _kvStorageJobManager.init(this, _restHighLevelClient);
+        _kvStorageJobManager.init(this, _kvStorageClientManager.getEsClient());
 
         _vmInstanceVOByUuidSearchBuilder = _vmInstanceDao.createSearchBuilder();
         _vmInstanceVOByUuidSearchBuilder.and(UUID_IN_CONDITION, _vmInstanceVOByUuidSearchBuilder.entity().getUuid(), SearchCriteria.Op.IN);
@@ -510,7 +490,6 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         _vmInstanceVOByRemovedSearchBuilder.and(_vmInstanceVOByRemovedSearchBuilder.entity().getRemoved(), SearchCriteria.Op.NNULL);
         _vmInstanceVOByRemovedSearchBuilder.and(REMOVED_GTE_CONDITION, _vmInstanceVOByRemovedSearchBuilder.entity().getRemoved(), SearchCriteria.Op.GTEQ);
 
-        _kvStorageCache = _kvStorageCacheFactory.getCache(KvStorageCacheMaxSize.value(), _restHighLevelClient);
         _kvOperationManager = new KvOperationManagerImpl(KvStorageUrl.value(), _exceptionFactory);
 
         return true;
@@ -519,7 +498,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     private KvStorage createStorage(KvStorage storage) {
         try {
             CreateStorageRequest request = _kvRequestBuilder.getCreateRequest(storage);
-            _kvExecutor.create(_restHighLevelClient, request);
+            _kvExecutor.create(_kvStorageClientManager.getEsClient(), request);
         } catch (IOException e) {
             s_logger.error("Unable to create a storage", e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to create a storage", e);
@@ -542,13 +521,13 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         }
         GetRequest getRequest = _kvRequestBuilder.getGetRequest(storageId);
         try {
-            KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
+            KvStorage storage = _kvExecutor.get(_kvStorageClientManager.getEsClient(), getRequest, KvStorage.class);
             if (storage == null) {
                 throw _exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
             }
             validator.accept(storage);
             storage.setDeleted(true);
-            return _kvExecutor.delete(_restHighLevelClient, _kvRequestBuilder.getDeleteRequest(storage));
+            return _kvExecutor.delete(_kvStorageClientManager.getEsClient(), _kvRequestBuilder.getDeleteRequest(storage));
         } catch (IOException e) {
             s_logger.error("Unable to delete the KV storage " + storageId, e);
             return false;
@@ -559,7 +538,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             Function<KvStorage, String> entityUuidRetriever, Predicate<T> removedChecker) {
         SearchRequest searchRequest = requestBuilder.get();
         try {
-            ScrollableListResponse<KvStorage> response = _kvExecutor.scroll(_restHighLevelClient, searchRequest, KvStorage.class);
+            ScrollableListResponse<KvStorage> response = _kvExecutor.scroll(_kvStorageClientManager.getEsClient(), searchRequest, KvStorage.class);
             while (response != null && response.getResults() != null && !response.getResults().isEmpty()) {
                 SearchCriteria<T> searchCriteria = searchBuilder.create();
                 searchCriteria.setParameters(UUID_IN_CONDITION, response.getResults().stream().map(entityUuidRetriever).toArray());
@@ -575,11 +554,12 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
                     if (entity == null || removedChecker.test(entity)) {
                         s_logger.info("Deleting " + storage.getType().name() + " storage " + storage.getId() + " for the removed entity " + entityUuidRetriever.apply(storage));
                         storage.setDeleted(true);
-                        _kvExecutor.update(_restHighLevelClient, _kvRequestBuilder.getMarkDeletedRequest(storage));
+                        _kvExecutor.update(_kvStorageClientManager.getEsClient(), _kvRequestBuilder.getMarkDeletedRequest(storage));
                         s_logger.info("Deleted " + storage.getType().name() + " storage " + storage.getId() + " for the removed entity " + entityUuidRetriever.apply(storage));
                     }
                 }
-                response = _kvExecutor.scroll(_restHighLevelClient, _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
+                response = _kvExecutor
+                        .scroll(_kvStorageClientManager.getEsClient(), _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
             }
         } catch (Exception e) {
             s_logger.error("Error while deleting storages for removed entities", e);
@@ -592,7 +572,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             List<T> entities = entitySupplier.get();
             if (entities != null && !entities.isEmpty()) {
                 Request request = requestBuilder.get(entities.stream().map(T::getUuid).collect(Collectors.toList()));
-                Response response = _restHighLevelClient.getLowLevelClient()
+                Response response = _kvStorageClientManager.getEsClient().getLowLevelClient()
                         .performRequest(request.getMethod(), request.getEndpoint(), request.getParameters(), request.getEntity());
                 if (response.getStatusLine().getStatusCode() == RestStatus.OK.getStatus()) {
                     s_logger.info("KV storages for recently removed " + entityClass.getSimpleName() + " have been cleaned");
@@ -622,7 +602,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     private KvStorage getStorage(String storageId) throws IOException, PermissionDeniedException {
         GetRequest getRequest = _kvRequestBuilder.getGetRequest(storageId);
-        KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
+        KvStorage storage = _kvExecutor.get(_kvStorageClientManager.getEsClient(), getRequest, KvStorage.class);
         if (storage == null || storage.getDeleted() != null && storage.getDeleted()) {
             throw _exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
         }

@@ -17,9 +17,7 @@
 
 package com.bwsw.cloudstack.storage.kv.cache;
 
-import org.elasticsearch.client.RestHighLevelClient;
-
 public interface KvStorageCacheFactory {
 
-    KvStorageCache getCache(int maxSize, RestHighLevelClient restHighLevelClient);
+    KvStorageCache getCache();
 }

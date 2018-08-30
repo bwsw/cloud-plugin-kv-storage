@@ -17,6 +17,7 @@
 
 package com.bwsw.cloudstack.storage.kv.cache;
 
+import com.bwsw.cloudstack.storage.kv.client.KvStorageClientManager;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidEntityException;
 import com.bwsw.cloudstack.storage.kv.security.AccessChecker;
@@ -26,11 +27,12 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.client.RestHighLevelClient;
 
 import javax.inject.Inject;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+
+import static com.bwsw.cloudstack.storage.kv.service.KvStorageManager.KvStorageCacheMaxSize;
 
 public class KvStorageCacheFactoryImpl implements KvStorageCacheFactory {
 
@@ -43,14 +45,17 @@ public class KvStorageCacheFactoryImpl implements KvStorageCacheFactory {
     @Inject
     private KvExecutor _kvExecutor;
 
+    @Inject
+    private KvStorageClientManager _kvStorageClientManager;
+
     @Override
-    public KvStorageCache getCache(int maxSize, RestHighLevelClient restHighLevelClient) {
-        LoadingCache<String, Optional<KvStorage>> cache = CacheBuilder.newBuilder().maximumSize(maxSize).expireAfterAccess(1, TimeUnit.HOURS).refreshAfterWrite(1, TimeUnit.MINUTES)
+    public KvStorageCache getCache() {
+        LoadingCache<String, Optional<KvStorage>> cache = CacheBuilder.newBuilder().maximumSize(KvStorageCacheMaxSize.value()).expireAfterAccess(1, TimeUnit.HOURS)
                 .build(new CacheLoader<String, Optional<KvStorage>>() {
                     @Override
                     public Optional<KvStorage> load(String key) throws Exception {
                         GetRequest request = _kvRequestBuilder.getGetRequest(key);
-                        KvStorage storage = _kvExecutor.get(restHighLevelClient, request, KvStorage.class);
+                        KvStorage storage = _kvExecutor.get(_kvStorageClientManager.getEsClient(), request, KvStorage.class);
                         if (storage == null) {
                             return Optional.empty();
                         }

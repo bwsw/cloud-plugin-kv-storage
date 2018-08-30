@@ -63,6 +63,8 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
     @SerializedName(com.bwsw.cloudstack.storage.kv.api.ApiConstants.EXPIRATION_TIMESTAMP)
     private Long expirationTimestamp;
 
+    private Long lastUpdated;
+
     public KvStorage() {
     }
 
@@ -176,6 +178,15 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
 
     public void setExpirationTimestamp(Long expirationTimestamp) {
         this.expirationTimestamp = expirationTimestamp;
+    }
+
+    @JsonProperty(EntityConstants.LAST_UPDATED)
+    public Long getLastUpdated() {
+        return lastUpdated;
+    }
+
+    public void setLastUpdated(Long lastUpdated) {
+        this.lastUpdated = lastUpdated;
     }
 
     public static long getCurrentTimestamp() {
