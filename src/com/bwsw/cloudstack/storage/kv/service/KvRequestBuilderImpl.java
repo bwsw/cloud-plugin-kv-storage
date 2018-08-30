@@ -21,6 +21,7 @@ import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.EntityConstants;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.util.TimeManager;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.http.entity.ContentType;
@@ -49,8 +50,8 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.FieldSortBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 
+import javax.inject.Inject;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,9 +65,12 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     private static final String ID_FIELD = "_id";
     private static final String ACCOUNT_FIELD = "account";
     private static final String TYPE_FIELD = "type";
-    private static final String MARK_DELETED_STORAGE_SCRIPT = "ctx._source.deleted = true";
+    private static final String MARK_DELETED_STORAGE_SCRIPT = "ctx._source.deleted = true; ctx._source.last_updated = params.last_updated";
 
     private static final ObjectMapper s_objectMapper = new ObjectMapper();
+
+    @Inject
+    private TimeManager _timeManager;
 
     @Override
     public GetRequest getGetRequest(String storageId) {
@@ -86,15 +90,11 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     }
 
     @Override
-    public IndexRequest getUpdateRequest(KvStorage storage) throws JsonProcessingException {
-        return getIndexRequest(storage, DocWriteRequest.OpType.INDEX);
-    }
-
-    @Override
     public UpdateRequest getUpdateTTLRequest(KvStorage storage) {
         Map<String, Object> parameters = new HashMap<>();
         parameters.put("ttl", storage.getTtl());
         parameters.put(EntityConstants.EXPIRATION_TIMESTAMP, storage.getExpirationTimestamp());
+        parameters.put(EntityConstants.LAST_UPDATED, _timeManager.getCurrentTimestamp());
         return new UpdateRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId()).doc(parameters);
     }
 
@@ -102,6 +102,7 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     public UpdateRequest getUpdateSecretKey(KvStorage storage) {
         Map<String, Object> parameters = new HashMap<>();
         parameters.put(EntityConstants.SECRET_KEY, storage.getSecretKey());
+        parameters.put(EntityConstants.LAST_UPDATED, _timeManager.getCurrentTimestamp());
         return new UpdateRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId()).doc(parameters);
     }
 
@@ -173,7 +174,7 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
 
     @Override
     public DeleteStorageRequest getDeleteRequest(KvStorage storage) throws JsonProcessingException {
-        IndexRequest registryUpdateRequest = getUpdateRequest(storage);
+        UpdateRequest registryUpdateRequest = getMarkDeletedRequest(storage);
         DeleteRequest registryDeleteRequest = new DeleteRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId());
         DeleteIndexRequest storageIndexRequest = new DeleteIndexRequest(getStorageIndex(storage));
         DeleteIndexRequest historyIndexRequest = null;
@@ -187,6 +188,7 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     public UpdateRequest getMarkDeletedRequest(KvStorage storage) {
         Map<String, Object> parameters = new HashMap<>();
         parameters.put(EntityConstants.DELETED, true);
+        parameters.put(EntityConstants.LAST_UPDATED, _timeManager.getCurrentTimestamp());
         return new UpdateRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId()).doc(parameters);
     }
 
@@ -249,7 +251,9 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
         Map<String, String> params = new HashMap<>();
         params.put("conflicts", "proceed");
 
-        Script script = new Script(ScriptType.INLINE, "painless", MARK_DELETED_STORAGE_SCRIPT, Collections.emptyMap());
+        Map<String, Object> scriptParameters = new HashMap<>();
+        scriptParameters.put(EntityConstants.LAST_UPDATED, _timeManager.getCurrentTimestamp());
+        Script script = new Script(ScriptType.INLINE, "painless", MARK_DELETED_STORAGE_SCRIPT, scriptParameters);
 
         XContentBuilder contentBuilder = XContentFactory.jsonBuilder();
         contentBuilder.startObject();

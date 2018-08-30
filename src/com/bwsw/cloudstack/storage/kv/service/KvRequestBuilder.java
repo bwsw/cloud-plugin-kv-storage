@@ -22,7 +22,6 @@ import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.update.UpdateRequest;
@@ -36,8 +35,6 @@ public interface KvRequestBuilder {
     GetRequest getGetRequest(String storageId);
 
     CreateStorageRequest getCreateRequest(KvStorage storage) throws JsonProcessingException;
-
-    IndexRequest getUpdateRequest(KvStorage storage) throws JsonProcessingException;
 
     UpdateRequest getUpdateTTLRequest(KvStorage storage);
 

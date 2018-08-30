@@ -21,13 +21,11 @@ import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.EntityConstants;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.util.TimeManager;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.tngtech.java.junit.dataprovider.DataProvider;
-import com.tngtech.java.junit.dataprovider.DataProviderRunner;
-import com.tngtech.java.junit.dataprovider.UseDataProvider;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
@@ -46,17 +44,22 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.runners.MockitoJUnitRunner;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.when;
 
-@RunWith(DataProviderRunner.class)
+@RunWith(MockitoJUnitRunner.class)
 public class KvRequestBuilderImplTest {
 
     private static final String UUID = "61d12f36-0201-4035-b6fc-c7f768f583f1";
@@ -72,19 +75,13 @@ public class KvRequestBuilderImplTest {
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
-    private KvRequestBuilderImpl _kvRequestBuilder = new KvRequestBuilderImpl();
+    @Mock
+    private TimeManager _timeManager;
+
+    @InjectMocks
+    private KvRequestBuilderImpl _kvRequestBuilder;
 
     private ObjectMapper objectMapper = new ObjectMapper();
-
-    @DataProvider
-    public static Object[][] storages() {
-        return new Object[][] {{get("id val", KvStorage.KvStorageType.ACCOUNT, "account secret", "account val", "name val", "description val", null, null, true, false),
-                "{\"type\":\"ACCOUNT\",\"deleted\":false,\"account\":\"account val\",\"name\":\"name val\",\"description\":\"description val\",\"secret_key\":\"account secret\","
-                        + "\"history_enabled\":true}"}, {get("id val", KvStorage.KvStorageType.VM, "vm secret", null, null, null, null, null, true, false),
-                "{\"type\":\"VM\",\"deleted\":false,\"secret_key\":\"vm secret\",\"history_enabled\":true}"},
-                {get("id val", KvStorage.KvStorageType.TEMP, "temp secret", null, null, null, 300000, 1527067849287L, true, false),
-                        "{\"type\":\"TEMP\",\"deleted\":false,\"ttl\":300000,\"secret_key\":\"temp secret\",\"history_enabled\":true,\"expiration_timestamp\":1527067849287}"}};
-    }
 
     @Test
     public void testGetGetRequest() {
@@ -96,33 +93,22 @@ public class KvRequestBuilderImplTest {
         assertEquals(UUID, request.id());
     }
 
-    @UseDataProvider("storages")
     @Test
-    public void testGetCreateRequest(KvStorage storage, String source) throws JsonProcessingException {
-        CreateStorageRequest request = _kvRequestBuilder.getCreateRequest(storage);
-
-        assertNotNull(request);
-        IndexRequest registryRequest = request.getRegistryRequest();
-        assertNotNull(registryRequest);
-        assertEquals(KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX, registryRequest.index());
-        assertEquals(KvRequestBuilderImpl.STORAGE_TYPE, registryRequest.type());
-        assertEquals(DocWriteRequest.OpType.CREATE, registryRequest.opType());
-        assertEquals(storage.getId(), registryRequest.id());
-        assertEquals(source, registryRequest.source().utf8ToString());
-
-        checkCreateIndexRequest(request.getStorageIndexRequest(), KvRequestBuilderImpl.STORAGE_INDEX_PREFIX + storage.getId());
-
-        if (storage.getHistoryEnabled() != null && storage.getHistoryEnabled()) {
-            checkCreateIndexRequest(request.getHistoryIndexRequest(), KvRequestBuilderImpl.HISTORY_INDEX_PREFIX + storage.getId());
-        }
+    public void testGetCreateRequestAccountStorage() throws IOException {
+        testGetCreateRequest(get("id val", KvStorage.KvStorageType.ACCOUNT, "account secret", "account val", "name val", "description val", null, null, true, false),
+                getQuery("create-account-storage.json", Collections.emptyMap()));
     }
 
-    @UseDataProvider("storages")
     @Test
-    public void testGetUpdateRequest(KvStorage storage, String source) throws JsonProcessingException {
-        IndexRequest request = _kvRequestBuilder.getUpdateRequest(storage);
+    public void testGetCreateRequestVmStorage() throws IOException {
+        testGetCreateRequest(get("id val", KvStorage.KvStorageType.VM, "vm secret", null, null, null, null, null, true, false),
+                getQuery("create-vm-storage.json", Collections.emptyMap()));
+    }
 
-        checkUpdateRequest(request, storage, source);
+    @Test
+    public void testGetCreateRequestTempStorage() throws IOException {
+        testGetCreateRequest(get("id val", KvStorage.KvStorageType.TEMP, "temp secret", null, null, null, 300000, 1527067849287L, true, false),
+                getQuery("create-temp-storage.json", Collections.emptyMap()));
     }
 
     @Test
@@ -130,7 +116,7 @@ public class KvRequestBuilderImplTest {
         KvStorage storage = new KvStorage(UUID, SECRET_KEY, true);
         storage.setDeleted(true);
 
-        testDeleteStorageRequest(storage, "{\"type\":\"VM\",\"deleted\":true,\"secret_key\":\"secretkey\",\"history_enabled\":true}");
+        testDeleteStorageRequest(storage);
     }
 
     @Test
@@ -138,7 +124,7 @@ public class KvRequestBuilderImplTest {
         KvStorage storage = new KvStorage(UUID, SECRET_KEY, false);
         storage.setDeleted(true);
 
-        testDeleteStorageRequest(storage, "{\"type\":\"VM\",\"deleted\":true,\"secret_key\":\"secretkey\",\"history_enabled\":false}");
+        testDeleteStorageRequest(storage);
     }
 
     @Test
@@ -157,16 +143,19 @@ public class KvRequestBuilderImplTest {
 
     @Test
     public void testGetUpdateTTLRequest() {
+        long timestamp = expectAndGetTimestamp();
         UpdateRequest request = _kvRequestBuilder.getUpdateTTLRequest(TEMP_STORAGE);
 
-        checkUpdateRequest(request, TEMP_STORAGE, ImmutableMap.of("ttl", TEMP_STORAGE.getTtl(), EntityConstants.EXPIRATION_TIMESTAMP, TEMP_STORAGE.getExpirationTimestamp()));
+        checkUpdateRequest(request, TEMP_STORAGE, ImmutableMap
+                .of("ttl", TEMP_STORAGE.getTtl(), EntityConstants.EXPIRATION_TIMESTAMP, TEMP_STORAGE.getExpirationTimestamp(), EntityConstants.LAST_UPDATED, timestamp));
     }
 
     @Test
     public void testGetUpdateSecretKeyRequest() {
+        long timestamp = expectAndGetTimestamp();
         UpdateRequest request = _kvRequestBuilder.getUpdateSecretKey(TEMP_STORAGE);
 
-        checkUpdateRequest(request, TEMP_STORAGE, ImmutableMap.of(EntityConstants.SECRET_KEY, TEMP_STORAGE.getSecretKey()));
+        checkUpdateRequest(request, TEMP_STORAGE, ImmutableMap.of(EntityConstants.SECRET_KEY, TEMP_STORAGE.getSecretKey(), EntityConstants.LAST_UPDATED, timestamp));
     }
 
     @Test
@@ -206,37 +195,62 @@ public class KvRequestBuilderImplTest {
 
     @Test
     public void testGetExpireTempStorageRequest() throws IOException {
-        Request request = _kvRequestBuilder.getExpireTempStorageRequest(TIMESTAMP);
-        checkUpdateByQueryRequest(request, "expire-temp-storages-query.json", ImmutableMap.of("%TIMESTAMP%", TIMESTAMP));
+        long timestamp = expectAndGetTimestamp();
+        Request request = _kvRequestBuilder.getExpireTempStorageRequest(timestamp);
+        checkUpdateByQueryRequest(request, "expire-temp-storages-query.json", ImmutableMap.of("%TIMESTAMP%", timestamp));
     }
 
     @Test
     public void testGetMarkDeletedRequest() {
         KvStorage storage = new KvStorage(UUID, SECRET_KEY, TTL, TIMESTAMP);
+        long timestamp = expectAndGetTimestamp();
 
         UpdateRequest request = _kvRequestBuilder.getMarkDeletedRequest(storage);
 
-        checkUpdateRequest(request, storage, ImmutableMap.of(EntityConstants.DELETED, true));
+        checkUpdateRequest(request, storage, ImmutableMap.of(EntityConstants.DELETED, true, EntityConstants.LAST_UPDATED, timestamp));
     }
 
     @Test
     public void getMarkDeletedAccountStorageRequest() throws IOException {
+        long timestamp = expectAndGetTimestamp();
         Request request = _kvRequestBuilder.getMarkDeletedAccountStorageRequest(UUID_LIST);
-        checkUpdateByQueryRequest(request, "mark-deleted-account-storages-query.json", ImmutableMap.of("%UUID%", UUID_LIST));
+        checkUpdateByQueryRequest(request, "mark-deleted-account-storages-query.json", ImmutableMap.of("%UUID%", UUID_LIST, "%TIMESTAMP%", timestamp));
     }
 
     @Test
     public void getMarkDeletedVmStorageRequest() throws IOException {
+        long timestamp = expectAndGetTimestamp();
         Request request = _kvRequestBuilder.getMarkDeletedVmStorageRequest(UUID_LIST);
-        checkUpdateByQueryRequest(request, "mark-deleted-vm-storages-query.json", ImmutableMap.of("%UUID%", UUID_LIST));
+        checkUpdateByQueryRequest(request, "mark-deleted-vm-storages-query.json", ImmutableMap.of("%UUID%", UUID_LIST, "%TIMESTAMP%", timestamp));
     }
 
-    private void testDeleteStorageRequest(KvStorage storage, String source) throws JsonProcessingException {
+    private void testGetCreateRequest(KvStorage storage, String source) throws JsonProcessingException {
+        CreateStorageRequest request = _kvRequestBuilder.getCreateRequest(storage);
+
+        assertNotNull(request);
+        IndexRequest registryRequest = request.getRegistryRequest();
+        assertNotNull(registryRequest);
+        assertEquals(KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX, registryRequest.index());
+        assertEquals(KvRequestBuilderImpl.STORAGE_TYPE, registryRequest.type());
+        assertEquals(DocWriteRequest.OpType.CREATE, registryRequest.opType());
+        assertEquals(storage.getId(), registryRequest.id());
+        assertEquals(source, registryRequest.source().utf8ToString());
+
+        checkCreateIndexRequest(request.getStorageIndexRequest(), KvRequestBuilderImpl.STORAGE_INDEX_PREFIX + storage.getId());
+
+        if (storage.getHistoryEnabled() != null && storage.getHistoryEnabled()) {
+            checkCreateIndexRequest(request.getHistoryIndexRequest(), KvRequestBuilderImpl.HISTORY_INDEX_PREFIX + storage.getId());
+        }
+    }
+
+    private void testDeleteStorageRequest(KvStorage storage) throws JsonProcessingException {
+        long timestamp = expectAndGetTimestamp();
+
         DeleteStorageRequest request = _kvRequestBuilder.getDeleteRequest(storage);
 
         assertNotNull(request);
 
-        checkUpdateRequest(request.getRegistryUpdateRequest(), storage, source);
+        checkUpdateRequest(request.getRegistryUpdateRequest(), storage, ImmutableMap.of(EntityConstants.DELETED, true, EntityConstants.LAST_UPDATED, timestamp));
 
         assertNotNull(request.getRegistryDeleteRequest());
         assertEquals(storage.getId(), request.getRegistryDeleteRequest().id());
@@ -248,15 +262,6 @@ public class KvRequestBuilderImplTest {
             assertNotNull(request.getHistoryIndexRequest());
             assertArrayEquals(new String[] {KvRequestBuilderImpl.HISTORY_INDEX_PREFIX + UUID}, request.getHistoryIndexRequest().indices());
         }
-    }
-
-    private void checkUpdateRequest(IndexRequest request, KvStorage storage, String source) {
-        assertNotNull(request);
-        assertEquals(KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX, request.index());
-        assertEquals(KvRequestBuilderImpl.STORAGE_TYPE, request.type());
-        assertEquals(DocWriteRequest.OpType.INDEX, request.opType());
-        assertEquals(storage.getId(), request.id());
-        assertEquals(source, request.source().utf8ToString());
     }
 
     private void checkUpdateRequest(UpdateRequest request, KvStorage storage, Map<String, Object> parameters) {
@@ -323,5 +328,11 @@ public class KvRequestBuilderImplTest {
             }
         }
         return expectedQuery.trim();
+    }
+
+    private long expectAndGetTimestamp() {
+        long timestamp = System.currentTimeMillis();
+        when(_timeManager.getCurrentTimestamp()).thenReturn(timestamp);
+        return timestamp;
     }
 }

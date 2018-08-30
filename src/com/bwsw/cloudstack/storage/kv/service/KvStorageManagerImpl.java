@@ -50,6 +50,7 @@ import com.bwsw.cloudstack.storage.kv.response.KvResult;
 import com.bwsw.cloudstack.storage.kv.response.KvStorageResponse;
 import com.bwsw.cloudstack.storage.kv.security.AccessChecker;
 import com.bwsw.cloudstack.storage.kv.security.KeyGenerator;
+import com.bwsw.cloudstack.storage.kv.util.TimeManager;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.exception.PermissionDeniedException;
 import com.cloud.user.AccountVO;
@@ -142,6 +143,9 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     @Inject
     private KvStorageClientManager _kvStorageClientManager;
+
+    @Inject
+    private TimeManager _timeManager;
 
     private KvOperationManager _kvOperationManager;
 
@@ -248,7 +252,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     @Override
     public KvStorage createTempStorage(Integer ttl) {
         checkTtl(ttl);
-        KvStorage storage = new KvStorage(UUID.randomUUID().toString(), _keyGenerator.generate(), ttl, KvStorage.getCurrentTimestamp() + ttl);
+        KvStorage storage = new KvStorage(UUID.randomUUID().toString(), _keyGenerator.generate(), ttl, _timeManager.getCurrentTimestamp() + ttl);
         return createStorage(storage);
     }
 
@@ -289,7 +293,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     @Override
     public void expireTempStorages() {
         try {
-            Request request = _kvRequestBuilder.getExpireTempStorageRequest(KvStorage.getCurrentTimestamp());
+            Request request = _kvRequestBuilder.getExpireTempStorageRequest(_timeManager.getCurrentTimestamp());
             Response response = _kvStorageClientManager.getEsClient().getLowLevelClient()
                     .performRequest(request.getMethod(), request.getEndpoint(), request.getParameters(), request.getEntity());
             if (response.getStatusLine().getStatusCode() == RestStatus.OK.getStatus()) {

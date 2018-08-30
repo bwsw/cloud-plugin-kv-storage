@@ -1,2 +1,2 @@
-{"script":{"source":"ctx._source.deleted = true","lang":"painless"},"query":{"bool":{"filter":[{"term":{"type":{"value":"ACCOUNT","boost":1.0}}},{"term":{"deleted":{"value":false,"boost":1.0}}},{"terms":{"account":%UUID%,"boost":1.0}}],"adjust_pure_negative":true,"boost":1.0}}}
+{"script":{"source":"ctx._source.deleted = true; ctx._source.last_updated = params.last_updated","lang":"painless","params":{"last_updated":%TIMESTAMP%}},"query":{"bool":{"filter":[{"term":{"type":{"value":"ACCOUNT","boost":1.0}}},{"term":{"deleted":{"value":false,"boost":1.0}}},{"terms":{"account":%UUID%,"boost":1.0}}],"adjust_pure_negative":true,"boost":1.0}}}
 

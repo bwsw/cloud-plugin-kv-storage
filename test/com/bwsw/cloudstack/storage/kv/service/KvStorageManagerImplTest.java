@@ -37,6 +37,7 @@ import com.bwsw.cloudstack.storage.kv.response.KvSuccess;
 import com.bwsw.cloudstack.storage.kv.response.KvValue;
 import com.bwsw.cloudstack.storage.kv.security.AccessChecker;
 import com.bwsw.cloudstack.storage.kv.security.KeyGenerator;
+import com.bwsw.cloudstack.storage.kv.util.TimeManager;
 import com.cloud.exception.InvalidParameterValueException;
 import com.cloud.exception.PermissionDeniedException;
 import com.cloud.user.AccountVO;
@@ -58,7 +59,6 @@ import org.apache.http.HttpVersion;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.message.BasicStatusLine;
 import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.update.UpdateRequest;
@@ -77,7 +77,6 @@ import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -90,7 +89,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -103,7 +101,6 @@ import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.intThat;
 import static org.mockito.Matchers.isNull;
-import static org.mockito.Matchers.longThat;
 import static org.mockito.Matchers.same;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
@@ -162,9 +159,6 @@ public class KvStorageManagerImplTest {
     private RestClient _restClient;
 
     @Mock
-    private IndexRequest _indexRequest;
-
-    @Mock
     private GetRequest _getRequest;
 
     @Mock
@@ -205,6 +199,9 @@ public class KvStorageManagerImplTest {
 
     @Mock
     private ExceptionFactory _exceptionFactory;
+
+    @Mock
+    private TimeManager _timeManager;
 
     @InjectMocks
     private KvStorageManagerImpl _kvStorageManager = new KvStorageManagerImpl();
@@ -348,6 +345,8 @@ public class KvStorageManagerImplTest {
     @Test
     public void testCreateTempStorage() throws IOException {
         setKeyGeneratorExpectations();
+        long timestamp = System.currentTimeMillis();
+        when(_timeManager.getCurrentTimestamp()).thenReturn(timestamp);
         when(_kvRequestBuilder.getCreateRequest(argThat(new CustomMatcher<KvStorage>("temp storage") {
             @Override
             public boolean matches(Object o) {
@@ -361,7 +360,7 @@ public class KvStorageManagerImplTest {
                 if (!TTL.equals(storage.getTtl())) {
                     return false;
                 }
-                if (storage.getExpirationTimestamp() == null || storage.getExpirationTimestamp() - storage.getTtl() > Instant.now().toEpochMilli()) {
+                if (storage.getExpirationTimestamp() == null || storage.getExpirationTimestamp() - storage.getTtl() != timestamp) {
                     return false;
                 }
                 if (storage.getHistoryEnabled() == null || storage.getHistoryEnabled()) {
@@ -800,7 +799,9 @@ public class KvStorageManagerImplTest {
     @Test
     public void testExpireTempStorages() throws IOException {
         Request request = new Request("POST", "http://localhost:9200", Collections.emptyMap(), new StringEntity("body"));
-        when(_kvRequestBuilder.getExpireTempStorageRequest(longThat(greaterThanOrEqualTo(KvStorage.getCurrentTimestamp())))).thenReturn(request);
+        long timestamp = System.currentTimeMillis();
+        when(_timeManager.getCurrentTimestamp()).thenReturn(timestamp);
+        when(_kvRequestBuilder.getExpireTempStorageRequest(timestamp)).thenReturn(request);
         when(_restHighLevelClient.getLowLevelClient()).thenReturn(_restClient);
         when(_restClient.performRequest(request.getMethod(), request.getEndpoint(), request.getParameters(), request.getEntity())).thenReturn(_response);
         when(_response.getStatusLine()).thenReturn(new BasicStatusLine(HttpVersion.HTTP_1_1, HttpStatus.SC_OK, null));

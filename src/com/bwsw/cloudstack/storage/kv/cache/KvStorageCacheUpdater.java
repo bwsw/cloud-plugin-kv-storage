@@ -18,10 +18,10 @@
 package com.bwsw.cloudstack.storage.kv.cache;
 
 import com.bwsw.cloudstack.storage.kv.client.KvStorageClientManager;
-import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.service.KvExecutor;
 import com.bwsw.cloudstack.storage.kv.service.KvRequestBuilder;
+import com.bwsw.cloudstack.storage.kv.util.TimeManager;
 import com.cloud.utils.component.ComponentLifecycleBase;
 import org.apache.log4j.Logger;
 import org.elasticsearch.action.search.SearchRequest;
@@ -43,12 +43,12 @@ public class KvStorageCacheUpdater extends ComponentLifecycleBase {
 
     private class KvStorageCacheUpdateTask extends TimerTask {
 
-        private long lastUpdated = KvStorage.getCurrentTimestamp();
+        private long lastUpdated = _timeManager.getCurrentTimestamp();
 
         @Override
         public void run() {
             s_logger.info("Update of KV storage cache started");
-            long startTimestamp = KvStorage.getCurrentTimestamp();
+            long startTimestamp = _timeManager.getCurrentTimestamp();
             SearchRequest request = _kvRequestBuilder.getLastUpdatedStoragesRequest(lastUpdated - UPDATE_PERIOD, UPDATE_BATCH_SIZE, UPDATE_BATCH_TIMEOUT);
             try {
                 ScrollableListResponse<String> response = _kvExecutor.scrollIds(_kvStorageClientManager.getEsClient(), request);
@@ -76,6 +76,9 @@ public class KvStorageCacheUpdater extends ComponentLifecycleBase {
 
     @Inject
     private KvStorageClientManager _kvStorageClientManager;
+
+    @Inject
+    private TimeManager _timeManager;
 
     private Timer _timer;
 

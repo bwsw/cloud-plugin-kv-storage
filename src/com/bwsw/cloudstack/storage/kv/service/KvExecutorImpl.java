@@ -123,7 +123,7 @@ public class KvExecutorImpl implements KvExecutor {
 
     @Override
     public boolean delete(RestHighLevelClient client, DeleteStorageRequest request) throws IOException {
-        IndexResponse registryUpdateResponse = client.index(request.getRegistryUpdateRequest());
+        UpdateResponse registryUpdateResponse = client.update(request.getRegistryUpdateRequest());
         if (registryUpdateResponse.status() != RestStatus.OK) {
             return false;
         }
