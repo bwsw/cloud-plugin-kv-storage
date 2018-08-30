@@ -19,9 +19,19 @@ package com.bwsw.cloudstack.storage.kv.exception;
 
 import com.cloud.exception.InvalidParameterValueException;
 
-public class NonexistentKvStorageException extends InvalidParameterValueException {
+public class ExceptionFactoryImpl implements ExceptionFactory {
 
-    public NonexistentKvStorageException() {
-        super("KV storage does not exist");
+    @Override
+    public InvalidParameterValueException getException(InvalidParameterValueCode code) {
+        switch (code) {
+        case NONEXISTENT_STORAGE:
+            return new InvalidParameterValueException("The KV storage does not exist");
+        }
+        return new InvalidParameterValueException(code.name());
+    }
+
+    @Override
+    public RuntimeException getKvOperationException(int httpStatus) {
+        return new RuntimeException("Unexpected KV operation status: " + httpStatus);
     }
 }

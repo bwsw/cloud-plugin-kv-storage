@@ -38,8 +38,9 @@ import com.bwsw.cloudstack.storage.kv.cache.KvStorageCacheFactory;
 import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
+import com.bwsw.cloudstack.storage.kv.exception.ExceptionFactory;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidEntityException;
-import com.bwsw.cloudstack.storage.kv.exception.NonexistentKvStorageException;
+import com.bwsw.cloudstack.storage.kv.exception.InvalidParameterValueCode;
 import com.bwsw.cloudstack.storage.kv.job.KvStorageJobManager;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
 import com.bwsw.cloudstack.storage.kv.response.KvKeys;
@@ -144,6 +145,9 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     @Inject
     private AccessChecker _accessChecker;
+
+    @Inject
+    private ExceptionFactory _exceptionFactory;
 
     private KvOperationManager _kvOperationManager;
 
@@ -267,7 +271,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         try {
             KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
             if (storage == null || storage.getDeleted() != null && storage.getDeleted()) {
-                throw new NonexistentKvStorageException();
+                throw _exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
             }
             if (!KvStorage.KvStorageType.TEMP.equals(storage.getType())) {
                 throw new InvalidParameterValueException("The storage type is not temp");
@@ -507,7 +511,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         _vmInstanceVOByRemovedSearchBuilder.and(REMOVED_GTE_CONDITION, _vmInstanceVOByRemovedSearchBuilder.entity().getRemoved(), SearchCriteria.Op.GTEQ);
 
         _kvStorageCache = _kvStorageCacheFactory.getCache(KvStorageCacheMaxSize.value(), _restHighLevelClient);
-        _kvOperationManager = new KvOperationManagerImpl(KvStorageUrl.value());
+        _kvOperationManager = new KvOperationManagerImpl(KvStorageUrl.value(), _exceptionFactory);
 
         return true;
     }
@@ -540,7 +544,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         try {
             KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
             if (storage == null) {
-                throw new NonexistentKvStorageException();
+                throw _exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
             }
             validator.accept(storage);
             storage.setDeleted(true);
@@ -607,7 +611,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         try {
             storage = _kvStorageCache.get(storageId);
             if (!storage.isPresent()) {
-                throw new NonexistentKvStorageException();
+                throw _exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
             }
         } catch (ExecutionException | UncheckedExecutionException e) {
             s_logger.error("Unable to execute storage operation", e);
@@ -620,12 +624,12 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         GetRequest getRequest = _kvRequestBuilder.getGetRequest(storageId);
         KvStorage storage = _kvExecutor.get(_restHighLevelClient, getRequest, KvStorage.class);
         if (storage == null || storage.getDeleted() != null && storage.getDeleted()) {
-            throw new NonexistentKvStorageException();
+            throw _exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
         }
         try {
             _accessChecker.check(storage);
         } catch (InvalidEntityException e) {
-            throw new NonexistentKvStorageException();
+            throw _exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
         }
         return storage;
     }

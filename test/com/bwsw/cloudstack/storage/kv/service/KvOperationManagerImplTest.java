@@ -18,7 +18,8 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
-import com.bwsw.cloudstack.storage.kv.exception.NonexistentKvStorageException;
+import com.bwsw.cloudstack.storage.kv.exception.ExceptionFactory;
+import com.bwsw.cloudstack.storage.kv.exception.InvalidParameterValueCode;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvError;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
@@ -41,6 +42,9 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.runners.MockitoJUnitRunner;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -63,7 +67,10 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Mockito.when;
 
+@RunWith(MockitoJUnitRunner.class)
 public class KvOperationManagerImplTest {
 
     private static final String URL_TEMPLATE = "http://localhost:%d";
@@ -78,13 +85,16 @@ public class KvOperationManagerImplTest {
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
+    @Mock
+    private ExceptionFactory _exceptionFactory;
+
     private ObjectMapper objectMapper = new ObjectMapper();
 
     private KvOperationManagerImpl kvOperationManager;
 
     @Before
     public void before() {
-        kvOperationManager = new KvOperationManagerImpl(String.format(URL_TEMPLATE, wireMockRule.port()));
+        kvOperationManager = new KvOperationManagerImpl(String.format(URL_TEMPLATE, wireMockRule.port()), _exceptionFactory);
     }
 
     @Test
@@ -449,7 +459,8 @@ public class KvOperationManagerImplTest {
     }
 
     private <T extends KvOperationResponse> void testNotFoundResponse(Supplier<MappingBuilder> requestBuilder, Supplier<T> responseSupplier) {
-        expectNonexistentStorage();
+        expectedException.expect(InvalidParameterValueException.class);
+        when(_exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE)).thenReturn(new InvalidParameterValueException("not found"));
         stubFor(requestBuilder.get().willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
 
         responseSupplier.get();
@@ -457,6 +468,7 @@ public class KvOperationManagerImplTest {
 
     private <T extends KvOperationResponse> void testInternalErrorResponse(Supplier<MappingBuilder> requestBuilder, Supplier<T> responseSupplier) {
         expectedException.expect(ServerApiException.class);
+        when(_exceptionFactory.getKvOperationException(anyInt())).thenReturn(new RuntimeException());
         stubFor(requestBuilder.get().willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
 
         responseSupplier.get();
@@ -467,9 +479,5 @@ public class KvOperationManagerImplTest {
         stubFor(requestBuilder.get().willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE)));
 
         responseSupplier.get();
-    }
-
-    private void expectNonexistentStorage() {
-        expectedException.expect(NonexistentKvStorageException.class);
     }
 }

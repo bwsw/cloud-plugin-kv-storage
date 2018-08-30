@@ -43,4 +43,6 @@
 
     <bean id="kvAccessChecker" class="com.bwsw.cloudstack.storage.kv.security.AccessCheckerImpl"/>
 
+    <bean id="kvExceptionFactory" class="com.bwsw.cloudstack.storage.kv.exception.ExceptionFactoryImpl"/>
+
 </beans>

@@ -22,8 +22,9 @@ import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
+import com.bwsw.cloudstack.storage.kv.exception.ExceptionFactory;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidEntityException;
-import com.bwsw.cloudstack.storage.kv.exception.NonexistentKvStorageException;
+import com.bwsw.cloudstack.storage.kv.exception.InvalidParameterValueCode;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
 import com.bwsw.cloudstack.storage.kv.response.KvKeys;
@@ -196,6 +197,9 @@ public class KvStorageManagerImplTest {
 
     @Mock
     private AccessChecker _accessChecker;
+
+    @Mock
+    private ExceptionFactory _exceptionFactory;
 
     @InjectMocks
     private KvStorageManagerImpl _kvStorageManager = new KvStorageManagerImpl();
@@ -454,10 +458,8 @@ public class KvStorageManagerImplTest {
 
     @Test
     public void testDeleteAccountStorageNonexistentStorage() throws IOException {
-        setExceptionExpectation(InvalidParameterValueException.class, "storage");
         setAccountExpectations();
-        when(_kvRequestBuilder.getGetRequest(STORAGE_UUID)).thenReturn(_getRequest);
-        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(null);
+        setNonexistentStorageExpectations(STORAGE_UUID);
 
         _kvStorageManager.deleteAccountStorage(ID, STORAGE_UUID);
     }
@@ -627,21 +629,14 @@ public class KvStorageManagerImplTest {
 
     @Test
     public void testUpdateTempStorageNonexistentStorage() throws IOException {
-        setExceptionExpectation(InvalidParameterValueException.class, "storage");
-        when(_kvRequestBuilder.getGetRequest(STORAGE_UUID)).thenReturn(_getRequest);
-        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(null);
+        setNonexistentStorageExpectations(STORAGE_UUID);
 
         _kvStorageManager.updateTempStorage(STORAGE_UUID, TTL);
     }
 
     @Test
     public void testUpdateTempStorageDeletedStorage() throws IOException {
-        KvStorage storage = new KvStorage();
-        storage.setDeleted(true);
-
-        setExceptionExpectation(InvalidParameterValueException.class, "storage");
-        when(_kvRequestBuilder.getGetRequest(STORAGE_UUID)).thenReturn(_getRequest);
-        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(storage);
+        setDeletedStorageExpectations(STORAGE_UUID);
 
         _kvStorageManager.updateTempStorage(STORAGE_UUID, TTL);
     }
@@ -703,9 +698,7 @@ public class KvStorageManagerImplTest {
 
     @Test
     public void testDeleteTempStorageNonexistentStorage() throws IOException {
-        setExceptionExpectation(InvalidParameterValueException.class, "storage");
-        when(_kvRequestBuilder.getGetRequest(STORAGE_UUID)).thenReturn(_getRequest);
-        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(null);
+        setNonexistentStorageExpectations(STORAGE_UUID);
 
         _kvStorageManager.deleteTempStorage(STORAGE_UUID);
     }
@@ -757,10 +750,8 @@ public class KvStorageManagerImplTest {
 
     @Test
     public void testDeleteVmStorageNonexistentStorage() throws IOException {
-        setExceptionExpectation(InvalidParameterValueException.class, "storage");
         setVmExpectations();
-        when(_kvRequestBuilder.getGetRequest(UUID)).thenReturn(_getRequest);
-        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(null);
+        setNonexistentStorageExpectations(UUID);
 
         _kvStorageManager.deleteVmStorage(UUID);
     }
@@ -874,19 +865,18 @@ public class KvStorageManagerImplTest {
 
     @Test
     public void testRegenerateSecretKeyNonexistentStorage() throws IOException {
-        setExceptionExpectation(InvalidParameterValueException.class, "storage");
-        when(_kvRequestBuilder.getGetRequest(UUID)).thenReturn(_getRequest);
-        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(null);
+        setNonexistentStorageExpectations(UUID);
 
         _kvStorageManager.regenerateSecretKey(UUID);
     }
 
     @Test
     public void testRegenerateSecretKeyInvalidStorage() throws IOException {
-        setExceptionExpectation(InvalidParameterValueException.class, "storage");
+        expectedException.expect(InvalidParameterValueException.class);
         when(_kvRequestBuilder.getGetRequest(UUID)).thenReturn(_getRequest);
         when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(STORAGE);
         doThrow(new InvalidEntityException()).when(_accessChecker).check(STORAGE);
+        when(_exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE)).thenReturn(new InvalidParameterValueException("not found"));
 
         _kvStorageManager.regenerateSecretKey(UUID);
     }
@@ -921,28 +911,21 @@ public class KvStorageManagerImplTest {
 
     @Test
     public void testGetKvStorageNonexistentStorage() throws IOException {
-        expectedException.expect(NonexistentKvStorageException.class);
-        when(_kvRequestBuilder.getGetRequest(UUID)).thenReturn(_getRequest);
-        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(null);
+        setNonexistentStorageExpectations(UUID);
 
         _kvStorageManager.getKvStorage(UUID);
     }
 
     @Test
     public void testGetKvStorageDeletedStorage() throws IOException {
-        KvStorage storage = new KvStorage();
-        storage.setDeleted(true);
-
-        expectedException.expect(NonexistentKvStorageException.class);
-        when(_kvRequestBuilder.getGetRequest(UUID)).thenReturn(_getRequest);
-        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(storage);
+        setDeletedStorageExpectations(UUID);
 
         _kvStorageManager.getKvStorage(UUID);
     }
 
     @Test
     public void testGetKvStorageInvalidEntity() throws IOException {
-        testGetKvStorageException(NonexistentKvStorageException.class, new InvalidEntityException());
+        testGetKvStorageException(InvalidParameterValueException.class, new InvalidEntityException());
     }
 
     @Test
@@ -960,7 +943,7 @@ public class KvStorageManagerImplTest {
     }
 
     @Test
-    public void testGetValueNonexistentStorage() throws ExecutionException {
+    public void testGetValueNonexistentStorage() throws ExecutionException, IOException {
         setNonexistentStorageCacheExpectations();
         _kvStorageManager.getValue(UUID, KEY);
     }
@@ -991,7 +974,7 @@ public class KvStorageManagerImplTest {
     }
 
     @Test
-    public void testGetValuesNonexistentStorage() throws ExecutionException {
+    public void testGetValuesNonexistentStorage() throws ExecutionException, IOException {
         setNonexistentStorageCacheExpectations();
         _kvStorageManager.getValues(UUID, DATA.keySet());
     }
@@ -1022,7 +1005,7 @@ public class KvStorageManagerImplTest {
     }
 
     @Test
-    public void testSetValueNonexistentStorage() throws ExecutionException {
+    public void testSetValueNonexistentStorage() throws ExecutionException, IOException {
         setNonexistentStorageCacheExpectations();
         _kvStorageManager.setValue(UUID, KEY, VALUE);
     }
@@ -1053,7 +1036,7 @@ public class KvStorageManagerImplTest {
     }
 
     @Test
-    public void testSetValuesNonexistentStorage() throws ExecutionException {
+    public void testSetValuesNonexistentStorage() throws ExecutionException, IOException {
         setNonexistentStorageCacheExpectations();
         _kvStorageManager.setValues(UUID, DATA);
     }
@@ -1084,7 +1067,7 @@ public class KvStorageManagerImplTest {
     }
 
     @Test
-    public void testDeleteKeyNonexistentStorage() throws ExecutionException {
+    public void testDeleteKeyNonexistentStorage() throws ExecutionException, IOException {
         setNonexistentStorageCacheExpectations();
         _kvStorageManager.deleteKey(UUID, KEY);
     }
@@ -1115,7 +1098,7 @@ public class KvStorageManagerImplTest {
     }
 
     @Test
-    public void testDeleteKeysNonexistentStorage() throws ExecutionException {
+    public void testDeleteKeysNonexistentStorage() throws ExecutionException, IOException {
         setNonexistentStorageCacheExpectations();
         _kvStorageManager.deleteKeys(UUID, DATA.keySet());
     }
@@ -1146,7 +1129,7 @@ public class KvStorageManagerImplTest {
     }
 
     @Test
-    public void testListKeysNonexistentStorage() throws ExecutionException {
+    public void testListKeysNonexistentStorage() throws ExecutionException, IOException {
         setNonexistentStorageCacheExpectations();
         _kvStorageManager.listKeys(UUID);
     }
@@ -1177,7 +1160,7 @@ public class KvStorageManagerImplTest {
     }
 
     @Test
-    public void testClearNonexistentStorage() throws ExecutionException {
+    public void testClearNonexistentStorage() throws ExecutionException, IOException {
         setNonexistentStorageCacheExpectations();
         _kvStorageManager.clear(UUID);
     }
@@ -1258,6 +1241,7 @@ public class KvStorageManagerImplTest {
         when(_kvRequestBuilder.getGetRequest(UUID)).thenReturn(_getRequest);
         when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(storage);
         doThrow(checkerException).when(_accessChecker).check(storage);
+        when(_exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE)).thenReturn(new InvalidParameterValueException("not found"));
 
         _kvStorageManager.getKvStorage(UUID);
     }
@@ -1394,9 +1378,9 @@ public class KvStorageManagerImplTest {
         }))).thenReturn(_updateRequest);
     }
 
-    private void setNonexistentStorageCacheExpectations() throws ExecutionException {
-        expectedException.expect(NonexistentKvStorageException.class);
+    private void setNonexistentStorageCacheExpectations() throws ExecutionException, IOException {
         when(_kvStorageCache.get(UUID)).thenReturn(Optional.empty());
+        setNonexistentStorageExpectations(UUID);
     }
 
     private void seStorageCacheLoadingException() throws ExecutionException {
@@ -1412,4 +1396,22 @@ public class KvStorageManagerImplTest {
         expectedException.expect(exceptionClass);
         expectedException.expectMessage(message);
     }
+
+    private void setNonexistentStorageExpectations(String storageId) throws IOException {
+        expectedException.expect(InvalidParameterValueException.class);
+        when(_kvRequestBuilder.getGetRequest(storageId)).thenReturn(_getRequest);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(null);
+        when(_exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE)).thenReturn(new InvalidParameterValueException("not found"));
+    }
+
+    private void setDeletedStorageExpectations(String storageId) throws IOException {
+        KvStorage storage = new KvStorage();
+        storage.setDeleted(true);
+
+        expectedException.expect(InvalidParameterValueException.class);
+        when(_kvRequestBuilder.getGetRequest(storageId)).thenReturn(_getRequest);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(storage);
+        when(_exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE)).thenReturn(new InvalidParameterValueException("not found"));
+    }
+
 }
