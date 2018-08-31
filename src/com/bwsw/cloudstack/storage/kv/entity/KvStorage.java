@@ -61,6 +61,7 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
     @SerializedName(com.bwsw.cloudstack.storage.kv.api.ApiConstants.EXPIRATION_TIMESTAMP)
     private Long expirationTimestamp;
 
+    @SerializedName(com.bwsw.cloudstack.storage.kv.api.ApiConstants.LAST_UPDATED)
     private Long lastUpdated;
 
     public KvStorage() {
@@ -72,6 +73,7 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
         this.deleted = false;
         this.secretKey = secretKey;
         this.historyEnabled = historyEnabled;
+        this.lastUpdated = 0L;
     }
 
     public KvStorage(String id, String secretKey, String account, String name, String description, boolean historyEnabled) {
@@ -83,6 +85,7 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
         this.name = name;
         this.description = description;
         this.historyEnabled = historyEnabled;
+        this.lastUpdated = 0L;
     }
 
     public KvStorage(String id, String secretKey, Integer ttl, Long expirationTimestamp) {
@@ -93,6 +96,7 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
         this.ttl = ttl;
         this.expirationTimestamp = expirationTimestamp;
         this.historyEnabled = false;
+        this.lastUpdated = 0L;
     }
 
     public String getId() {
