@@ -503,8 +503,7 @@ public class KvStorageManagerImplTest {
     @Test
     public void testDeleteAccountStorageDeleteRequestException() throws IOException {
         setAccountExpectations();
-        setDeleteAccountStorageExpectations();
-        when(_kvExecutor.delete(_restHighLevelClient, _deleteStorageRequest)).thenThrow(new IOException());
+        setDeleteAccountStorageExpectations(true);
 
         assertFalse(_kvStorageManager.deleteAccountStorage(ID, STORAGE_UUID));
     }
@@ -512,7 +511,7 @@ public class KvStorageManagerImplTest {
     @Test
     public void testDeleteAccountStorage() throws IOException {
         setAccountExpectations();
-        setDeleteAccountStorageExpectations();
+        setDeleteAccountStorageExpectations(false);
         when(_kvExecutor.delete(_restHighLevelClient, _deleteStorageRequest)).thenReturn(true);
 
         assertTrue(_kvStorageManager.deleteAccountStorage(ID, STORAGE_UUID));
@@ -539,14 +538,16 @@ public class KvStorageManagerImplTest {
         when(_kvRequestBuilder.getAccountStoragesRequest(eq(UUID), intThat(greaterThan(0)), intThat(greaterThan(0)))).thenReturn(_searchRequest);
         when(_kvExecutor.scroll(_restHighLevelClient, _searchRequest, KvStorage.class)).thenReturn(response);
         for (KvStorage storage : response.getResults()) {
-            when(_kvRequestBuilder.getDeleteRequest(storage)).thenReturn(_deleteStorageRequest);
-            when(_kvExecutor.delete(_restHighLevelClient, _deleteStorageRequest)).thenReturn(true);
+            when(_kvRequestBuilder.getMarkDeletedRequest(storage)).thenReturn(_updateRequest);
+            doNothing().when(_kvExecutor).update(_restHighLevelClient, _updateRequest);
         }
         SearchScrollRequest scrollRequest = new SearchScrollRequest();
         when(_kvRequestBuilder.getScrollRequest(eq(response.getScrollId()), intThat(greaterThan(0)))).thenReturn(scrollRequest);
         when(_kvExecutor.scroll(_restHighLevelClient, scrollRequest, KvStorage.class)).thenReturn(new ScrollableListResponse<>("id", null));
 
         _kvStorageManager.deleteAccountStorages(UUID);
+
+        verify(_kvExecutor).update(_restHighLevelClient, _updateRequest);
     }
 
     @SuppressWarnings("unchecked")
@@ -726,16 +727,15 @@ public class KvStorageManagerImplTest {
 
     @Test
     public void testDeleteTempStorageDeleteRequestException() throws IOException {
-        setDeleteTempStorageExpectations();
-        when(_kvExecutor.delete(_restHighLevelClient, _deleteStorageRequest)).thenThrow(new IOException());
+        setDeleteTempStorageExpectations(true);
 
         assertFalse(_kvStorageManager.deleteTempStorage(STORAGE_UUID));
     }
 
     @Test
     public void testDeleteTempStorage() throws IOException {
-        setDeleteTempStorageExpectations();
-        when(_kvExecutor.delete(_restHighLevelClient, _deleteStorageRequest)).thenReturn(true);
+        setDeleteTempStorageExpectations(false);
+        doNothing().when(_kvExecutor).update(_restHighLevelClient, _updateRequest);
 
         assertTrue(_kvStorageManager.deleteTempStorage(STORAGE_UUID));
     }
@@ -781,7 +781,7 @@ public class KvStorageManagerImplTest {
     @Test
     public void testDeleteVmStorageDeleteRequestException() throws IOException {
         setVmExpectations();
-        setDeleteVmStorageExpectations();
+        setDeleteVmStorageExpectations(true);
         when(_kvExecutor.delete(_restHighLevelClient, _deleteStorageRequest)).thenThrow(new IOException());
 
         assertFalse(_kvStorageManager.deleteVmStorage(UUID));
@@ -790,7 +790,7 @@ public class KvStorageManagerImplTest {
     @Test
     public void testDeleteVmStorage() throws IOException {
         setVmExpectations();
-        setDeleteVmStorageExpectations();
+        setDeleteVmStorageExpectations(false);
         when(_kvExecutor.delete(_restHighLevelClient, _deleteStorageRequest)).thenReturn(true);
 
         assertTrue(_kvStorageManager.deleteVmStorage(UUID));
@@ -1324,29 +1324,29 @@ public class KvStorageManagerImplTest {
         }))).thenReturn(_createStorageRequest);
     }
 
-    private void setDeleteAccountStorageExpectations() throws IOException {
+    private void setDeleteAccountStorageExpectations(boolean throwException) throws IOException {
         KvStorage storage = new KvStorage();
         storage.setId(STORAGE_UUID);
         storage.setType(KvStorage.KvStorageType.ACCOUNT);
         storage.setAccount(UUID);
 
         setAccountExpectations();
-        setDeleteStorageExpectations(storage);
+        setDeleteStorageExpectations(storage, throwException);
     }
 
-    private void setDeleteTempStorageExpectations() throws IOException {
+    private void setDeleteTempStorageExpectations(boolean throwException) throws IOException {
         KvStorage storage = new KvStorage(STORAGE_UUID, SECRET_KEY, TTL, TIMESTAMP);
-        setDeleteStorageExpectations(storage);
+        setDeleteStorageExpectations(storage, throwException);
     }
 
-    private void setDeleteVmStorageExpectations() throws IOException {
-        setDeleteStorageExpectations(new KvStorage(UUID, SECRET_KEY, KvStorageManager.KvStorageVmHistoryEnabled.value()));
+    private void setDeleteVmStorageExpectations(boolean throwException) throws IOException {
+        setDeleteStorageExpectations(new KvStorage(UUID, SECRET_KEY, KvStorageManager.KvStorageVmHistoryEnabled.value()), throwException);
     }
 
-    private void setDeleteStorageExpectations(KvStorage expected) throws IOException {
+    private void setDeleteStorageExpectations(KvStorage expected, boolean throwException) throws IOException {
         when(_kvRequestBuilder.getGetRequest(expected.getId())).thenReturn(_getRequest);
         when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(expected);
-        when(_kvRequestBuilder.getDeleteRequest(argThat(new CustomMatcher<KvStorage>("deleted storage") {
+        when(_kvRequestBuilder.getMarkDeletedRequest(argThat(new CustomMatcher<KvStorage>("deleted storage") {
             @Override
             public boolean matches(Object o) {
                 if (!(o instanceof KvStorage)) {
@@ -1355,7 +1355,12 @@ public class KvStorageManagerImplTest {
                 KvStorage storage = (KvStorage)o;
                 return expected.getId().equals(storage.getId()) && storage.getDeleted() != null && storage.getDeleted();
             }
-        }))).thenReturn(_deleteStorageRequest);
+        }))).thenReturn(_updateRequest);
+        if (throwException) {
+            doThrow(new IOException()).when(_kvExecutor).update(_restHighLevelClient, _updateRequest);
+        } else {
+            doNothing().when(_kvExecutor).update(_restHighLevelClient, _updateRequest);
+        }
     }
 
     private void setUpdateTempStorageExpectations(Integer ttl, long creationTimestamp) throws IOException {

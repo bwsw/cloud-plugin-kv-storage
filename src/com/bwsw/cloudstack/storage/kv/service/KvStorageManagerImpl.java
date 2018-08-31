@@ -219,11 +219,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
                 for (KvStorage storage : response.getResults()) {
                     storage.setDeleted(true);
                     s_logger.info("Deleting the KV storage " + storage.getId() + " for the account " + storage.getAccount());
-                    if (!_kvExecutor.delete(_kvStorageClientManager.getEsClient(), _kvRequestBuilder.getDeleteRequest(storage))) {
-                        s_logger.error("Unable to delete account KV storage " + storage.getId());
-                    } else {
-                        s_logger.info("The KV storage " + storage.getId() + " for the account " + storage.getAccount() + " has been deleted");
-                    }
+                    _kvExecutor.update(_kvStorageClientManager.getEsClient(), _kvRequestBuilder.getMarkDeletedRequest(storage));
                 }
                 response = _kvExecutor
                         .scroll(_kvStorageClientManager.getEsClient(), _kvRequestBuilder.getScrollRequest(response.getScrollId(), DELETE_BATCH_TIMEOUT), KvStorage.class);
@@ -525,7 +521,8 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             }
             validator.accept(storage);
             storage.setDeleted(true);
-            return _kvExecutor.delete(_kvStorageClientManager.getEsClient(), _kvRequestBuilder.getDeleteRequest(storage));
+            _kvExecutor.update(_kvStorageClientManager.getEsClient(), _kvRequestBuilder.getMarkDeletedRequest(storage));
+            return true;
         } catch (IOException e) {
             s_logger.error("Unable to delete the KV storage " + storageId, e);
             return false;
