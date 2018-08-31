@@ -20,10 +20,6 @@ package com.bwsw.cloudstack.storage.kv.api;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.service.KvStorageManager;
 import com.cloud.exception.ConcurrentOperationException;
-import com.cloud.exception.InsufficientCapacityException;
-import com.cloud.exception.NetworkRuleConflictException;
-import com.cloud.exception.ResourceAllocationException;
-import com.cloud.exception.ResourceUnavailableException;
 import org.apache.cloudstack.acl.RoleType;
 import org.apache.cloudstack.api.APICommand;
 import org.apache.cloudstack.api.BaseCmd;
@@ -52,8 +48,7 @@ public class RegenerateKvStorageSecretKeyCmd extends BaseCmd {
     }
 
     @Override
-    public void execute() throws ResourceUnavailableException, InsufficientCapacityException, ServerApiException, ConcurrentOperationException, ResourceAllocationException,
-            NetworkRuleConflictException {
+    public void execute() throws ServerApiException, ConcurrentOperationException {
         KvStorage response = _kvStorageManager.regenerateSecretKey(getStorageId());
         response.setResponseName(getCommandName());
         response.setObjectName("kvstorage");

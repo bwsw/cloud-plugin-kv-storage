@@ -30,7 +30,6 @@ import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.Strings;
 
-import javax.naming.ConfigurationException;
 import java.util.Map;
 
 import static com.bwsw.cloudstack.storage.kv.service.KvStorageManager.KvStorageElasticsearchList;
@@ -44,7 +43,7 @@ public class KvStorageClientManagerImpl extends ComponentLifecycleBase implement
     private RestHighLevelClient _restHighLevelClient;
 
     @Override
-    public boolean configure(String name, Map<String, Object> params) throws ConfigurationException {
+    public boolean configure(String name, Map<String, Object> params) {
         try {
             RestClientBuilder restClientBuilder = RestClient.builder(HttpUtils.getHttpHosts(KvStorageElasticsearchList.value()).toArray(new HttpHost[] {}));
             String username = KvStorageElasticsearchUsername.value();

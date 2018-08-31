@@ -27,7 +27,7 @@
 
     <bean id="kvClientManager" class="com.bwsw.cloudstack.storage.kv.client.KvStorageClientManagerImpl"/>
 
-    <bean id="timeManager" class="com.bwsw.cloudstack.storage.kv.util.TimeManagerImpl"/>
+    <bean id="kvTimeManager" class="com.bwsw.cloudstack.storage.kv.util.TimeManagerImpl"/>
 
     <bean id="kvStorageManager" class="com.bwsw.cloudstack.storage.kv.service.KvStorageManagerImpl"/>
 

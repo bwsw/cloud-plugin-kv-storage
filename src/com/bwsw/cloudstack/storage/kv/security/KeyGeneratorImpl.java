@@ -26,7 +26,7 @@ public class KeyGeneratorImpl implements KeyGenerator {
 
     @Override
     public String generate() {
-        javax.crypto.KeyGenerator generator = null;
+        javax.crypto.KeyGenerator generator;
         try {
             generator = javax.crypto.KeyGenerator.getInstance("HmacSHA1");
         } catch (NoSuchAlgorithmException e) {

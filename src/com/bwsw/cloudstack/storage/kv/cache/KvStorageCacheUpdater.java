@@ -48,12 +48,14 @@ public class KvStorageCacheUpdater extends ComponentLifecycleBase {
         @Override
         public void run() {
             s_logger.info("Update of KV storage cache started");
+            int updatedEntries = 0;
             long startTimestamp = _timeManager.getCurrentTimestamp();
             SearchRequest request = _kvRequestBuilder.getLastUpdatedStoragesRequest(lastUpdated - UPDATE_PERIOD, UPDATE_BATCH_SIZE, UPDATE_BATCH_TIMEOUT);
             try {
                 ScrollableListResponse<String> response = _kvExecutor.scrollIds(_kvStorageClientManager.getEsClient(), request);
                 while (response != null && response.getResults() != null && !response.getResults().isEmpty()) {
                     _kvStorageCache.invalidateAll(response.getResults());
+                    updatedEntries += response.getResults().size();
                     response = _kvExecutor.scrollIds(_kvStorageClientManager.getEsClient(), _kvRequestBuilder.getScrollRequest(response.getScrollId(), UPDATE_BATCH_TIMEOUT));
                 }
                 lastUpdated = startTimestamp;
@@ -61,7 +63,7 @@ public class KvStorageCacheUpdater extends ComponentLifecycleBase {
                 s_logger.error("Unable to update KV storage cache", e);
                 _kvStorageCache.invalidateAll();
             }
-            s_logger.info("Update of KV storage cache finished");
+            s_logger.info("Update of KV storage cache finished: updated entries " + updatedEntries);
         }
     }
 

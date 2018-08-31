@@ -399,7 +399,6 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     public KvStorage regenerateSecretKey(String storageId) {
         try {
             KvStorage storage = getStorage(storageId);
-            _accessChecker.check(storage);
             storage.setSecretKey(_keyGenerator.generate());
             UpdateRequest request = _kvRequestBuilder.getUpdateSecretKey(storage);
             _kvExecutor.update(_kvStorageClientManager.getEsClient(), request);
