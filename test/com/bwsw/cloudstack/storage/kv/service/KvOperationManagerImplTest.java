@@ -74,6 +74,7 @@ import static org.mockito.Mockito.when;
 public class KvOperationManagerImplTest {
 
     private static final String URL_TEMPLATE = "http://localhost:%d";
+    private static final String SECRET_KEY_HEADER = "Secret-Key";
     private static final KvStorage STORAGE = new KvStorage("e0123777-921b-4e62-a7cc-8135015ca571", "secret", false);
     private static final String KEY = "key";
     private static final String VALUE = "value";
@@ -383,47 +384,50 @@ public class KvOperationManagerImplTest {
     }
 
     private MappingBuilder getGetByKeyPath() {
-        return get(urlEqualTo("/get/" + STORAGE.getId() + "/" + KEY));
+        return get(urlEqualTo("/get/" + STORAGE.getId() + "/" + KEY)).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey()));
     }
 
     private MappingBuilder getGetByKeysPath() {
         try {
-            return post(urlEqualTo("/get/" + STORAGE.getId())).withRequestBody(equalToJson(objectMapper.writeValueAsString(DATA.keySet())));
+            return post(urlEqualTo("/get/" + STORAGE.getId())).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey()))
+                    .withRequestBody(equalToJson(objectMapper.writeValueAsString(DATA.keySet())));
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
     }
 
     private MappingBuilder getSetValuePath() {
-        return put(urlEqualTo("/set/" + STORAGE.getId() + "/" + KEY)).withRequestBody(equalTo(VALUE));
+        return put(urlEqualTo("/set/" + STORAGE.getId() + "/" + KEY)).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey())).withRequestBody(equalTo(VALUE));
     }
 
     private MappingBuilder getSetValuesPath() {
         try {
-            return put(urlEqualTo("/set/" + STORAGE.getId())).withRequestBody(equalToJson(objectMapper.writeValueAsString(DATA)));
+            return put(urlEqualTo("/set/" + STORAGE.getId())).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey()))
+                    .withRequestBody(equalToJson(objectMapper.writeValueAsString(DATA)));
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
     }
 
     private MappingBuilder getDeleteKeyPath() {
-        return delete(urlEqualTo("/delete/" + STORAGE.getId() + "/" + KEY));
+        return delete(urlEqualTo("/delete/" + STORAGE.getId() + "/" + KEY)).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey()));
     }
 
     private MappingBuilder getDeleteKeysPath() {
         try {
-            return post(urlEqualTo("/delete/" + STORAGE.getId())).withRequestBody(equalToJson(objectMapper.writeValueAsString(DATA.keySet())));
+            return post(urlEqualTo("/delete/" + STORAGE.getId())).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey()))
+                    .withRequestBody(equalToJson(objectMapper.writeValueAsString(DATA.keySet())));
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
     }
 
     private MappingBuilder getListPath() {
-        return get(urlEqualTo("/list/" + STORAGE.getId()));
+        return get(urlEqualTo("/list/" + STORAGE.getId())).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey()));
     }
 
     private MappingBuilder getClearPath() {
-        return post(urlEqualTo("/clear/" + STORAGE.getId()));
+        return post(urlEqualTo("/clear/" + STORAGE.getId())).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey()));
     }
 
     private Supplier<KvOperationResponse> getByKeySupplier() {

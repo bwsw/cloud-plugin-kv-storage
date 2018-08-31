@@ -61,6 +61,7 @@ import java.util.Map;
 public class KvOperationManagerImpl implements KvOperationManager {
 
     private static final int TIMEOUT = 3000;
+    private static final String SECRET_KEY_HEADER = "Secret-Key";
     private static final Charset CHARSET = Charset.forName("UTF-8");
     private static final ContentType JSON_CONTENT_TYPE = ContentType.create("application/json");
     private static final ContentType TEXT_PLAIN_CONTENT_TYPE = ContentType.create("text/plain");
@@ -92,7 +93,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
 
     @Override
     public KvOperationResponse get(KvStorage storage, String key) {
-        return execute(() -> new HttpGet(String.format("%sget/%s/%s", _url, encode(storage.getId()), encode(key))), (statusCode, entity) -> {
+        return execute(() -> new HttpGet(String.format("%sget/%s/%s", _url, encode(storage.getId()), encode(key))), storage.getSecretKey(), (statusCode, entity) -> {
             switch (statusCode) {
             case HttpStatus.SC_OK:
                 return new KvValue(EntityUtils.toString(entity, CHARSET));
@@ -114,7 +115,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
             HttpPost request = new HttpPost(String.format("%sget/%s", _url, encode(storage.getId())));
             request.setEntity(entity);
             return request;
-        }, (statusCode, entity) -> {
+        }, storage.getSecretKey(), (statusCode, entity) -> {
             switch (statusCode) {
             case HttpStatus.SC_OK:
                 @SuppressWarnings("unchecked") Map<String, String> items = objectMapper.readValue(EntityUtils.toString(entity, CHARSET), Map.class);
@@ -137,7 +138,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
             HttpPut request = new HttpPut(String.format("%sset/%s/%s", _url, encode(storage.getId()), encode(key)));
             request.setEntity(entity);
             return request;
-        }, (statusCode, entity) -> {
+        }, storage.getSecretKey(), (statusCode, entity) -> {
             switch (statusCode) {
             case HttpStatus.SC_OK:
                 return new KvPair(key, value);
@@ -161,7 +162,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
             HttpPut request = new HttpPut(String.format("%sset/%s", _url, encode(storage.getId())));
             request.setEntity(entity);
             return request;
-        }, (statusCode, entity) -> {
+        }, storage.getSecretKey(), (statusCode, entity) -> {
             switch (statusCode) {
             case HttpStatus.SC_OK:
                 @SuppressWarnings("unchecked") Map<String, Boolean> items = objectMapper.readValue(EntityUtils.toString(entity, CHARSET), Map.class);
@@ -176,7 +177,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
 
     @Override
     public KvKey delete(KvStorage storage, String key) {
-        return execute(() -> new HttpDelete(String.format("%sdelete/%s/%s", _url, storage.getId(), encode(key))), (statusCode, entity) -> {
+        return execute(() -> new HttpDelete(String.format("%sdelete/%s/%s", _url, storage.getId(), encode(key))), storage.getSecretKey(), (statusCode, entity) -> {
             switch (statusCode) {
             case HttpStatus.SC_OK:
                 return new KvKey(key);
@@ -198,7 +199,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
             HttpPost request = new HttpPost(String.format("%sdelete/%s", _url, encode(storage.getId())));
             request.setEntity(entity);
             return request;
-        }, (statusCode, entity) -> {
+        }, storage.getSecretKey(), (statusCode, entity) -> {
             switch (statusCode) {
             case HttpStatus.SC_OK:
                 @SuppressWarnings("unchecked") Map<String, Boolean> items = objectMapper.readValue(EntityUtils.toString(entity, CHARSET), Map.class);
@@ -213,7 +214,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
 
     @Override
     public KvKeys list(KvStorage storage) {
-        return execute(() -> new HttpGet(String.format("%slist/%s", _url, encode(storage.getId()))), (statusCode, entity) -> {
+        return execute(() -> new HttpGet(String.format("%slist/%s", _url, encode(storage.getId()))), storage.getSecretKey(), (statusCode, entity) -> {
             switch (statusCode) {
             case HttpStatus.SC_OK:
                 @SuppressWarnings("unchecked") List<String> items = objectMapper.readValue(EntityUtils.toString(entity, CHARSET), List.class);
@@ -228,7 +229,7 @@ public class KvOperationManagerImpl implements KvOperationManager {
 
     @Override
     public KvOperationResponse clear(KvStorage storage) {
-        return execute(() -> new HttpPost(String.format("%sclear/%s", _url, encode(storage.getId()))), (statusCode, entity) -> {
+        return execute(() -> new HttpPost(String.format("%sclear/%s", _url, encode(storage.getId()))), storage.getSecretKey(), (statusCode, entity) -> {
             switch (statusCode) {
             case HttpStatus.SC_OK:
                 return new KvSuccess();
@@ -251,11 +252,13 @@ public class KvOperationManagerImpl implements KvOperationManager {
         }
     }
 
-    private <T extends KvOperationResponse> T execute(CheckedSupplier<HttpUriRequest, Exception> requestSupplier,
+    private <T extends KvOperationResponse> T execute(CheckedSupplier<HttpUriRequest, Exception> requestSupplier, String secretKey,
             CheckedBiFunction<Integer, HttpEntity, T, Exception> responseFactory) {
         CloseableHttpResponse response = null;
         try {
-            response = _httpClient.execute(requestSupplier.get());
+            HttpUriRequest request = requestSupplier.get();
+            request.setHeader(SECRET_KEY_HEADER, secretKey);
+            response = _httpClient.execute(request);
             return responseFactory.apply(response.getStatusLine().getStatusCode(), response.getEntity());
         } catch (InvalidParameterValueException e) {
             throw e;
