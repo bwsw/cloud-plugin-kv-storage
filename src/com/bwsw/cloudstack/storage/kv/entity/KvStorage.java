@@ -18,6 +18,7 @@
 package com.bwsw.cloudstack.storage.kv.entity;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.gson.annotations.SerializedName;
@@ -63,6 +64,10 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
 
     @SerializedName(com.bwsw.cloudstack.storage.kv.api.ApiConstants.LAST_UPDATED)
     private Long lastUpdated;
+
+    @JsonIgnore
+    @SerializedName(ApiConstants.URL)
+    private String url;
 
     public KvStorage() {
     }
@@ -189,5 +194,13 @@ public class KvStorage extends BaseResponse implements ResponseEntity {
 
     public void setLastUpdated(Long lastUpdated) {
         this.lastUpdated = lastUpdated;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
     }
 }

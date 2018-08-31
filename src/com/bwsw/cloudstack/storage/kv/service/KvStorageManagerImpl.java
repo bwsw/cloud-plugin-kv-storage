@@ -183,7 +183,12 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         }
         SearchRequest searchRequest = _kvRequestBuilder.getSearchRequest(accountVO.getUuid(), startIndex.intValue(), pageSize.intValue());
         try {
-            return _kvExecutor.search(_kvStorageClientManager.getEsClient(), searchRequest, KvStorageResponse.class);
+            ListResponse<KvStorageResponse> response = _kvExecutor.search(_kvStorageClientManager.getEsClient(), searchRequest, KvStorageResponse.class);
+            if (response != null && response.getResponses() != null) {
+                String url = KvStoragePublicUrl.value();
+                response.getResponses().forEach(storage -> storage.setUrl(url));
+            }
+            return response;
         } catch (IOException e) {
             s_logger.error("Unable to retrieve storage", e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to retrieve storages", e);
@@ -266,6 +271,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             storage.setExpirationTimestamp(storage.getExpirationTimestamp() - storage.getTtl() + ttl);
             storage.setTtl(ttl);
             _kvExecutor.update(_kvStorageClientManager.getEsClient(), _kvRequestBuilder.getUpdateTTLRequest(storage));
+            storage.setUrl(KvStoragePublicUrl.value());
             return storage;
         } catch (IOException e) {
             s_logger.error("Unable to update a storage", e);
@@ -330,7 +336,9 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     @Override
     public KvStorage getKvStorage(String storageId) {
         try {
-            return getStorage(storageId);
+            KvStorage storage = getStorage(storageId);
+            storage.setUrl(KvStoragePublicUrl.value());
+            return storage;
         } catch (IOException e) {
             s_logger.error("Unable to retrieve a storage", e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to retrieve the storage", e);
@@ -392,6 +400,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             storage.setSecretKey(_keyGenerator.generate());
             UpdateRequest request = _kvRequestBuilder.getUpdateSecretKey(storage);
             _kvExecutor.update(_kvStorageClientManager.getEsClient(), request);
+            storage.setUrl(KvStoragePublicUrl.value());
             return storage;
         } catch (IOException e) {
             s_logger.error("Unable to regenerate a secret key for KV storage " + storageId, e);
@@ -469,7 +478,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     @Override
     public ConfigKey<?>[] getConfigKeys() {
         return new ConfigKey[] {KvStorageElasticsearchList, KvStorageElasticsearchUsername, KvStorageElasticsearchPassword, KvStorageVmHistoryEnabled, KvStorageCacheMaxSize,
-                KvStorageUrl};
+                KvStorageUrl, KvStoragePublicUrl};
     }
 
     @Override
@@ -493,6 +502,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         try {
             CreateStorageRequest request = _kvRequestBuilder.getCreateRequest(storage);
             _kvExecutor.create(_kvStorageClientManager.getEsClient(), request);
+            storage.setUrl(KvStoragePublicUrl.value());
         } catch (IOException e) {
             s_logger.error("Unable to create a storage", e);
             throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to create a storage", e);

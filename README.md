@@ -37,6 +37,7 @@ The plugin does not work with built-in KafkaEventBus and RabbitMQEventBus.
 | storage.kv.vm.history.enabled | true if VM storages should keep an operation history, false otherwise | false |
 | storage.kv.cache.size.max | maximum size of storage cache | 10000 |
 | storage.kv.url | KV storage URL | |
+| storage.kv.url.public | public KV storage URL | |
 
 *default.page.size* is used as a default value for pagesize parameter in [listAccountKvStorages](#listaccountkvstorages) command. Its value should be less or equal to Elasticsearch 
 *index.max_result_window* otherwise listAccountKvStorages requests without pagesize parameter will fail.
