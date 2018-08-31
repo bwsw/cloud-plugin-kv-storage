@@ -61,7 +61,7 @@ public class KvStorageCacheUpdater extends ComponentLifecycleBase {
                 s_logger.error("Unable to update KV storage cache", e);
                 _kvStorageCache.invalidateAll();
             }
-            s_logger.info("Update of KV storage cache finish");
+            s_logger.info("Update of KV storage cache finished");
         }
     }
 
