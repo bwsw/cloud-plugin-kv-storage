@@ -41,7 +41,6 @@ import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.exception.ExceptionFactory;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidEntityException;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidParameterValueCode;
-import com.bwsw.cloudstack.storage.kv.job.KvStorageJobManager;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
 import com.bwsw.cloudstack.storage.kv.response.KvKeys;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
@@ -125,9 +124,6 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     @Inject
     private KvExecutor _kvExecutor;
-
-    @Inject
-    private KvStorageJobManager _kvStorageJobManager;
 
     @Inject
     private KeyGenerator _keyGenerator;
@@ -482,8 +478,6 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
 
     @Override
     public boolean configure(String name, Map<String, Object> params) {
-        _kvStorageJobManager.init(this, _kvStorageClientManager.getEsClient());
-
         _vmInstanceVOByUuidSearchBuilder = _vmInstanceDao.createSearchBuilder();
         _vmInstanceVOByUuidSearchBuilder.and(UUID_IN_CONDITION, _vmInstanceVOByUuidSearchBuilder.entity().getUuid(), SearchCriteria.Op.IN);
 
