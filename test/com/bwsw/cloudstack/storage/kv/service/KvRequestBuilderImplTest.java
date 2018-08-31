@@ -183,6 +183,12 @@ public class KvRequestBuilderImplTest {
     }
 
     @Test
+    public void testGetLastUpdatedStoragesRequest() throws IOException {
+        SearchRequest request = _kvRequestBuilder.getLastUpdatedStoragesRequest(TIMESTAMP, SIZE, TTL);
+        checkSearchRequest(request, TTL, "search-last-updated-storages-query.json", ImmutableMap.of("%SIZE%", SIZE, "%TIMESTAMP%", TIMESTAMP));
+    }
+
+    @Test
     public void testGetScrollRequest() {
         SearchScrollRequest request = _kvRequestBuilder.getScrollRequest(SCROLL_ID, TTL);
 
