@@ -36,6 +36,7 @@ import com.bwsw.cloudstack.storage.kv.api.UpdateTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.cache.KvStorageCache;
 import com.bwsw.cloudstack.storage.kv.client.KvStorageClientManager;
 import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
+import com.bwsw.cloudstack.storage.kv.entity.EntityConstants;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.exception.ExceptionFactory;
@@ -270,7 +271,9 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             }
             storage.setExpirationTimestamp(storage.getExpirationTimestamp() - storage.getTtl() + ttl);
             storage.setTtl(ttl);
-            _kvExecutor.update(_kvStorageClientManager.getEsClient(), _kvRequestBuilder.getUpdateTTLRequest(storage));
+            UpdateRequest updateRequest = _kvRequestBuilder.getUpdateTTLRequest(storage);
+            _kvExecutor.update(_kvStorageClientManager.getEsClient(), updateRequest);
+            storage.setLastUpdated((Long)updateRequest.doc().sourceAsMap().get(EntityConstants.LAST_UPDATED));
             storage.setUrl(KvStoragePublicUrl.value());
             return storage;
         } catch (IOException e) {
@@ -400,6 +403,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             storage.setSecretKey(_keyGenerator.generate());
             UpdateRequest request = _kvRequestBuilder.getUpdateSecretKey(storage);
             _kvExecutor.update(_kvStorageClientManager.getEsClient(), request);
+            storage.setLastUpdated((Long)request.doc().sourceAsMap().get(EntityConstants.LAST_UPDATED));
             storage.setUrl(KvStoragePublicUrl.value());
             return storage;
         } catch (IOException e) {

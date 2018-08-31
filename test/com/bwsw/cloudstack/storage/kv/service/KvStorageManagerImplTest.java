@@ -21,6 +21,7 @@ import com.bwsw.cloudstack.storage.kv.cache.KvStorageCache;
 import com.bwsw.cloudstack.storage.kv.client.KvStorageClientManager;
 import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
+import com.bwsw.cloudstack.storage.kv.entity.EntityConstants;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.exception.ExceptionFactory;
@@ -59,6 +60,7 @@ import org.apache.http.HttpVersion;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.message.BasicStatusLine;
 import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.update.UpdateRequest;
@@ -166,6 +168,9 @@ public class KvStorageManagerImplTest {
 
     @Mock
     private CreateStorageRequest _createStorageRequest;
+
+    @Mock
+    private IndexRequest _indexRequest;
 
     @Mock
     private UpdateRequest _updateRequest;
@@ -676,12 +681,14 @@ public class KvStorageManagerImplTest {
     public void testUpdateTempStorage() throws IOException {
         setUpdateTempStorageExpectations(TTL, TIMESTAMP);
         doNothing().when(_kvExecutor).update(_restHighLevelClient, _updateRequest);
+        long lastUpdated = expectLastUpdated();
 
         KvStorage result = _kvStorageManager.updateTempStorage(STORAGE_UUID, TTL);
         assertNotNull(result);
         assertEquals(STORAGE_UUID, result.getId());
         assertEquals(TTL, result.getTtl());
         assertEquals((Long)(TIMESTAMP + TTL), result.getExpirationTimestamp());
+        assertEquals((Long)lastUpdated, result.getLastUpdated());
     }
 
     @Test
@@ -912,10 +919,12 @@ public class KvStorageManagerImplTest {
         when(_keyGenerator.generate()).thenReturn(secretKey);
         when(_kvRequestBuilder.getUpdateSecretKey(STORAGE)).thenReturn(_updateRequest);
         doNothing().when(_kvExecutor).update(_restHighLevelClient, _updateRequest);
+        long lastUpdated = expectLastUpdated();
 
         KvStorage storage = _kvStorageManager.regenerateSecretKey(UUID);
         assertNotNull(storage);
         assertEquals(secretKey, storage.getSecretKey());
+        assertEquals((Long)lastUpdated, storage.getLastUpdated());
 
         verify(_kvExecutor).update(_restHighLevelClient, _updateRequest);
     }
@@ -1430,4 +1439,10 @@ public class KvStorageManagerImplTest {
         when(_exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE)).thenReturn(new InvalidParameterValueException("not found"));
     }
 
+    private long expectLastUpdated() {
+        long lastUpdated = System.currentTimeMillis();
+        when(_updateRequest.doc()).thenReturn(_indexRequest);
+        when(_indexRequest.sourceAsMap()).thenReturn(ImmutableMap.of(EntityConstants.LAST_UPDATED, lastUpdated));
+        return lastUpdated;
+    }
 }
