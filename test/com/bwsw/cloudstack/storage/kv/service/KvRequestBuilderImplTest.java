@@ -21,7 +21,6 @@ import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.EntityConstants;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
-import com.bwsw.cloudstack.storage.kv.util.TimeManager;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
@@ -39,13 +38,13 @@ import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.script.Script;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import java.io.IOException;
@@ -57,7 +56,6 @@ import java.util.Map;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class KvRequestBuilderImplTest {
@@ -74,9 +72,6 @@ public class KvRequestBuilderImplTest {
 
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
-
-    @Mock
-    private TimeManager _timeManager;
 
     @InjectMocks
     private KvRequestBuilderImpl _kvRequestBuilder;
@@ -112,7 +107,7 @@ public class KvRequestBuilderImplTest {
     }
 
     @Test
-    public void testGetDeleteRequestHistoryEnabledStorage() throws JsonProcessingException {
+    public void testGetDeleteRequestHistoryEnabledStorage() throws IOException {
         KvStorage storage = new KvStorage(UUID, SECRET_KEY, true);
         storage.setDeleted(true);
 
@@ -120,7 +115,7 @@ public class KvRequestBuilderImplTest {
     }
 
     @Test
-    public void testGetDeleteRequestHistoryDisabledStorage() throws JsonProcessingException {
+    public void testGetDeleteRequestHistoryDisabledStorage() throws IOException {
         KvStorage storage = new KvStorage(UUID, SECRET_KEY, false);
         storage.setDeleted(true);
 
@@ -142,20 +137,18 @@ public class KvRequestBuilderImplTest {
     }
 
     @Test
-    public void testGetUpdateTTLRequest() {
-        long timestamp = expectAndGetTimestamp();
+    public void testGetUpdateTTLRequest() throws IOException {
         UpdateRequest request = _kvRequestBuilder.getUpdateTTLRequest(TEMP_STORAGE);
 
-        checkUpdateRequest(request, TEMP_STORAGE, ImmutableMap
-                .of("ttl", TEMP_STORAGE.getTtl(), EntityConstants.EXPIRATION_TIMESTAMP, TEMP_STORAGE.getExpirationTimestamp(), EntityConstants.LAST_UPDATED, timestamp));
+        checkUpdateRequest(request, TEMP_STORAGE, ImmutableMap.of("ttl", TEMP_STORAGE.getTtl(), EntityConstants.EXPIRATION_TIMESTAMP, TEMP_STORAGE.getExpirationTimestamp()),
+                "update-ttl-script.painless");
     }
 
     @Test
-    public void testGetUpdateSecretKeyRequest() {
-        long timestamp = expectAndGetTimestamp();
+    public void testGetUpdateSecretKeyRequest() throws IOException {
         UpdateRequest request = _kvRequestBuilder.getUpdateSecretKey(TEMP_STORAGE);
 
-        checkUpdateRequest(request, TEMP_STORAGE, ImmutableMap.of(EntityConstants.SECRET_KEY, TEMP_STORAGE.getSecretKey(), EntityConstants.LAST_UPDATED, timestamp));
+        checkUpdateRequest(request, TEMP_STORAGE, ImmutableMap.of(EntityConstants.SECRET_KEY, TEMP_STORAGE.getSecretKey()), "update-secret-key-script.painless");
     }
 
     @Test
@@ -201,33 +194,29 @@ public class KvRequestBuilderImplTest {
 
     @Test
     public void testGetExpireTempStorageRequest() throws IOException {
-        long timestamp = expectAndGetTimestamp();
-        Request request = _kvRequestBuilder.getExpireTempStorageRequest(timestamp);
-        checkUpdateByQueryRequest(request, "expire-temp-storages-query.json", ImmutableMap.of("%TIMESTAMP%", timestamp));
+        Request request = _kvRequestBuilder.getExpireTempStorageRequest(TIMESTAMP);
+        checkUpdateByQueryRequest(request, "expire-temp-storages-query.json", ImmutableMap.of("%TIMESTAMP%", TIMESTAMP));
     }
 
     @Test
-    public void testGetMarkDeletedRequest() {
+    public void testGetMarkDeletedRequest() throws IOException {
         KvStorage storage = new KvStorage(UUID, SECRET_KEY, TTL, TIMESTAMP);
-        long timestamp = expectAndGetTimestamp();
 
         UpdateRequest request = _kvRequestBuilder.getMarkDeletedRequest(storage);
 
-        checkUpdateRequest(request, storage, ImmutableMap.of(EntityConstants.DELETED, true, EntityConstants.LAST_UPDATED, timestamp));
+        checkUpdateRequest(request, storage, Collections.emptyMap(), "mark-deleted-script.painless");
     }
 
     @Test
     public void getMarkDeletedAccountStorageRequest() throws IOException {
-        long timestamp = expectAndGetTimestamp();
         Request request = _kvRequestBuilder.getMarkDeletedAccountStorageRequest(UUID_LIST);
-        checkUpdateByQueryRequest(request, "mark-deleted-account-storages-query.json", ImmutableMap.of("%UUID%", UUID_LIST, "%TIMESTAMP%", timestamp));
+        checkUpdateByQueryRequest(request, "mark-deleted-account-storages-query.json", ImmutableMap.of("%UUID%", UUID_LIST));
     }
 
     @Test
     public void getMarkDeletedVmStorageRequest() throws IOException {
-        long timestamp = expectAndGetTimestamp();
         Request request = _kvRequestBuilder.getMarkDeletedVmStorageRequest(UUID_LIST);
-        checkUpdateByQueryRequest(request, "mark-deleted-vm-storages-query.json", ImmutableMap.of("%UUID%", UUID_LIST, "%TIMESTAMP%", timestamp));
+        checkUpdateByQueryRequest(request, "mark-deleted-vm-storages-query.json", ImmutableMap.of("%UUID%", UUID_LIST));
     }
 
     private void testGetCreateRequest(KvStorage storage, String source) throws JsonProcessingException {
@@ -249,14 +238,12 @@ public class KvRequestBuilderImplTest {
         }
     }
 
-    private void testDeleteStorageRequest(KvStorage storage) throws JsonProcessingException {
-        long timestamp = expectAndGetTimestamp();
-
+    private void testDeleteStorageRequest(KvStorage storage) throws IOException {
         DeleteStorageRequest request = _kvRequestBuilder.getDeleteRequest(storage);
 
         assertNotNull(request);
 
-        checkUpdateRequest(request.getRegistryUpdateRequest(), storage, ImmutableMap.of(EntityConstants.DELETED, true, EntityConstants.LAST_UPDATED, timestamp));
+        checkUpdateRequest(request.getRegistryUpdateRequest(), storage, Collections.emptyMap(), "mark-deleted-script.painless");
 
         assertNotNull(request.getRegistryDeleteRequest());
         assertEquals(storage.getId(), request.getRegistryDeleteRequest().id());
@@ -270,14 +257,16 @@ public class KvRequestBuilderImplTest {
         }
     }
 
-    private void checkUpdateRequest(UpdateRequest request, KvStorage storage, Map<String, Object> parameters) {
+    private void checkUpdateRequest(UpdateRequest request, KvStorage storage, Map<String, Object> parameters, String scriptResource) throws IOException {
         assertNotNull(request);
         assertEquals(KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX, request.index());
         assertEquals(KvRequestBuilderImpl.STORAGE_TYPE, request.type());
         assertEquals(storage.getId(), request.id());
-        IndexRequest indexRequest = request.doc();
-        assertNotNull(indexRequest);
-        assertEquals(parameters, indexRequest.sourceAsMap());
+
+        Script script = request.script();
+        assertNotNull(script);
+        assertEquals(parameters, script.getParams());
+        assertEquals(getQuery(scriptResource, Collections.emptyMap()), script.getIdOrCode());
     }
 
     private void checkSearchRequest(SearchRequest request, int ttl, String requestResource, Map<String, Object> params) throws IOException {
@@ -334,11 +323,5 @@ public class KvRequestBuilderImplTest {
             }
         }
         return expectedQuery.trim();
-    }
-
-    private long expectAndGetTimestamp() {
-        long timestamp = System.currentTimeMillis();
-        when(_timeManager.getCurrentTimestamp()).thenReturn(timestamp);
-        return timestamp;
     }
 }

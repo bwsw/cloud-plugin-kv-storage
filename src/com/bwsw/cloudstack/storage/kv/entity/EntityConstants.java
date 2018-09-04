@@ -24,6 +24,7 @@ public class EntityConstants {
     public static final String EXPIRATION_TIMESTAMP = "expiration_timestamp";
     public static final String LAST_UPDATED = "last_updated";
     public static final String SECRET_KEY = "secret_key";
+    public static final String TTL = "ttl";
     public static final String ITEMS = "items";
     public static final String SUCCESS = "success";
 }

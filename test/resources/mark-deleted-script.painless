@@ -1,0 +1,1 @@
+ctx._source.deleted = true; ctx._source.last_updated = ctx._now

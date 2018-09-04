@@ -36,7 +36,6 @@ import com.bwsw.cloudstack.storage.kv.api.UpdateTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.cache.KvStorageCache;
 import com.bwsw.cloudstack.storage.kv.client.KvStorageClientManager;
 import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
-import com.bwsw.cloudstack.storage.kv.entity.EntityConstants;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.exception.ExceptionFactory;
@@ -260,12 +259,8 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             throw new InvalidParameterValueException("Invalid storage id");
         }
         checkTtl(ttl);
-        GetRequest getRequest = _kvRequestBuilder.getGetRequest(storageId);
         try {
-            KvStorage storage = _kvExecutor.get(_kvStorageClientManager.getEsClient(), getRequest, KvStorage.class);
-            if (storage == null || storage.getDeleted() != null && storage.getDeleted()) {
-                throw _exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
-            }
+            KvStorage storage = getStorage(storageId);
             if (!KvStorage.KvStorageType.TEMP.equals(storage.getType())) {
                 throw new InvalidParameterValueException("The storage type is not temp");
             }
@@ -273,7 +268,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             storage.setTtl(ttl);
             UpdateRequest updateRequest = _kvRequestBuilder.getUpdateTTLRequest(storage);
             _kvExecutor.update(_kvStorageClientManager.getEsClient(), updateRequest);
-            storage.setLastUpdated((Long)updateRequest.doc().sourceAsMap().get(EntityConstants.LAST_UPDATED));
+            storage = getStorage(storageId);
             storage.setUrl(KvStoragePublicUrl.value());
             return storage;
         } catch (IOException e) {
@@ -402,7 +397,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
             storage.setSecretKey(_keyGenerator.generate());
             UpdateRequest request = _kvRequestBuilder.getUpdateSecretKey(storage);
             _kvExecutor.update(_kvStorageClientManager.getEsClient(), request);
-            storage.setLastUpdated((Long)request.doc().sourceAsMap().get(EntityConstants.LAST_UPDATED));
+            storage = getStorage(storageId);
             storage.setUrl(KvStoragePublicUrl.value());
             return storage;
         } catch (IOException e) {
