@@ -21,7 +21,6 @@ import com.bwsw.cloudstack.storage.kv.cache.KvStorageCache;
 import com.bwsw.cloudstack.storage.kv.client.KvStorageClientManager;
 import com.bwsw.cloudstack.storage.kv.entity.CreateStorageRequest;
 import com.bwsw.cloudstack.storage.kv.entity.DeleteStorageRequest;
-import com.bwsw.cloudstack.storage.kv.entity.EntityConstants;
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
 import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.exception.ExceptionFactory;
@@ -671,7 +670,7 @@ public class KvStorageManagerImplTest {
     @Test
     public void testUpdateTempStorageUpdateRequestException() throws IOException {
         setExceptionExpectation(ServerApiException.class, "storage");
-        setUpdateTempStorageExpectations(TTL, TIMESTAMP);
+        setUpdateTempStorageExpectations(TTL, TIMESTAMP, null);
         doThrow(new IOException()).when(_kvExecutor).update(_restHighLevelClient, _updateRequest);
 
         _kvStorageManager.updateTempStorage(STORAGE_UUID, TTL);
@@ -679,16 +678,12 @@ public class KvStorageManagerImplTest {
 
     @Test
     public void testUpdateTempStorage() throws IOException {
-        setUpdateTempStorageExpectations(TTL, TIMESTAMP);
+        KvStorage updatedStorage = new KvStorage();
+        setUpdateTempStorageExpectations(TTL, TIMESTAMP, updatedStorage);
         doNothing().when(_kvExecutor).update(_restHighLevelClient, _updateRequest);
-        long lastUpdated = expectLastUpdated();
 
         KvStorage result = _kvStorageManager.updateTempStorage(STORAGE_UUID, TTL);
-        assertNotNull(result);
-        assertEquals(STORAGE_UUID, result.getId());
-        assertEquals(TTL, result.getTtl());
-        assertEquals((Long)(TIMESTAMP + TTL), result.getExpirationTimestamp());
-        assertEquals((Long)lastUpdated, result.getLastUpdated());
+        assertSame(updatedStorage, result);
     }
 
     @Test
@@ -912,19 +907,22 @@ public class KvStorageManagerImplTest {
     @Test
     public void testRegenerateSecretKey() throws IOException {
         String secretKey = "new secret key";
+        KvStorage updatedStorage = new KvStorage();
 
         when(_kvRequestBuilder.getGetRequest(UUID)).thenReturn(_getRequest);
-        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(STORAGE);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(STORAGE).thenReturn(updatedStorage);
         doNothing().when(_accessChecker).check(STORAGE);
         when(_keyGenerator.generate()).thenReturn(secretKey);
-        when(_kvRequestBuilder.getUpdateSecretKey(STORAGE)).thenReturn(_updateRequest);
+        when(_kvRequestBuilder.getUpdateSecretKey(argThat(new CustomMatcher<KvStorage>("secret key") {
+            @Override
+            public boolean matches(Object o) {
+                return o == STORAGE && secretKey.equals(((KvStorage)o).getSecretKey());
+            }
+        }))).thenReturn(_updateRequest);
         doNothing().when(_kvExecutor).update(_restHighLevelClient, _updateRequest);
-        long lastUpdated = expectLastUpdated();
 
         KvStorage storage = _kvStorageManager.regenerateSecretKey(UUID);
-        assertNotNull(storage);
-        assertEquals(secretKey, storage.getSecretKey());
-        assertEquals((Long)lastUpdated, storage.getLastUpdated());
+        assertSame(updatedStorage, storage);
 
         verify(_kvExecutor).update(_restHighLevelClient, _updateRequest);
     }
@@ -1372,7 +1370,7 @@ public class KvStorageManagerImplTest {
         }
     }
 
-    private void setUpdateTempStorageExpectations(Integer ttl, long creationTimestamp) throws IOException {
+    private void setUpdateTempStorageExpectations(Integer ttl, long creationTimestamp, KvStorage updatedStorage) throws IOException {
         KvStorage storage = new KvStorage();
         storage.setId(STORAGE_UUID);
         storage.setType(KvStorage.KvStorageType.TEMP);
@@ -1381,7 +1379,7 @@ public class KvStorageManagerImplTest {
         storage.setExpirationTimestamp(creationTimestamp + oldTtl);
 
         when(_kvRequestBuilder.getGetRequest(STORAGE_UUID)).thenReturn(_getRequest);
-        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(storage);
+        when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(storage).thenReturn(updatedStorage);
         when(_kvRequestBuilder.getUpdateTTLRequest(argThat(new CustomMatcher<KvStorage>("updated temp storage") {
             @Override
             public boolean matches(Object o) {
@@ -1437,12 +1435,5 @@ public class KvStorageManagerImplTest {
         when(_kvRequestBuilder.getGetRequest(storageId)).thenReturn(_getRequest);
         when(_kvExecutor.get(_restHighLevelClient, _getRequest, KvStorage.class)).thenReturn(storage);
         when(_exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE)).thenReturn(new InvalidParameterValueException("not found"));
-    }
-
-    private long expectLastUpdated() {
-        long lastUpdated = System.currentTimeMillis();
-        when(_updateRequest.doc()).thenReturn(_indexRequest);
-        when(_indexRequest.sourceAsMap()).thenReturn(ImmutableMap.of(EntityConstants.LAST_UPDATED, lastUpdated));
-        return lastUpdated;
     }
 }

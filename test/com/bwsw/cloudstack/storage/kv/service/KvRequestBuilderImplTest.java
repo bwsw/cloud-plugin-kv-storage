@@ -284,7 +284,7 @@ public class KvRequestBuilderImplTest {
         assertNotNull(request);
 
         assertEquals("POST", request.getMethod());
-        assertEquals(KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX + "/_update_by_query", request.getEndpoint());
+        assertEquals(KvRequestBuilderImpl.STORAGE_REGISTRY_INDEX + "/_update_by_query?pipeline=storage-registry-last-updated-pipeline", request.getEndpoint());
         assertEquals(ImmutableMap.of("conflicts", "proceed"), request.getParameters());
 
         HttpEntity entity = request.getEntity();
