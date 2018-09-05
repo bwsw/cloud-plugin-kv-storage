@@ -73,7 +73,7 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
 
     private static final ObjectMapper s_objectMapper = new ObjectMapper();
     private static final String SCRIPT_LANG = "painless";
-    private static final String LAST_UPDATED_PIPELINE = "storage-registry-last-updated-pipeline";
+    private static final String LAST_UPDATED_PIPELINE = "storage-registry-last-updated";
 
     @Override
     public GetRequest getGetRequest(String storageId) {
