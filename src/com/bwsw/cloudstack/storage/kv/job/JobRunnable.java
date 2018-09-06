@@ -17,8 +17,8 @@
 
 package com.bwsw.cloudstack.storage.kv.job;
 
+import com.bwsw.cloudstack.storage.kv.client.KvStorageClientManager;
 import org.apache.log4j.Logger;
-import org.elasticsearch.client.RestHighLevelClient;
 
 public abstract class JobRunnable implements Runnable {
 
@@ -26,18 +26,18 @@ public abstract class JobRunnable implements Runnable {
 
     private final JobType _jobType;
     private final KvStorageLockManager _kvStorageLockManager;
-    private final RestHighLevelClient _restHighLevelClient;
+    private final KvStorageClientManager _kvStorageClientManager;
 
-    protected JobRunnable(JobType jobType, KvStorageLockManager kvStorageLockManager, RestHighLevelClient restHighLevelClient) {
+    protected JobRunnable(JobType jobType, KvStorageLockManager kvStorageLockManager, KvStorageClientManager kvStorageClientManager) {
         _jobType = jobType;
         _kvStorageLockManager = kvStorageLockManager;
-        _restHighLevelClient = restHighLevelClient;
+        _kvStorageClientManager = kvStorageClientManager;
     }
 
     @Override
     public void run() {
         s_logger.info("Job " + _jobType.name() + " started");
-        if (_kvStorageLockManager.acquireLock(_jobType, _restHighLevelClient)) {
+        if (_kvStorageLockManager.acquireLock(_jobType, _kvStorageClientManager.getEsClient())) {
             s_logger.info("Lock " + _jobType.name() + " is acquired");
             try {
                 doJob();
@@ -45,7 +45,7 @@ public abstract class JobRunnable implements Runnable {
                 s_logger.error("Exception while executing the job " + _jobType.name(), e);
             }
             s_logger.info("Releasing lock " + _jobType.name());
-            _kvStorageLockManager.releaseLock(_jobType, _restHighLevelClient);
+            _kvStorageLockManager.releaseLock(_jobType, _kvStorageClientManager.getEsClient());
         } else {
             s_logger.info("Lock " + _jobType.name() + " is not acquired");
         }

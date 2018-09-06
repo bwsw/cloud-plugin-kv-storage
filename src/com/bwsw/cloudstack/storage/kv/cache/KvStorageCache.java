@@ -25,4 +25,8 @@ import java.util.concurrent.ExecutionException;
 public interface KvStorageCache {
 
     Optional<KvStorage> get(String id) throws ExecutionException;
+
+    void invalidateAll(Iterable<String> ids);
+
+    void invalidateAll();
 }

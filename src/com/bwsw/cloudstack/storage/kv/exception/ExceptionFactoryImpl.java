@@ -15,16 +15,23 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.bwsw.cloudstack.storage.kv.entity;
+package com.bwsw.cloudstack.storage.kv.exception;
 
-public class EntityConstants {
+import com.cloud.exception.InvalidParameterValueException;
 
-    public static final String HISTORY_ENABLED = "history_enabled";
-    public static final String DELETED = "deleted";
-    public static final String EXPIRATION_TIMESTAMP = "expiration_timestamp";
-    public static final String LAST_UPDATED = "last_updated";
-    public static final String SECRET_KEY = "secret_key";
-    public static final String TTL = "ttl";
-    public static final String ITEMS = "items";
-    public static final String SUCCESS = "success";
+public class ExceptionFactoryImpl implements ExceptionFactory {
+
+    @Override
+    public InvalidParameterValueException getException(InvalidParameterValueCode code) {
+        switch (code) {
+        case NONEXISTENT_STORAGE:
+            return new InvalidParameterValueException("The KV storage does not exist");
+        }
+        return new InvalidParameterValueException(code.name());
+    }
+
+    @Override
+    public RuntimeException getKvOperationException(int httpStatus) {
+        return new RuntimeException("Unexpected KV operation status: " + httpStatus);
+    }
 }

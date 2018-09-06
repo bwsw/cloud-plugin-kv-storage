@@ -49,6 +49,8 @@ public interface KvStorageManager extends PluggableService {
 
     ConfigKey<String> KvStorageUrl = new ConfigKey<>("Advanced", String.class, "storage.kv.url", null, "KV storage URL", false);
 
+    ConfigKey<String> KvStoragePublicUrl = new ConfigKey<>("Advanced", String.class, "storage.kv.url.public", null, "public KV storage URL", false);
+
     // account storages
     KvStorage createAccountStorage(Long accountId, String name, String description, Boolean historyEnabled);
 
@@ -85,6 +87,12 @@ public interface KvStorageManager extends PluggableService {
     // utilities
 
     void cleanupStorages();
+
+    // common management operations
+
+    KvStorage getKvStorage(String storageId);
+
+    KvStorage regenerateSecretKey(String storageId);
 
     // storage operations
 

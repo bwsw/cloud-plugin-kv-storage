@@ -1,0 +1,1 @@
+ctx._source.ttl = params.ttl; ctx._source.expiration_timestamp = params.expiration_timestamp; ctx._source.last_updated = ctx._now

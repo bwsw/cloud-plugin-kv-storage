@@ -18,6 +18,8 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.exception.ExceptionFactory;
+import com.bwsw.cloudstack.storage.kv.exception.InvalidParameterValueCode;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvError;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
@@ -59,6 +61,7 @@ import java.util.Map;
 public class KvOperationManagerImpl implements KvOperationManager {
 
     private static final int TIMEOUT = 3000;
+    private static final String SECRET_KEY_HEADER = "Secret-Key";
     private static final Charset CHARSET = Charset.forName("UTF-8");
     private static final ContentType JSON_CONTENT_TYPE = ContentType.create("application/json");
     private static final ContentType TEXT_PLAIN_CONTENT_TYPE = ContentType.create("text/plain");
@@ -78,24 +81,26 @@ public class KvOperationManagerImpl implements KvOperationManager {
     private final CloseableHttpClient _httpClient;
     private final String _url;
     private final ObjectMapper objectMapper;
+    private final ExceptionFactory exceptionFactory;
 
-    public KvOperationManagerImpl(String url) {
+    public KvOperationManagerImpl(String url, ExceptionFactory exceptionFactory) {
         RequestConfig config = RequestConfig.custom().setConnectTimeout(TIMEOUT).setConnectionRequestTimeout(TIMEOUT).setSocketTimeout(TIMEOUT).build();
         _httpClient = HttpClients.custom().setDefaultRequestConfig(config).build();
         this._url = StringUtils.appendIfMissing(url, "/");
         this.objectMapper = new ObjectMapper();
+        this.exceptionFactory = exceptionFactory;
     }
 
     @Override
     public KvOperationResponse get(KvStorage storage, String key) {
-        return execute(() -> new HttpGet(String.format("%sget/%s/%s", _url, encode(storage.getId()), encode(key))), (statusCode, entity) -> {
+        return execute(() -> new HttpGet(String.format("%sget/%s/%s", _url, encode(storage.getId()), encode(key))), storage.getSecretKey(), (statusCode, entity) -> {
             switch (statusCode) {
             case HttpStatus.SC_OK:
                 return new KvValue(EntityUtils.toString(entity, CHARSET));
             case HttpStatus.SC_NOT_FOUND:
                 return new KvError(statusCode);
             default:
-                throw getUnexpectedStatusException(statusCode);
+                throw exceptionFactory.getKvOperationException(statusCode);
             }
         });
     }
@@ -110,15 +115,15 @@ public class KvOperationManagerImpl implements KvOperationManager {
             HttpPost request = new HttpPost(String.format("%sget/%s", _url, encode(storage.getId())));
             request.setEntity(entity);
             return request;
-        }, (statusCode, entity) -> {
+        }, storage.getSecretKey(), (statusCode, entity) -> {
             switch (statusCode) {
             case HttpStatus.SC_OK:
                 @SuppressWarnings("unchecked") Map<String, String> items = objectMapper.readValue(EntityUtils.toString(entity, CHARSET), Map.class);
                 return new KvData(items);
             case HttpStatus.SC_NOT_FOUND:
-                throw getNonexistentStorageException();
+                throw exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
             default:
-                throw getUnexpectedStatusException(statusCode);
+                throw exceptionFactory.getKvOperationException(statusCode);
             }
         });
     }
@@ -133,16 +138,16 @@ public class KvOperationManagerImpl implements KvOperationManager {
             HttpPut request = new HttpPut(String.format("%sset/%s/%s", _url, encode(storage.getId()), encode(key)));
             request.setEntity(entity);
             return request;
-        }, (statusCode, entity) -> {
+        }, storage.getSecretKey(), (statusCode, entity) -> {
             switch (statusCode) {
             case HttpStatus.SC_OK:
                 return new KvPair(key, value);
             case HttpStatus.SC_NOT_FOUND:
-                throw getNonexistentStorageException();
+                throw exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
             case HttpStatus.SC_BAD_REQUEST:
                 throw new InvalidParameterValueException("Key/value pair is invalid");
             default:
-                throw getUnexpectedStatusException(statusCode);
+                throw exceptionFactory.getKvOperationException(statusCode);
             }
         });
     }
@@ -157,29 +162,29 @@ public class KvOperationManagerImpl implements KvOperationManager {
             HttpPut request = new HttpPut(String.format("%sset/%s", _url, encode(storage.getId())));
             request.setEntity(entity);
             return request;
-        }, (statusCode, entity) -> {
+        }, storage.getSecretKey(), (statusCode, entity) -> {
             switch (statusCode) {
             case HttpStatus.SC_OK:
                 @SuppressWarnings("unchecked") Map<String, Boolean> items = objectMapper.readValue(EntityUtils.toString(entity, CHARSET), Map.class);
                 return new KvResult(items);
             case HttpStatus.SC_NOT_FOUND:
-                throw getNonexistentStorageException();
+                throw exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
             default:
-                throw getUnexpectedStatusException(statusCode);
+                throw exceptionFactory.getKvOperationException(statusCode);
             }
         });
     }
 
     @Override
     public KvKey delete(KvStorage storage, String key) {
-        return execute(() -> new HttpDelete(String.format("%sdelete/%s/%s", _url, storage.getId(), encode(key))), (statusCode, entity) -> {
+        return execute(() -> new HttpDelete(String.format("%sdelete/%s/%s", _url, storage.getId(), encode(key))), storage.getSecretKey(), (statusCode, entity) -> {
             switch (statusCode) {
             case HttpStatus.SC_OK:
                 return new KvKey(key);
             case HttpStatus.SC_NOT_FOUND:
-                throw getNonexistentStorageException();
+                throw exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
             default:
-                throw getUnexpectedStatusException(statusCode);
+                throw exceptionFactory.getKvOperationException(statusCode);
             }
         });
     }
@@ -194,46 +199,46 @@ public class KvOperationManagerImpl implements KvOperationManager {
             HttpPost request = new HttpPost(String.format("%sdelete/%s", _url, encode(storage.getId())));
             request.setEntity(entity);
             return request;
-        }, (statusCode, entity) -> {
+        }, storage.getSecretKey(), (statusCode, entity) -> {
             switch (statusCode) {
             case HttpStatus.SC_OK:
                 @SuppressWarnings("unchecked") Map<String, Boolean> items = objectMapper.readValue(EntityUtils.toString(entity, CHARSET), Map.class);
                 return new KvResult(items);
             case HttpStatus.SC_NOT_FOUND:
-                throw getNonexistentStorageException();
+                throw exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
             default:
-                throw getUnexpectedStatusException(statusCode);
+                throw exceptionFactory.getKvOperationException(statusCode);
             }
         });
     }
 
     @Override
     public KvKeys list(KvStorage storage) {
-        return execute(() -> new HttpGet(String.format("%slist/%s", _url, encode(storage.getId()))), (statusCode, entity) -> {
+        return execute(() -> new HttpGet(String.format("%slist/%s", _url, encode(storage.getId()))), storage.getSecretKey(), (statusCode, entity) -> {
             switch (statusCode) {
             case HttpStatus.SC_OK:
                 @SuppressWarnings("unchecked") List<String> items = objectMapper.readValue(EntityUtils.toString(entity, CHARSET), List.class);
                 return new KvKeys(items);
             case HttpStatus.SC_NOT_FOUND:
-                throw getNonexistentStorageException();
+                throw exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
             default:
-                throw getUnexpectedStatusException(statusCode);
+                throw exceptionFactory.getKvOperationException(statusCode);
             }
         });
     }
 
     @Override
     public KvOperationResponse clear(KvStorage storage) {
-        return execute(() -> new HttpPost(String.format("%sclear/%s", _url, encode(storage.getId()))), (statusCode, entity) -> {
+        return execute(() -> new HttpPost(String.format("%sclear/%s", _url, encode(storage.getId()))), storage.getSecretKey(), (statusCode, entity) -> {
             switch (statusCode) {
             case HttpStatus.SC_OK:
                 return new KvSuccess();
             case HttpStatus.SC_NOT_FOUND:
-                throw getNonexistentStorageException();
+                throw exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
             case HttpStatus.SC_CONFLICT:
                 return new KvError(statusCode);
             default:
-                throw getUnexpectedStatusException(statusCode);
+                throw exceptionFactory.getKvOperationException(statusCode);
             }
         });
     }
@@ -247,11 +252,13 @@ public class KvOperationManagerImpl implements KvOperationManager {
         }
     }
 
-    private <T extends KvOperationResponse> T execute(CheckedSupplier<HttpUriRequest, Exception> requestSupplier,
+    private <T extends KvOperationResponse> T execute(CheckedSupplier<HttpUriRequest, Exception> requestSupplier, String secretKey,
             CheckedBiFunction<Integer, HttpEntity, T, Exception> responseFactory) {
         CloseableHttpResponse response = null;
         try {
-            response = _httpClient.execute(requestSupplier.get());
+            HttpUriRequest request = requestSupplier.get();
+            request.setHeader(SECRET_KEY_HEADER, secretKey);
+            response = _httpClient.execute(request);
             return responseFactory.apply(response.getStatusLine().getStatusCode(), response.getEntity());
         } catch (InvalidParameterValueException e) {
             throw e;
@@ -268,13 +275,5 @@ public class KvOperationManagerImpl implements KvOperationManager {
                 }
             }
         }
-    }
-
-    private InvalidParameterValueException getNonexistentStorageException() {
-        return new InvalidParameterValueException("KV storage does not exist");
-    }
-
-    private RuntimeException getUnexpectedStatusException(int statusCode) {
-        return new RuntimeException("Unexpected KV get by keys operation status: " + statusCode);
     }
 }

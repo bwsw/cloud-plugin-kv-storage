@@ -17,6 +17,7 @@
 
 package com.bwsw.cloudstack.storage.kv.job;
 
+import com.bwsw.cloudstack.storage.kv.client.KvStorageClientManager;
 import com.bwsw.cloudstack.storage.kv.service.KvStorageManager;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.junit.Test;
@@ -37,6 +38,9 @@ public class KvStorageJobManagerImplTest {
 
     @Mock
     private KvStorageLockManager _kvStorageLockManager;
+
+    @Mock
+    private KvStorageClientManager _kvStorageClientManager;
 
     @Mock
     private KvStorageManager _kvStorageManager;
@@ -85,10 +89,11 @@ public class KvStorageJobManagerImplTest {
     }
 
     private void testGetJob(JobType jobType, Consumer<KvStorageManager> expectSetter, Consumer<KvStorageManager> verifier) {
-        Runnable job = _kvStorageJobManager.getJob(jobType, _kvStorageManager, _restHighLevelClient);
+        Runnable job = _kvStorageJobManager.getJob(jobType);
 
         assertNotNull(job);
 
+        when(_kvStorageClientManager.getEsClient()).thenReturn(_restHighLevelClient);
         when(_kvStorageLockManager.acquireLock(jobType, _restHighLevelClient)).thenReturn(true);
         expectSetter.accept(_kvStorageManager);
         doNothing().when(_kvStorageLockManager).releaseLock(jobType, _restHighLevelClient);

@@ -37,6 +37,7 @@ The plugin does not work with built-in KafkaEventBus and RabbitMQEventBus.
 | storage.kv.vm.history.enabled | true if VM storages should keep an operation history, false otherwise | false |
 | storage.kv.cache.size.max | maximum size of storage cache | 10000 |
 | storage.kv.url | KV storage URL | |
+| storage.kv.url.public | public KV storage URL | |
 
 *default.page.size* is used as a default value for pagesize parameter in [listAccountKvStorages](#listaccountkvstorages) command. Its value should be less or equal to Elasticsearch 
 *index.max_result_window* otherwise listAccountKvStorages requests without pagesize parameter will fail.
@@ -64,6 +65,8 @@ The plugin provides following API commands to manage key/value storages:
 * [createTempKvStorage (A)](#createtempkvstorage)
 * [updateTempKvStorage](#updatetempkvstorage)
 * [deleteTempKvStorage (A)](#deletetempkvstorage)
+* [getKvStorage](#getkvstorage)
+* [regenerateKvStorageSecretKey](#regeneratekvstoragesecretkey)
 
 (A) implies that the command is asynchronous.
 
@@ -155,6 +158,34 @@ Deletes a temporal KV storage.
 **Response tags**
 
 See [async command response tags](#async-command-response-tags).
+
+### getKvStorage
+
+Retrieves a KV storage by id.
+
+**Request parameters**
+
+| Parameter Name | Description | Required |
+| -------------- | ----------- | -------- |
+| storageid | the ID of the storage | true |
+
+**Response tags**
+
+See [storage response tages](#storage-response-tags).
+
+### regenerateKvStorageSecretKey
+
+Regenerates a secret key for a KV storage. It takes some time to accept new secret key while executing storage operations.
+
+**Request parameters**
+
+| Parameter Name | Description | Required |
+| -------------- | ----------- | -------- |
+| storageid | the ID of the storage | true |
+
+**Response tags**
+
+See [storage response tages](#storage-response-tags).
 
 ## Storage operations
 
@@ -328,6 +359,9 @@ Clears the storage.
 | name | the name of the storage |
 | description | the description of the storage |
 | historyenabled | true if the storage should keep an operation history, false otherwise |
+| secretkey | the secret key to be used for storage operations |
+| url | public KV storage URL |
+| lastupdated | timestamp of last storage update by storage management operations |
 
 ### Async command response tags
 

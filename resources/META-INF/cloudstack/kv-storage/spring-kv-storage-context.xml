@@ -25,6 +25,10 @@
 
     <bean id="kvExecutor" class="com.bwsw.cloudstack.storage.kv.service.KvExecutorImpl"/>
 
+    <bean id="kvClientManager" class="com.bwsw.cloudstack.storage.kv.client.KvStorageClientManagerImpl"/>
+
+    <bean id="kvTimeManager" class="com.bwsw.cloudstack.storage.kv.util.TimeManagerImpl"/>
+
     <bean id="kvStorageManager" class="com.bwsw.cloudstack.storage.kv.service.KvStorageManagerImpl"/>
 
     <bean id="eventSubscriberFactory" class="com.bwsw.cloudstack.storage.kv.event.EventSubscriberFactoryImpl"/>
@@ -38,5 +42,15 @@
     <bean id="kvStorageJobManager" class="com.bwsw.cloudstack.storage.kv.job.KvStorageJobManagerImpl"/>
 
     <bean id="kvStorageCacheFactory" class="com.bwsw.cloudstack.storage.kv.cache.KvStorageCacheFactoryImpl"/>
+
+    <bean id="kvKeyGenerator" class="com.bwsw.cloudstack.storage.kv.security.KeyGeneratorImpl"/>
+
+    <bean id="kvAccessChecker" class="com.bwsw.cloudstack.storage.kv.security.AccessCheckerImpl"/>
+
+    <bean id="kvExceptionFactory" class="com.bwsw.cloudstack.storage.kv.exception.ExceptionFactoryImpl"/>
+
+    <bean id="kvStorageCache" factory-bean="kvStorageCacheFactory" factory-method="getCache"/>
+
+    <bean id="kvStorageCacheUpdater" class="com.bwsw.cloudstack.storage.kv.cache.KvStorageCacheUpdater"/>
 
 </beans>

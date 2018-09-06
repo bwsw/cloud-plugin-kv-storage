@@ -19,16 +19,16 @@ package com.bwsw.cloudstack.storage.kv.entity;
 
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.update.UpdateRequest;
 
 public class DeleteStorageRequest {
 
-    private final IndexRequest registryUpdateRequest;
+    private final UpdateRequest registryUpdateRequest;
     private final DeleteRequest registryDeleteRequest;
     private final DeleteIndexRequest storageIndexRequest;
     private final DeleteIndexRequest historyIndexRequest;
 
-    public DeleteStorageRequest(IndexRequest registryUpdateRequest, DeleteRequest registryDeleteRequest, DeleteIndexRequest storageIndexRequest,
+    public DeleteStorageRequest(UpdateRequest registryUpdateRequest, DeleteRequest registryDeleteRequest, DeleteIndexRequest storageIndexRequest,
             DeleteIndexRequest historyIndexRequest) {
         if (registryUpdateRequest == null) {
             throw new IllegalArgumentException("Null registry update request");
@@ -45,7 +45,7 @@ public class DeleteStorageRequest {
         this.historyIndexRequest = historyIndexRequest;
     }
 
-    public IndexRequest getRegistryUpdateRequest() {
+    public UpdateRequest getRegistryUpdateRequest() {
         return registryUpdateRequest;
     }
 

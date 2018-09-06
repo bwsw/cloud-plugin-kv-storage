@@ -64,9 +64,16 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     private static final String ID_FIELD = "_id";
     private static final String ACCOUNT_FIELD = "account";
     private static final String TYPE_FIELD = "type";
-    private static final String MARK_DELETED_STORAGE_SCRIPT = "ctx._source.deleted = true";
+    private static final String MARK_DELETED_STORAGE_SCRIPT = "ctx._source." + EntityConstants.DELETED + " = true; ctx._source." + EntityConstants.LAST_UPDATED + " = ctx._now";
+    private static final String UPDATE_TTL_SCRIPT =
+            "ctx._source." + EntityConstants.TTL + " = params.ttl; ctx._source." + EntityConstants.EXPIRATION_TIMESTAMP + " = params.expiration_timestamp; ctx._source."
+                    + EntityConstants.LAST_UPDATED + " = ctx._now";
+    private static final String UPDATE_SECRET_KEY_SCRIPT =
+            "ctx._source." + EntityConstants.SECRET_KEY + " = params.secret_key; ctx._source." + EntityConstants.LAST_UPDATED + " = ctx._now";
 
     private static final ObjectMapper s_objectMapper = new ObjectMapper();
+    private static final String SCRIPT_LANG = "painless";
+    private static final String LAST_UPDATED_PIPELINE = "storage-registry-last-updated";
 
     @Override
     public GetRequest getGetRequest(String storageId) {
@@ -86,16 +93,24 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     }
 
     @Override
-    public IndexRequest getUpdateRequest(KvStorage storage) throws JsonProcessingException {
-        return getIndexRequest(storage, DocWriteRequest.OpType.INDEX);
-    }
-
-    @Override
     public UpdateRequest getUpdateTTLRequest(KvStorage storage) {
         Map<String, Object> parameters = new HashMap<>();
         parameters.put("ttl", storage.getTtl());
         parameters.put(EntityConstants.EXPIRATION_TIMESTAMP, storage.getExpirationTimestamp());
-        return new UpdateRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId()).doc(parameters);
+
+        Script script = new Script(ScriptType.INLINE, SCRIPT_LANG, UPDATE_TTL_SCRIPT, parameters);
+
+        return new UpdateRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId()).script(script);
+    }
+
+    @Override
+    public UpdateRequest getUpdateSecretKey(KvStorage storage) {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(EntityConstants.SECRET_KEY, storage.getSecretKey());
+
+        Script script = new Script(ScriptType.INLINE, "painless", UPDATE_SECRET_KEY_SCRIPT, parameters);
+
+        return new UpdateRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId()).script(script);
     }
 
     @Override
@@ -151,6 +166,13 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     }
 
     @Override
+    public SearchRequest getLastUpdatedStoragesRequest(long lastUpdated, int size, int scrollTimeout) {
+        SearchRequest request = getSearchRequest(size, scrollTimeout, QueryBuilders.rangeQuery(EntityConstants.LAST_UPDATED).gte(lastUpdated));
+        request.source().fetchSource(new String[] {ID_FIELD}, null);
+        return request;
+    }
+
+    @Override
     public SearchScrollRequest getScrollRequest(String scrollId, int scrollTimeout) {
         SearchScrollRequest request = new SearchScrollRequest(scrollId);
         request.scroll(TimeValue.timeValueMillis(scrollTimeout));
@@ -158,8 +180,8 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
     }
 
     @Override
-    public DeleteStorageRequest getDeleteRequest(KvStorage storage) throws JsonProcessingException {
-        IndexRequest registryUpdateRequest = getUpdateRequest(storage);
+    public DeleteStorageRequest getDeleteRequest(KvStorage storage) {
+        UpdateRequest registryUpdateRequest = getMarkDeletedRequest(storage);
         DeleteRequest registryDeleteRequest = new DeleteRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId());
         DeleteIndexRequest storageIndexRequest = new DeleteIndexRequest(getStorageIndex(storage));
         DeleteIndexRequest historyIndexRequest = null;
@@ -171,9 +193,7 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
 
     @Override
     public UpdateRequest getMarkDeletedRequest(KvStorage storage) {
-        Map<String, Object> parameters = new HashMap<>();
-        parameters.put(EntityConstants.DELETED, true);
-        return new UpdateRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId()).doc(parameters);
+        return new UpdateRequest(STORAGE_REGISTRY_INDEX, STORAGE_TYPE, storage.getId()).script(getMarkDeletedScript());
     }
 
     @Override
@@ -235,7 +255,7 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
         Map<String, String> params = new HashMap<>();
         params.put("conflicts", "proceed");
 
-        Script script = new Script(ScriptType.INLINE, "painless", MARK_DELETED_STORAGE_SCRIPT, Collections.emptyMap());
+        Script script = getMarkDeletedScript();
 
         XContentBuilder contentBuilder = XContentFactory.jsonBuilder();
         contentBuilder.startObject();
@@ -246,6 +266,10 @@ public class KvRequestBuilderImpl implements KvRequestBuilder {
         contentBuilder.endObject();
         StringEntity entity = new StringEntity(contentBuilder.string(), ContentType.APPLICATION_JSON);
 
-        return new Request("POST", STORAGE_REGISTRY_INDEX + "/_update_by_query", params, entity);
+        return new Request("POST", STORAGE_REGISTRY_INDEX + "/_update_by_query?pipeline=" + LAST_UPDATED_PIPELINE, params, entity);
+    }
+
+    private Script getMarkDeletedScript() {
+        return new Script(ScriptType.INLINE, "painless", MARK_DELETED_STORAGE_SCRIPT, Collections.emptyMap());
     }
 }

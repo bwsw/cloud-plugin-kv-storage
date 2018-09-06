@@ -18,6 +18,8 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.exception.ExceptionFactory;
+import com.bwsw.cloudstack.storage.kv.exception.InvalidParameterValueCode;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvError;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
@@ -40,6 +42,9 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.runners.MockitoJUnitRunner;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -62,11 +67,15 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Mockito.when;
 
+@RunWith(MockitoJUnitRunner.class)
 public class KvOperationManagerImplTest {
 
     private static final String URL_TEMPLATE = "http://localhost:%d";
-    private static final KvStorage STORAGE = new KvStorage("e0123777-921b-4e62-a7cc-8135015ca571", false);
+    private static final String SECRET_KEY_HEADER = "Secret-Key";
+    private static final KvStorage STORAGE = new KvStorage("e0123777-921b-4e62-a7cc-8135015ca571", "secret", false);
     private static final String KEY = "key";
     private static final String VALUE = "value";
     private static final Map<String, String> DATA = ImmutableMap.of("key1", "one", "key2", "two");
@@ -77,13 +86,16 @@ public class KvOperationManagerImplTest {
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
 
+    @Mock
+    private ExceptionFactory _exceptionFactory;
+
     private ObjectMapper objectMapper = new ObjectMapper();
 
     private KvOperationManagerImpl kvOperationManager;
 
     @Before
     public void before() {
-        kvOperationManager = new KvOperationManagerImpl(String.format(URL_TEMPLATE, wireMockRule.port()));
+        kvOperationManager = new KvOperationManagerImpl(String.format(URL_TEMPLATE, wireMockRule.port()), _exceptionFactory);
     }
 
     @Test
@@ -372,47 +384,50 @@ public class KvOperationManagerImplTest {
     }
 
     private MappingBuilder getGetByKeyPath() {
-        return get(urlEqualTo("/get/" + STORAGE.getId() + "/" + KEY));
+        return get(urlEqualTo("/get/" + STORAGE.getId() + "/" + KEY)).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey()));
     }
 
     private MappingBuilder getGetByKeysPath() {
         try {
-            return post(urlEqualTo("/get/" + STORAGE.getId())).withRequestBody(equalToJson(objectMapper.writeValueAsString(DATA.keySet())));
+            return post(urlEqualTo("/get/" + STORAGE.getId())).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey()))
+                    .withRequestBody(equalToJson(objectMapper.writeValueAsString(DATA.keySet())));
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
     }
 
     private MappingBuilder getSetValuePath() {
-        return put(urlEqualTo("/set/" + STORAGE.getId() + "/" + KEY)).withRequestBody(equalTo(VALUE));
+        return put(urlEqualTo("/set/" + STORAGE.getId() + "/" + KEY)).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey())).withRequestBody(equalTo(VALUE));
     }
 
     private MappingBuilder getSetValuesPath() {
         try {
-            return put(urlEqualTo("/set/" + STORAGE.getId())).withRequestBody(equalToJson(objectMapper.writeValueAsString(DATA)));
+            return put(urlEqualTo("/set/" + STORAGE.getId())).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey()))
+                    .withRequestBody(equalToJson(objectMapper.writeValueAsString(DATA)));
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
     }
 
     private MappingBuilder getDeleteKeyPath() {
-        return delete(urlEqualTo("/delete/" + STORAGE.getId() + "/" + KEY));
+        return delete(urlEqualTo("/delete/" + STORAGE.getId() + "/" + KEY)).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey()));
     }
 
     private MappingBuilder getDeleteKeysPath() {
         try {
-            return post(urlEqualTo("/delete/" + STORAGE.getId())).withRequestBody(equalToJson(objectMapper.writeValueAsString(DATA.keySet())));
+            return post(urlEqualTo("/delete/" + STORAGE.getId())).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey()))
+                    .withRequestBody(equalToJson(objectMapper.writeValueAsString(DATA.keySet())));
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
     }
 
     private MappingBuilder getListPath() {
-        return get(urlEqualTo("/list/" + STORAGE.getId()));
+        return get(urlEqualTo("/list/" + STORAGE.getId())).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey()));
     }
 
     private MappingBuilder getClearPath() {
-        return post(urlEqualTo("/clear/" + STORAGE.getId()));
+        return post(urlEqualTo("/clear/" + STORAGE.getId())).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey()));
     }
 
     private Supplier<KvOperationResponse> getByKeySupplier() {
@@ -448,7 +463,8 @@ public class KvOperationManagerImplTest {
     }
 
     private <T extends KvOperationResponse> void testNotFoundResponse(Supplier<MappingBuilder> requestBuilder, Supplier<T> responseSupplier) {
-        expectNonexistentStorage();
+        expectedException.expect(InvalidParameterValueException.class);
+        when(_exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE)).thenReturn(new InvalidParameterValueException("not found"));
         stubFor(requestBuilder.get().willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
 
         responseSupplier.get();
@@ -456,6 +472,7 @@ public class KvOperationManagerImplTest {
 
     private <T extends KvOperationResponse> void testInternalErrorResponse(Supplier<MappingBuilder> requestBuilder, Supplier<T> responseSupplier) {
         expectedException.expect(ServerApiException.class);
+        when(_exceptionFactory.getKvOperationException(anyInt())).thenReturn(new RuntimeException());
         stubFor(requestBuilder.get().willReturn(aResponse().withStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR)));
 
         responseSupplier.get();
@@ -466,10 +483,5 @@ public class KvOperationManagerImplTest {
         stubFor(requestBuilder.get().willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE)));
 
         responseSupplier.get();
-    }
-
-    private void expectNonexistentStorage() {
-        expectedException.expect(InvalidParameterValueException.class);
-        expectedException.expectMessage("KV storage does not exist");
     }
 }
