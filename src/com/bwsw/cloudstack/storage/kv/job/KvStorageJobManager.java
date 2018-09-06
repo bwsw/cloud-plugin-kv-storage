@@ -17,13 +17,8 @@
 
 package com.bwsw.cloudstack.storage.kv.job;
 
-import com.bwsw.cloudstack.storage.kv.service.KvStorageManager;
-import org.elasticsearch.client.RestHighLevelClient;
-
 public interface KvStorageJobManager {
 
-    void init(KvStorageManager storageManager, RestHighLevelClient client);
-
-    Runnable getJob(JobType jobType, KvStorageManager storageManager, RestHighLevelClient client);
+    Runnable getJob(JobType jobType);
 
 }

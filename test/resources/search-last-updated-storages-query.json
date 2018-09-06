@@ -1,0 +1,1 @@
+{"size":%SIZE%,"query":{"range":{"last_updated":{"from":%TIMESTAMP%,"to":null,"include_lower":true,"include_upper":true,"boost":1.0}}},"_source":{"includes":["_id"],"excludes":[]}}
