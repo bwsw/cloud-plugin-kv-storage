@@ -18,6 +18,7 @@
 package com.bwsw.cloudstack.storage.kv.service;
 
 import com.bwsw.cloudstack.storage.kv.entity.KvStorage;
+import com.bwsw.cloudstack.storage.kv.response.KvHistoryResult;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
 import com.bwsw.cloudstack.storage.kv.response.KvKeys;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
@@ -25,6 +26,7 @@ import com.bwsw.cloudstack.storage.kv.response.KvPair;
 import com.bwsw.cloudstack.storage.kv.response.KvResult;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 public interface KvOperationManager {
@@ -44,4 +46,7 @@ public interface KvOperationManager {
     KvKeys list(KvStorage storage);
 
     KvOperationResponse clear(KvStorage storage);
+
+    KvHistoryResult getHistory(KvStorage storage, List<String> keys, List<String> operations, Long start, Long end, List<String> sort, Integer page, Integer size, Long scroll);
+
 }

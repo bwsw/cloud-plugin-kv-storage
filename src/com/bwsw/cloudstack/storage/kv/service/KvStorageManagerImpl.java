@@ -25,6 +25,7 @@ import com.bwsw.cloudstack.storage.kv.api.DeleteKvStorageKeyCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteKvStorageKeysCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.GetKvStorageCmd;
+import com.bwsw.cloudstack.storage.kv.api.GetKvStorageHistory;
 import com.bwsw.cloudstack.storage.kv.api.GetKvStorageValueCmd;
 import com.bwsw.cloudstack.storage.kv.api.GetKvStorageValuesCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
@@ -41,6 +42,7 @@ import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.exception.ExceptionFactory;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidEntityException;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidParameterValueCode;
+import com.bwsw.cloudstack.storage.kv.response.KvHistoryResult;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
 import com.bwsw.cloudstack.storage.kv.response.KvKeys;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
@@ -447,6 +449,12 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
+    public KvHistoryResult getHistory(String storageId, List<String> keys, List<String> operations, Long start, Long end, List<String> sort, Integer page, Integer size,
+            Long scroll) {
+        return execute(storageId, storage -> _kvOperationManager.getHistory(storage, keys, operations, start, end, sort, page, size, scroll));
+    }
+
+    @Override
     public List<Class<?>> getCommands() {
         List<Class<?>> commands = new ArrayList<>();
         commands.add(ListAccountKvStoragesCmd.class);
@@ -465,6 +473,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         commands.add(ClearKvStorageCmd.class);
         commands.add(GetKvStorageCmd.class);
         commands.add(RegenerateKvStorageSecretKeyCmd.class);
+        commands.add(GetKvStorageHistory.class);
         return commands;
     }
 
