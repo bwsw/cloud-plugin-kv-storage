@@ -59,6 +59,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class KvOperationManagerImpl implements KvOperationManager {
@@ -283,6 +284,28 @@ public class KvOperationManagerImpl implements KvOperationManager {
         });
     }
 
+    @Override
+    public KvHistoryResult getHistory(String scrollId, long timeout) {
+        return execute(() -> {
+            Map<String, Object> body = new HashMap<>();
+            body.put("scrollId", scrollId);
+            body.put("timeout", timeout);
+            StringEntity entity = new StringEntity(objectMapper.writeValueAsString(body), JSON_CONTENT_TYPE);
+            HttpPost request = new HttpPost(String.format("%shistory", _url));
+            request.setEntity(entity);
+            return request;
+        }, Optional.empty(), (statusCode, entity) -> {
+            switch (statusCode) {
+            case HttpStatus.SC_OK:
+                return objectMapper.readValue(EntityUtils.toString(entity), KvHistoryResult.class);
+            case HttpStatus.SC_BAD_REQUEST:
+                throw exceptionFactory.getException(InvalidParameterValueCode.INVALID_SCROLL_ID);
+            default:
+                throw exceptionFactory.getKvOperationException(statusCode);
+            }
+        });
+    }
+
     private void put(Map<String, String> map, String key, List<String> values) {
         if (values != null && !values.isEmpty()) {
             map.put(key, values.stream().collect(Collectors.joining(",")));
@@ -300,10 +323,15 @@ public class KvOperationManagerImpl implements KvOperationManager {
 
     private <T extends KvOperationResponse> T execute(CheckedSupplier<HttpUriRequest, Exception> requestSupplier, String secretKey,
             CheckedBiFunction<Integer, HttpEntity, T, Exception> responseFactory) {
+        return execute(requestSupplier, Optional.ofNullable(secretKey), responseFactory);
+    }
+
+    private <T extends KvOperationResponse> T execute(CheckedSupplier<HttpUriRequest, Exception> requestSupplier, Optional<String> secretKey,
+            CheckedBiFunction<Integer, HttpEntity, T, Exception> responseFactory) {
         CloseableHttpResponse response = null;
         try {
             HttpUriRequest request = requestSupplier.get();
-            request.setHeader(SECRET_KEY_HEADER, secretKey);
+            secretKey.ifPresent(s -> request.setHeader(SECRET_KEY_HEADER, s));
             response = _httpClient.execute(request);
             return responseFactory.apply(response.getStatusLine().getStatusCode(), response.getEntity());
         } catch (InvalidParameterValueException e) {

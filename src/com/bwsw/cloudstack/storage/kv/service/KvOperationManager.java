@@ -49,4 +49,5 @@ public interface KvOperationManager {
 
     KvHistoryResult getHistory(KvStorage storage, List<String> keys, List<String> operations, Long start, Long end, List<String> sort, Integer page, Integer size, Long scroll);
 
+    KvHistoryResult getHistory(String scrollId, long timeout);
 }

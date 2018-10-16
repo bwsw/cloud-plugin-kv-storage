@@ -117,4 +117,6 @@ public interface KvStorageManager extends PluggableService {
     // storage history operations
 
     KvHistoryResult getHistory(String storageId, List<String> keys, List<String> operations, Long start, Long end, List<String> sort, Integer page, Integer size, Long scroll);
+
+    KvHistoryResult getHistory(String scrollId, Long timeout);
 }

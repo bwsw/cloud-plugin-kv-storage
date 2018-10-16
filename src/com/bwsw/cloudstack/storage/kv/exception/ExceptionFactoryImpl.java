@@ -26,8 +26,11 @@ public class ExceptionFactoryImpl implements ExceptionFactory {
         switch (code) {
         case NONEXISTENT_STORAGE:
             return new InvalidParameterValueException("The KV storage does not exist");
+        case INVALID_SCROLL_ID:
+            return new InvalidParameterValueException("Scroll id is invalid or expired");
+        default:
+            return new InvalidParameterValueException(code.name());
         }
-        return new InvalidParameterValueException(code.name());
     }
 
     @Override

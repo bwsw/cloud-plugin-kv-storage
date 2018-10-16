@@ -31,6 +31,7 @@ import com.bwsw.cloudstack.storage.kv.api.GetKvStorageValuesCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListKvStorageKeysCmd;
 import com.bwsw.cloudstack.storage.kv.api.RegenerateKvStorageSecretKeyCmd;
+import com.bwsw.cloudstack.storage.kv.api.ScrollKvStorageHistoryCmd;
 import com.bwsw.cloudstack.storage.kv.api.SetKvStorageValueCmd;
 import com.bwsw.cloudstack.storage.kv.api.SetKvStorageValuesCmd;
 import com.bwsw.cloudstack.storage.kv.api.UpdateTempKvStorageCmd;
@@ -455,6 +456,17 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
+    public KvHistoryResult getHistory(String scrollId, Long timeout) {
+        if (scrollId == null || scrollId.isEmpty()) {
+            throw new InvalidParameterValueException("Invalid scroll id");
+        }
+        if (timeout == null || timeout <= 0) {
+            throw new InvalidParameterValueException("Invalid timeout");
+        }
+        return _kvOperationManager.getHistory(scrollId, timeout);
+    }
+
+    @Override
     public List<Class<?>> getCommands() {
         List<Class<?>> commands = new ArrayList<>();
         commands.add(ListAccountKvStoragesCmd.class);
@@ -474,6 +486,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         commands.add(GetKvStorageCmd.class);
         commands.add(RegenerateKvStorageSecretKeyCmd.class);
         commands.add(GetKvStorageHistory.class);
+        commands.add(ScrollKvStorageHistoryCmd.class);
         return commands;
     }
 

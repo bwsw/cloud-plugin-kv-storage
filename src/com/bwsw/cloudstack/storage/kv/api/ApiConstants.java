@@ -35,5 +35,7 @@ public class ApiConstants {
     public static final String PAGE = "page";
     public static final String SIZE = "size";
     public static final String SCROLL = "scroll";
+    public static final String SCROLL_ID = "scrollid";
+    public static final String TIMEOUT = "timeout";
 
 }
