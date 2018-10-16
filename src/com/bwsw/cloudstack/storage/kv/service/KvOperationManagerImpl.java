@@ -250,6 +250,9 @@ public class KvOperationManagerImpl implements KvOperationManager {
     @Override
     public KvHistoryResult getHistory(KvStorage storage, List<String> keys, List<String> operations, Long start, Long end, List<String> sort, Integer page, Integer size,
             Long scroll) {
+        if (storage.getHistoryEnabled() == null || !storage.getHistoryEnabled()) {
+            throw exceptionFactory.getException(InvalidParameterValueCode.HISTORY_DISABLED_STORAGE);
+        }
         return execute(() -> {
             Map<String, String> params = new HashMap<>();
             put(params, "keys", keys);
