@@ -45,7 +45,7 @@ public class GetKvStorageHistoryCmd extends BaseKvStorageCmd {
             description = "the start date/time as Unix timestamp in ms to retrieve history records with dates >= start")
     private Long start;
 
-    @Parameter(name = ApiConstants.START, required = false, type = CommandType.LONG,
+    @Parameter(name = ApiConstants.END, required = false, type = CommandType.LONG,
             description = "the end date/time as Unix timestamp in ms to retrieve history records with dates <= end")
     private Long end;
 
