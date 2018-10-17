@@ -54,6 +54,7 @@ The documentation can be found at https://git.bw-sw.com/cloudstack-ecosystem/cs-
 
 * [Storage management](#storage-management)
 * [Stotage operations](#storage-operations)
+* [Storage history](#storage-history)
 
 ## Storage management
 
@@ -346,6 +347,53 @@ Clears the storage.
 | &nbsp;success | always true if kvresult is present |
 | kverror | failure response (see [KV error response tags](#kv-error-response-tags)). |
 
+## Storage history
+
+* [getKvStorageHistory](#getkvstoragehistory)
+* [scrollKvStorageHistory](#scrollkvstoragehistory)
+
+### getKvStorageHistory
+
+Searches and lists history records.
+
+**Request parameters**
+
+| Parameter Name | Description | Required |
+| -------------- | ----------- | -------- |
+| storageid | the ID of the storage | true |
+| keys | comma separated list of keys | no |
+| operations | comma separated list of operations. Possible values are set, delete or clear. | no |
+| start | the start date/time as Unix timestamp in ms to retrieve history records with dates >= start | no |
+| end | the end date/time as Unix timestamp in ms to retrieve history records with dates <= end | no |
+| sort | comma separated list of response fields optionally prefixed with - (minus) for descending order. | no |
+| page | a page number of results (1 by default) | no |
+| size | a number of results returned in the page/batch (default value is specified in the configuration file) | no |
+| scroll | a timeout in ms for subsequent [scroll requests](#scrollkvstoragehistory) | no |
+
+\* `start` and `end` parameters can be used separately. If both `start` and `end` parameters are specified history
+records with dates that are greater/equal to `start` and less/equal to `end` are returned.
+
+\** If both `page` and `scroll` parameters are specified `scroll` is used.
+
+**Response tags**
+
+See [KV history response tags](#kv-history-response-tags).
+
+### scrollKvStorageHistory
+
+Retrieves next batch of history records.
+
+**Request parameters**
+
+| Parameter Name | Description | Required |
+| -------------- | ----------- | -------- |
+| scrollid | scroll id to retrieve next batch of history records | yes |
+| timeout | timeout in ms for subsequent scroll requests | yes |
+
+**Response tags**
+
+See [KV history response tags](#kv-history-response-tags).
+
 ## Response tags
 
 ### Storage response tags
@@ -375,3 +423,18 @@ Clears the storage.
 | Response Name | Description |
 | -------------- | ---------- |
 | code | error code |
+
+### KV history response tags
+
+| Response Name | Description |
+| -------------- | ---------- |
+| kvresult | success response |
+| &nbsp;&nbsp;&nbsp;&nbsp;total | the total number of history records |
+| &nbsp;&nbsp;&nbsp;&nbsp;page | page number for requests without scrolling |
+| &nbsp;&nbsp;&nbsp;&nbsp;size | the number of history records (items tag) |
+| &nbsp;&nbsp;&nbsp;&nbsp;scrollid | scroll id or subsequent [scroll requests](#scrollkvstoragehistory) for requests with scrolling |
+| &nbsp;&nbsp;&nbsp;&nbsp;items(*) | history records |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;key | the key |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value | the value |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;operation | the operation executed. Possible values are set, delete or clear. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;timestamp | date/time as Unix timestamp in ms when the operation was executed |
