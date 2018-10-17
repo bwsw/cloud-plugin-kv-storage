@@ -18,20 +18,27 @@
 package com.bwsw.cloudstack.storage.kv.response;
 
 import com.bwsw.cloudstack.storage.kv.entity.EntityConstants;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.gson.annotations.SerializedName;
 import org.apache.cloudstack.api.BaseResponse;
 
+import java.util.Objects;
+
 public class KvHistory extends BaseResponse {
 
+    @JsonProperty
     @SerializedName(EntityConstants.KEY)
     private String key;
 
+    @JsonProperty
     @SerializedName(EntityConstants.VALUE)
     private String value;
 
+    @JsonProperty
     @SerializedName(EntityConstants.OPERATION)
     private String operation;
 
+    @JsonProperty
     @SerializedName(EntityConstants.TIMESTAMP)
     private Long timestamp;
 
@@ -65,5 +72,28 @@ public class KvHistory extends BaseResponse {
 
     public void setTimestamp(Long timestamp) {
         this.timestamp = timestamp;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(key, value, operation, timestamp);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+
+        if (obj == null) {
+            return false;
+        }
+
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+
+        KvHistory other = (KvHistory)obj;
+        return Objects.equals(key, other.key) && Objects.equals(value, other.value) && Objects.equals(operation, other.operation) && Objects.equals(timestamp, other.timestamp);
     }
 }

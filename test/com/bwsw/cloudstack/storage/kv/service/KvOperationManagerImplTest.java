@@ -22,6 +22,8 @@ import com.bwsw.cloudstack.storage.kv.exception.ExceptionFactory;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidParameterValueCode;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvError;
+import com.bwsw.cloudstack.storage.kv.response.KvHistory;
+import com.bwsw.cloudstack.storage.kv.response.KvHistoryResult;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
 import com.bwsw.cloudstack.storage.kv.response.KvKeys;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
@@ -31,10 +33,12 @@ import com.bwsw.cloudstack.storage.kv.response.KvSuccess;
 import com.bwsw.cloudstack.storage.kv.response.KvValue;
 import com.cloud.exception.InvalidParameterValueException;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.client.MappingBuilder;
 import com.github.tomakehurst.wiremock.http.Fault;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.cloudstack.api.ServerApiException;
 import org.apache.http.HttpStatus;
@@ -49,6 +53,7 @@ import org.mockito.runners.MockitoJUnitRunner;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -76,9 +81,32 @@ public class KvOperationManagerImplTest {
     private static final String URL_TEMPLATE = "http://localhost:%d";
     private static final String SECRET_KEY_HEADER = "Secret-Key";
     private static final KvStorage STORAGE = new KvStorage("e0123777-921b-4e62-a7cc-8135015ca571", "secret", false);
+    private static final KvStorage HISTORY_ENABLED_STORAGE = new KvStorage("c0123777-921b-4e62-a7cc-8135015ca571", "secret", true);
     private static final String KEY = "key";
     private static final String VALUE = "value";
     private static final Map<String, String> DATA = ImmutableMap.of("key1", "one", "key2", "two");
+    private static final String CONTENT_TYPE_HEADER = "Content-Type";
+    private static final String JSON_CONTENT_TYPE = "application/json";
+    private static final String SCROLL_ID = "scroll id";
+    private static final long TIMEOUT = 120000;
+    private static final Map<String, Object> SCROLL_REQUEST = ImmutableMap.of("scrollId", SCROLL_ID, "timeout", TIMEOUT);
+    private static final KvHistoryResult KV_HISTORY_RESULT;
+
+    static {
+        KV_HISTORY_RESULT = new KvHistoryResult();
+
+        KvHistory history = new KvHistory();
+        history.setKey("first");
+        history.setOperation("set");
+        history.setValue("one");
+        history.setTimestamp(1539748473600L);
+        List<KvHistory> items = ImmutableList.of(history);
+
+        KV_HISTORY_RESULT.setTotal((long)items.size());
+        KV_HISTORY_RESULT.setPage(1);
+        KV_HISTORY_RESULT.setSize(items.size());
+        KV_HISTORY_RESULT.setItems(items);
+    }
 
     @Rule
     public WireMockRule wireMockRule = new WireMockRule(options().dynamicPort(), true);
@@ -89,7 +117,8 @@ public class KvOperationManagerImplTest {
     @Mock
     private ExceptionFactory _exceptionFactory;
 
-    private ObjectMapper objectMapper = new ObjectMapper();
+    private ObjectMapper objectMapper = new ObjectMapper()
+            .disable(MapperFeature.AUTO_DETECT_CREATORS, MapperFeature.AUTO_DETECT_FIELDS, MapperFeature.AUTO_DETECT_GETTERS, MapperFeature.AUTO_DETECT_IS_GETTERS);
 
     private KvOperationManagerImpl kvOperationManager;
 
@@ -132,7 +161,7 @@ public class KvOperationManagerImplTest {
 
     @Test
     public void testGetByKeys() throws JsonProcessingException {
-        stubFor(getGetByKeysPath().willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(objectMapper.writeValueAsString(DATA))));
+        stubFor(getGetByKeysPath().willReturn(aResponse().withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE).withBody(objectMapper.writeValueAsString(DATA))));
 
         KvOperationResponse response = kvOperationManager.get(STORAGE, DATA.keySet());
         assertNotNull(response);
@@ -223,7 +252,7 @@ public class KvOperationManagerImplTest {
     @Test
     public void testSetValues() throws JsonProcessingException {
         Map<String, Boolean> result = DATA.keySet().stream().collect(Collectors.toMap(Function.identity(), k -> true));
-        stubFor(getSetValuesPath().willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(objectMapper.writeValueAsString(result))));
+        stubFor(getSetValuesPath().willReturn(aResponse().withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE).withBody(objectMapper.writeValueAsString(result))));
 
         KvResult response = kvOperationManager.set(STORAGE, DATA);
         assertNotNull(response);
@@ -286,7 +315,7 @@ public class KvOperationManagerImplTest {
     @Test
     public void testDeleteKeys() throws JsonProcessingException {
         Map<String, Boolean> result = DATA.keySet().stream().collect(Collectors.toMap(Function.identity(), k -> true));
-        stubFor(getDeleteKeysPath().willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(objectMapper.writeValueAsString(result))));
+        stubFor(getDeleteKeysPath().willReturn(aResponse().withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE).withBody(objectMapper.writeValueAsString(result))));
 
         KvResult response = kvOperationManager.delete(STORAGE, DATA.keySet());
         assertNotNull(response);
@@ -326,7 +355,7 @@ public class KvOperationManagerImplTest {
 
     @Test
     public void testList() throws JsonProcessingException {
-        stubFor(getListPath().willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(objectMapper.writeValueAsString(DATA.keySet()))));
+        stubFor(getListPath().willReturn(aResponse().withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE).withBody(objectMapper.writeValueAsString(DATA.keySet()))));
 
         KvKeys response = kvOperationManager.list(STORAGE);
         assertNotNull(response);
@@ -383,6 +412,86 @@ public class KvOperationManagerImplTest {
         testException(this::getClearPath, clearSupplier());
     }
 
+    @Test
+    public void testGetHistoryAllParameters() throws JsonProcessingException {
+        List<String> keys = ImmutableList.of("key1", "key2");
+        List<String> operations = ImmutableList.of("set", "delete");
+        long start = 1539748470000L;
+        long end = start + 86400;
+        List<String> sort = ImmutableList.of("timestamp", "key");
+        int page = 2;
+        int size = 5;
+        long scroll = 60000;
+
+        stubFor(get(urlEqualTo("/history/" + HISTORY_ENABLED_STORAGE.getId()
+                + "?operations=set%2Cdelete&size=5&keys=key1%2Ckey2&start=1539748470000&scroll=60000&end=1539748556400&sort=timestamp%2Ckey&page=2"))
+                .willReturn(aResponse().withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE).withBody(objectMapper.writeValueAsString(KV_HISTORY_RESULT))));
+
+        KvHistoryResult result = kvOperationManager.getHistory(HISTORY_ENABLED_STORAGE, keys, operations, start, end, sort, page, size, scroll);
+        assertEquals(KV_HISTORY_RESULT, result);
+    }
+
+    @Test
+    public void testGetHistory() throws JsonProcessingException {
+        stubFor(getHistoryPath().willReturn(aResponse().withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE).withBody(objectMapper.writeValueAsString(KV_HISTORY_RESULT))));
+
+        KvHistoryResult result = kvOperationManager.getHistory(HISTORY_ENABLED_STORAGE, null, null, null, null, null, null, null, null);
+        assertEquals(KV_HISTORY_RESULT, result);
+    }
+
+    @Test
+    public void testGetHistoryNotFoundResponse() {
+        testNotFoundResponse(this::getHistoryPath, historySupplier());
+    }
+
+    @Test
+    public void testGetHistoryInternalError() {
+        testInternalErrorResponse(this::getHistoryPath, historySupplier());
+    }
+
+    @Test
+    public void testGetHistoryException() {
+        testException(this::getHistoryPath, historySupplier());
+    }
+
+    @Test
+    public void testGetHistoryHistoryDisabledStorage() {
+        InvalidParameterValueException exception = new InvalidParameterValueException("history is not supported");
+        expectedException.expect(exception.getClass());
+        when(_exceptionFactory.getException(InvalidParameterValueCode.HISTORY_DISABLED_STORAGE)).thenReturn(exception);
+
+        kvOperationManager.getHistory(STORAGE, null, null, null, null, null, null, null, null);
+    }
+
+    @Test
+    public void testGetHistoryScroll() throws JsonProcessingException {
+        stubFor(getHistoryScrollPath().willReturn(aResponse().withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE).withBody(objectMapper.writeValueAsString(KV_HISTORY_RESULT))));
+
+        KvHistoryResult result = kvOperationManager.getHistory(SCROLL_ID, TIMEOUT);
+        assertEquals(KV_HISTORY_RESULT, result);
+    }
+
+    @Test
+    public void testGetHistoryScrollBadRequest() {
+        InvalidParameterValueException exception = new InvalidParameterValueException("invalid scroll");
+        expectedException.expect(exception.getClass());
+        when(_exceptionFactory.getException(InvalidParameterValueCode.INVALID_SCROLL_ID)).thenReturn(exception);
+
+        stubFor(getHistoryScrollPath().willReturn(aResponse().withStatus(HttpStatus.SC_BAD_REQUEST)));
+
+        kvOperationManager.getHistory(SCROLL_ID, TIMEOUT);
+    }
+
+    @Test
+    public void testGetHistoryScrollInternalError() {
+        testInternalErrorResponse(this::getHistoryScrollPath, historyScrollSupplier());
+    }
+
+    @Test
+    public void testGetHistoryScrollException() {
+        testException(this::getHistoryScrollPath, historyScrollSupplier());
+    }
+
     private MappingBuilder getGetByKeyPath() {
         return get(urlEqualTo("/get/" + STORAGE.getId() + "/" + KEY)).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey()));
     }
@@ -430,6 +539,18 @@ public class KvOperationManagerImplTest {
         return post(urlEqualTo("/clear/" + STORAGE.getId())).withHeader(SECRET_KEY_HEADER, equalTo(STORAGE.getSecretKey()));
     }
 
+    private MappingBuilder getHistoryPath() {
+        return get(urlEqualTo("/history/" + HISTORY_ENABLED_STORAGE.getId())).withHeader(SECRET_KEY_HEADER, equalTo(HISTORY_ENABLED_STORAGE.getSecretKey()));
+    }
+
+    private MappingBuilder getHistoryScrollPath() {
+        try {
+            return post(urlEqualTo("/history")).withRequestBody(equalToJson(objectMapper.writeValueAsString(SCROLL_REQUEST)));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private Supplier<KvOperationResponse> getByKeySupplier() {
         return () -> kvOperationManager.get(STORAGE, KEY);
     }
@@ -460,6 +581,14 @@ public class KvOperationManagerImplTest {
 
     private Supplier<KvOperationResponse> clearSupplier() {
         return () -> kvOperationManager.clear(STORAGE);
+    }
+
+    private Supplier<KvHistoryResult> historySupplier() {
+        return () -> kvOperationManager.getHistory(HISTORY_ENABLED_STORAGE, null, null, null, null, null, null, null, null);
+    }
+
+    private Supplier<KvHistoryResult> historyScrollSupplier() {
+        return () -> kvOperationManager.getHistory(SCROLL_ID, TIMEOUT);
     }
 
     private <T extends KvOperationResponse> void testNotFoundResponse(Supplier<MappingBuilder> requestBuilder, Supplier<T> responseSupplier) {
