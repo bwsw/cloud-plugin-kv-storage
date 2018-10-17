@@ -27,10 +27,10 @@ import org.apache.cloudstack.api.ResponseObject;
 
 import java.util.List;
 
-@APICommand(name = GetKvStorageHistory.API_NAME, description = "Get history records", responseObject = KvHistoryResult.class, requestHasSensitiveInfo = false,
+@APICommand(name = GetKvStorageHistoryCmd.API_NAME, description = "Get history records", responseObject = KvHistoryResult.class, requestHasSensitiveInfo = false,
         responseHasSensitiveInfo = false, responseView = ResponseObject.ResponseView.Restricted,
         authorized = {RoleType.Admin, RoleType.ResourceAdmin, RoleType.DomainAdmin, RoleType.User})
-public class GetKvStorageHistory extends BaseKvStorageCmd {
+public class GetKvStorageHistoryCmd extends BaseKvStorageCmd {
 
     public static final String API_NAME = "getKvStorageHistory";
 

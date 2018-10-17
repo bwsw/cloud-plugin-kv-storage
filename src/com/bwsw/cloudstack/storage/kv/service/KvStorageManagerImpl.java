@@ -25,7 +25,7 @@ import com.bwsw.cloudstack.storage.kv.api.DeleteKvStorageKeyCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteKvStorageKeysCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.GetKvStorageCmd;
-import com.bwsw.cloudstack.storage.kv.api.GetKvStorageHistory;
+import com.bwsw.cloudstack.storage.kv.api.GetKvStorageHistoryCmd;
 import com.bwsw.cloudstack.storage.kv.api.GetKvStorageValueCmd;
 import com.bwsw.cloudstack.storage.kv.api.GetKvStorageValuesCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
@@ -485,7 +485,7 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         commands.add(ClearKvStorageCmd.class);
         commands.add(GetKvStorageCmd.class);
         commands.add(RegenerateKvStorageSecretKeyCmd.class);
-        commands.add(GetKvStorageHistory.class);
+        commands.add(GetKvStorageHistoryCmd.class);
         commands.add(ScrollKvStorageHistoryCmd.class);
         return commands;
     }
