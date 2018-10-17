@@ -25,11 +25,13 @@ import com.bwsw.cloudstack.storage.kv.api.DeleteKvStorageKeyCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteKvStorageKeysCmd;
 import com.bwsw.cloudstack.storage.kv.api.DeleteTempKvStorageCmd;
 import com.bwsw.cloudstack.storage.kv.api.GetKvStorageCmd;
+import com.bwsw.cloudstack.storage.kv.api.GetKvStorageHistoryCmd;
 import com.bwsw.cloudstack.storage.kv.api.GetKvStorageValueCmd;
 import com.bwsw.cloudstack.storage.kv.api.GetKvStorageValuesCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListAccountKvStoragesCmd;
 import com.bwsw.cloudstack.storage.kv.api.ListKvStorageKeysCmd;
 import com.bwsw.cloudstack.storage.kv.api.RegenerateKvStorageSecretKeyCmd;
+import com.bwsw.cloudstack.storage.kv.api.ScrollKvStorageHistoryCmd;
 import com.bwsw.cloudstack.storage.kv.api.SetKvStorageValueCmd;
 import com.bwsw.cloudstack.storage.kv.api.SetKvStorageValuesCmd;
 import com.bwsw.cloudstack.storage.kv.api.UpdateTempKvStorageCmd;
@@ -41,6 +43,7 @@ import com.bwsw.cloudstack.storage.kv.entity.ScrollableListResponse;
 import com.bwsw.cloudstack.storage.kv.exception.ExceptionFactory;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidEntityException;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidParameterValueCode;
+import com.bwsw.cloudstack.storage.kv.response.KvHistoryResult;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
 import com.bwsw.cloudstack.storage.kv.response.KvKeys;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
@@ -447,6 +450,23 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
     }
 
     @Override
+    public KvHistoryResult getHistory(String storageId, List<String> keys, List<String> operations, Long start, Long end, List<String> sort, Integer page, Integer size,
+            Long scroll) {
+        return execute(storageId, storage -> _kvOperationManager.getHistory(storage, keys, operations, start, end, sort, page, size, scroll));
+    }
+
+    @Override
+    public KvHistoryResult getHistory(String scrollId, Long timeout) {
+        if (scrollId == null || scrollId.isEmpty()) {
+            throw new InvalidParameterValueException("Invalid scroll id");
+        }
+        if (timeout == null || timeout <= 0) {
+            throw new InvalidParameterValueException("Invalid timeout");
+        }
+        return _kvOperationManager.getHistory(scrollId, timeout);
+    }
+
+    @Override
     public List<Class<?>> getCommands() {
         List<Class<?>> commands = new ArrayList<>();
         commands.add(ListAccountKvStoragesCmd.class);
@@ -465,6 +485,8 @@ public class KvStorageManagerImpl extends ComponentLifecycleBase implements KvSt
         commands.add(ClearKvStorageCmd.class);
         commands.add(GetKvStorageCmd.class);
         commands.add(RegenerateKvStorageSecretKeyCmd.class);
+        commands.add(GetKvStorageHistoryCmd.class);
+        commands.add(ScrollKvStorageHistoryCmd.class);
         return commands;
     }
 

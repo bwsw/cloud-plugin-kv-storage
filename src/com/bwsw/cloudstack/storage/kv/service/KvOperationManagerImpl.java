@@ -22,6 +22,7 @@ import com.bwsw.cloudstack.storage.kv.exception.ExceptionFactory;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidParameterValueCode;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
 import com.bwsw.cloudstack.storage.kv.response.KvError;
+import com.bwsw.cloudstack.storage.kv.response.KvHistoryResult;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
 import com.bwsw.cloudstack.storage.kv.response.KvKeys;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
@@ -55,8 +56,11 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class KvOperationManagerImpl implements KvOperationManager {
 
@@ -243,6 +247,74 @@ public class KvOperationManagerImpl implements KvOperationManager {
         });
     }
 
+    @Override
+    public KvHistoryResult getHistory(KvStorage storage, List<String> keys, List<String> operations, Long start, Long end, List<String> sort, Integer page, Integer size,
+            Long scroll) {
+        if (storage.getHistoryEnabled() == null || !storage.getHistoryEnabled()) {
+            throw exceptionFactory.getException(InvalidParameterValueCode.HISTORY_DISABLED_STORAGE);
+        }
+        return execute(() -> {
+            Map<String, String> params = new HashMap<>();
+            put(params, "keys", keys);
+            put(params, "operations", operations);
+            if (start != null) {
+                params.put("start", start.toString());
+            }
+            if (end != null) {
+                params.put("end", end.toString());
+            }
+            put(params, "sort", sort);
+            if (page != null) {
+                params.put("page", page.toString());
+            }
+            if (size != null) {
+                params.put("size", size.toString());
+            }
+            if (scroll != null) {
+                params.put("scroll", scroll.toString());
+            }
+            String query = params.entrySet().stream().map(e -> e.getKey() + "=" + encode(e.getValue())).collect(Collectors.joining("&"));
+            return new HttpGet(String.format("%shistory/%s?%s", _url, encode(storage.getId()), query));
+        }, storage.getSecretKey(), (statusCode, entity) -> {
+            switch (statusCode) {
+            case HttpStatus.SC_OK:
+                return objectMapper.readValue(EntityUtils.toString(entity), KvHistoryResult.class);
+            case HttpStatus.SC_NOT_FOUND:
+                throw exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
+            default:
+                throw exceptionFactory.getKvOperationException(statusCode);
+            }
+        });
+    }
+
+    @Override
+    public KvHistoryResult getHistory(String scrollId, long timeout) {
+        return execute(() -> {
+            Map<String, Object> body = new HashMap<>();
+            body.put("scrollId", scrollId);
+            body.put("timeout", timeout);
+            StringEntity entity = new StringEntity(objectMapper.writeValueAsString(body), JSON_CONTENT_TYPE);
+            HttpPost request = new HttpPost(String.format("%shistory", _url));
+            request.setEntity(entity);
+            return request;
+        }, Optional.empty(), (statusCode, entity) -> {
+            switch (statusCode) {
+            case HttpStatus.SC_OK:
+                return objectMapper.readValue(EntityUtils.toString(entity), KvHistoryResult.class);
+            case HttpStatus.SC_BAD_REQUEST:
+                throw exceptionFactory.getException(InvalidParameterValueCode.INVALID_SCROLL_ID);
+            default:
+                throw exceptionFactory.getKvOperationException(statusCode);
+            }
+        });
+    }
+
+    private void put(Map<String, String> map, String key, List<String> values) {
+        if (values != null && !values.isEmpty()) {
+            map.put(key, values.stream().collect(Collectors.joining(",")));
+        }
+    }
+
     private String encode(String value) {
         try {
             return URLEncoder.encode(value, "UTF-8");
@@ -254,10 +326,15 @@ public class KvOperationManagerImpl implements KvOperationManager {
 
     private <T extends KvOperationResponse> T execute(CheckedSupplier<HttpUriRequest, Exception> requestSupplier, String secretKey,
             CheckedBiFunction<Integer, HttpEntity, T, Exception> responseFactory) {
+        return execute(requestSupplier, Optional.ofNullable(secretKey), responseFactory);
+    }
+
+    private <T extends KvOperationResponse> T execute(CheckedSupplier<HttpUriRequest, Exception> requestSupplier, Optional<String> secretKey,
+            CheckedBiFunction<Integer, HttpEntity, T, Exception> responseFactory) {
         CloseableHttpResponse response = null;
         try {
             HttpUriRequest request = requestSupplier.get();
-            request.setHeader(SECRET_KEY_HEADER, secretKey);
+            secretKey.ifPresent(s -> request.setHeader(SECRET_KEY_HEADER, s));
             response = _httpClient.execute(request);
             return responseFactory.apply(response.getStatusLine().getStatusCode(), response.getEntity());
         } catch (InvalidParameterValueException e) {

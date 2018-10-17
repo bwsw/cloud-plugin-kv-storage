@@ -28,4 +28,14 @@ public class ApiConstants {
     public static final String CODE = "code";
     public static final String KEYS = "keys";
     public static final String ITEMS = "items";
+    public static final String OPERATIONS = "operations";
+    public static final String START = "start";
+    public static final String END = "end";
+    public static final String SORT = "sort";
+    public static final String PAGE = "page";
+    public static final String SIZE = "size";
+    public static final String SCROLL = "scroll";
+    public static final String SCROLL_ID = "scrollid";
+    public static final String TIMEOUT = "timeout";
+
 }

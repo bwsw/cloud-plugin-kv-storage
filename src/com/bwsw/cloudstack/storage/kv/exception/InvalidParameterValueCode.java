@@ -18,5 +18,5 @@
 package com.bwsw.cloudstack.storage.kv.exception;
 
 public enum InvalidParameterValueCode {
-    NONEXISTENT_STORAGE
+    NONEXISTENT_STORAGE, HISTORY_DISABLED_STORAGE, INVALID_SCROLL_ID
 }

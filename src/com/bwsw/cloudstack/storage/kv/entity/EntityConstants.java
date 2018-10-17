@@ -27,4 +27,13 @@ public class EntityConstants {
     public static final String TTL = "ttl";
     public static final String ITEMS = "items";
     public static final String SUCCESS = "success";
+    public static final String KEY = "key";
+    public static final String VALUE = "value";
+    public static final String OPERATION = "operation";
+    public static final String TIMESTAMP = "timestamp";
+    public static final String TOTAL = "total";
+    public static final String PAGE = "page";
+    public static final String SIZE = "size";
+    public static final String SCROLL_ID = "scrollid";
+
 }
