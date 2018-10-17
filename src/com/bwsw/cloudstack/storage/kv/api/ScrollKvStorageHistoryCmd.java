@@ -41,7 +41,7 @@ public class ScrollKvStorageHistoryCmd extends BaseCmd {
 
     public static final String API_NAME = "scrollKvStorageHistory";
 
-    @Parameter(name = ApiConstants.SCROLL_ID, required = true, type = CommandType.STRING, description = "the tag to request next batch of history records")
+    @Parameter(name = ApiConstants.SCROLL_ID, required = true, type = CommandType.STRING, length = 1024, description = "the tag to request next batch of history records")
     private String scrollId;
 
     @Parameter(name = ApiConstants.TIMEOUT, required = true, type = CommandType.LONG, description = "timeout in ms for subsequent scroll requests")
