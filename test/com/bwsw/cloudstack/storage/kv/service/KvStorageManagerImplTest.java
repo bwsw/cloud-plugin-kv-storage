@@ -27,6 +27,7 @@ import com.bwsw.cloudstack.storage.kv.exception.ExceptionFactory;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidEntityException;
 import com.bwsw.cloudstack.storage.kv.exception.InvalidParameterValueCode;
 import com.bwsw.cloudstack.storage.kv.response.KvData;
+import com.bwsw.cloudstack.storage.kv.response.KvHistoryResult;
 import com.bwsw.cloudstack.storage.kv.response.KvKey;
 import com.bwsw.cloudstack.storage.kv.response.KvKeys;
 import com.bwsw.cloudstack.storage.kv.response.KvOperationResponse;
@@ -128,7 +129,10 @@ public class KvStorageManagerImplTest {
     private static final String KEY = "key";
     private static final String VALUE = "value";
     private static final Map<String, String> DATA = ImmutableMap.of("key1", "one", "key2", "two");
+    private static final String SCROLL_ID = "scroll_id";
+    private static final long TIMEOUT = 60000;
     private static final KvStorage STORAGE = new KvStorage("e0123777-921b-4e62-a7cc-8135015ca571", SECRET_KEY, false);
+    private static final KvStorage HISTORY_ENABLED_STORAGE = new KvStorage("c0123777-921b-4e62-a7cc-8135015ca571", "secret", true);
 
     @FunctionalInterface
     private interface ExpectationSetter {
@@ -1206,6 +1210,93 @@ public class KvStorageManagerImplTest {
 
         KvOperationResponse response = _kvStorageManager.clear(STORAGE.getId());
         assertSame(result, response);
+    }
+
+    @Test
+    public void testGetHistoryNonexistentStorage() throws ExecutionException, IOException {
+        setNonexistentStorageCacheExpectations();
+        _kvStorageManager.getHistory(UUID, null, null, null, null, null, null, null, null);
+    }
+
+    @Test
+    public void testGetHistoryCacheException() throws ExecutionException {
+        seStorageCacheLoadingException();
+        _kvStorageManager.getHistory(UUID, null, null, null, null, null, null, null, null);
+    }
+
+    @Test
+    public void testGetHistoryOperationException() throws ExecutionException {
+        expectedException.expect(ServerApiException.class);
+        setStorageCacheExpectations(HISTORY_ENABLED_STORAGE);
+        when(_kvOperationManager.getHistory(HISTORY_ENABLED_STORAGE, null, null, null, null, null, null, null, null)).thenThrow(new ServerApiException());
+
+        _kvStorageManager.getHistory(HISTORY_ENABLED_STORAGE.getId(), null, null, null, null, null, null, null, null);
+    }
+
+    @Test
+    public void testGetHistory() throws ExecutionException {
+        KvHistoryResult result = new KvHistoryResult();
+        List<String> keys = ImmutableList.of("key1", "key2");
+        List<String> operations = ImmutableList.of("set", "delete");
+        long start = 1539748470000L;
+        long end = start + 86400;
+        List<String> sort = ImmutableList.of("timestamp", "key");
+        int page = 2;
+        int size = 5;
+        long scroll = 60000;
+
+        setStorageCacheExpectations(HISTORY_ENABLED_STORAGE);
+        when(_kvOperationManager.getHistory(HISTORY_ENABLED_STORAGE, keys, operations, start, end, sort, page, size, scroll)).thenReturn(result);
+
+        KvHistoryResult response = _kvStorageManager.getHistory(HISTORY_ENABLED_STORAGE.getId(), keys, operations, start, end, sort, page, size, scroll);
+        assertSame(result, response);
+    }
+
+    @Test
+    public void testGetHistoryScrollNullScrollId() {
+        setExceptionExpectation(InvalidParameterValueException.class, "scroll id");
+        _kvStorageManager.getHistory(null, TIMEOUT);
+    }
+
+    @Test
+    public void testGetHistoryScrollEmptyScrollId() {
+        setExceptionExpectation(InvalidParameterValueException.class, "scroll id");
+        _kvStorageManager.getHistory("", TIMEOUT);
+    }
+
+    @Test
+    public void testGetHistoryScrollNullTimeout() {
+        setExceptionExpectation(InvalidParameterValueException.class, "timeout");
+        _kvStorageManager.getHistory(SCROLL_ID, null);
+    }
+
+    @Test
+    public void testGetHistoryScrollNegativeTimeout() {
+        setExceptionExpectation(InvalidParameterValueException.class, "timeout");
+        _kvStorageManager.getHistory(SCROLL_ID, -TIMEOUT);
+    }
+
+    @Test
+    public void testGetHistoryScrollZeroTimeout() {
+        setExceptionExpectation(InvalidParameterValueException.class, "timeout");
+        _kvStorageManager.getHistory(SCROLL_ID, 0L);
+    }
+
+    @Test
+    public void testGetHistoryScrollOperationException() {
+        expectedException.expect(ServerApiException.class);
+        when(_kvOperationManager.getHistory(SCROLL_ID, TIMEOUT)).thenThrow(new ServerApiException());
+
+        _kvStorageManager.getHistory(SCROLL_ID, TIMEOUT);
+    }
+
+    @Test
+    public void testGetHistoryScroll() {
+        KvHistoryResult result = new KvHistoryResult();
+        when(_kvOperationManager.getHistory(SCROLL_ID, TIMEOUT)).thenReturn(result);
+
+        KvHistoryResult response = _kvStorageManager.getHistory(SCROLL_ID, TIMEOUT);
+        assertEquals(result, response);
     }
 
     private void testCreateAccountStorageInvalidName(String name) {
