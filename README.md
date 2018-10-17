@@ -367,7 +367,7 @@ Searches and lists history records.
 | end | the end date/time as Unix timestamp in ms to retrieve history records with dates <= end | no |
 | sort | comma separated list of response fields optionally prefixed with - (minus) for descending order. | no |
 | page | a page number of results (1 by default) | no |
-| size | a number of results returned in the page/batch (default value is specified in the configuration file) | no |
+| size | a number of results returned in the page/batch (default value the same as in cs-kv-storage) | no |
 | scroll | a timeout in ms for subsequent [scroll requests](#scrollkvstoragehistory) | no |
 
 \* `start` and `end` parameters can be used separately. If both `start` and `end` parameters are specified history
