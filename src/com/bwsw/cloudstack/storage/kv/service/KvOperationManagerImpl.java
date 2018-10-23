@@ -279,6 +279,8 @@ public class KvOperationManagerImpl implements KvOperationManager {
             switch (statusCode) {
             case HttpStatus.SC_OK:
                 return objectMapper.readValue(EntityUtils.toString(entity), KvHistoryResult.class);
+            case HttpStatus.SC_BAD_REQUEST:
+                throw exceptionFactory.getException(InvalidParameterValueCode.INVALID_HISTORY_REQUEST);
             case HttpStatus.SC_NOT_FOUND:
                 throw exceptionFactory.getException(InvalidParameterValueCode.NONEXISTENT_STORAGE);
             default:

@@ -464,6 +464,17 @@ public class KvOperationManagerImplTest {
     }
 
     @Test
+    public void testGetHistoryBadRequest() {
+        InvalidParameterValueException exception = new InvalidParameterValueException("Invalid KV history request");
+        expectedException.expect(exception.getClass());
+        when(_exceptionFactory.getException(InvalidParameterValueCode.INVALID_HISTORY_REQUEST)).thenReturn(exception);
+
+        stubFor(getHistoryPath().willReturn(aResponse().withStatus(HttpStatus.SC_BAD_REQUEST)));
+
+        kvOperationManager.getHistory(HISTORY_ENABLED_STORAGE, null, null, null, null, null, null, null, null);
+    }
+
+    @Test
     public void testGetHistoryScroll() throws JsonProcessingException {
         stubFor(getHistoryScrollPath().willReturn(aResponse().withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE).withBody(objectMapper.writeValueAsString(KV_HISTORY_RESULT))));
 
