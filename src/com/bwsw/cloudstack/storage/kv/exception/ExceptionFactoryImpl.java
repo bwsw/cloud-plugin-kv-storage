@@ -30,6 +30,8 @@ public class ExceptionFactoryImpl implements ExceptionFactory {
             return new InvalidParameterValueException("Scroll id is invalid or expired");
         case HISTORY_DISABLED_STORAGE:
             return new InvalidParameterValueException("The KV storage does not support history");
+        case INVALID_HISTORY_REQUEST:
+            return new InvalidParameterValueException("Invalid KV history request");
         default:
             return new InvalidParameterValueException(code.name());
         }
