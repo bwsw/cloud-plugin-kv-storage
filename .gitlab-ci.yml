@@ -34,6 +34,7 @@ prepare:
     - git checkout "$CLOUDSTACK_VERSION"
   script:
     - cd .. && mvn $MAVEN_CLI_OPTS validate || (cd cloudstack && mvn -Pdeveloper -DskipTests clean install)
+    - rm $DOCKER_PLUGIN_PATH || true
   tags:
     - build-in-docker
     - cs-eco-builder
