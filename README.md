@@ -4,7 +4,7 @@ Apache CloudStack Plugin for key/value storage
 This project provides API plugin for Apache CloudStack to manage [key/value storages](https://git.bw-sw.com/cloudstack-ecosystem/cs-kv-storage).
 The version of the plugin matches Apache CloudStack version that it is build for.
 
-The plugin is developed and tested only with Apache CloudStack 4.11.1.
+The plugin is developed and tested only with Apache CloudStack 4.11.2.
 
 * [Installing into CloudStack](#installing-into-cloudstack)
 * [Plugin settings](#plugin-settings)
@@ -14,11 +14,11 @@ The plugin is developed and tested only with Apache CloudStack 4.11.1.
 # Installing into CloudStack
 
 Download the plugin jar with dependencies file from OSS Nexus (https://oss.sonatype.org/content/groups/public/com/bwsw/cloud-plugin-kv-storage/) which corresponds to your ACS 
-version (e.g. 4.11.1.0), put it to lib directory and restart Management server. In Ubuntu installation which is based on deb package:
+version (e.g. 4.11.2.0), put it to lib directory and restart Management server. In Ubuntu installation which is based on deb package:
 
 ```
 cd /usr/share/cloudstack-management/lib/
-wget --trust-server-names "https://oss.sonatype.org/service/local/artifact/maven/redirect?r=snapshots&g=com.bwsw&a=cloud-plugin-kv-storage&c=jar-with-dependencies&v=4.11.1.0-SNAPSHOT"
+wget --trust-server-names "https://oss.sonatype.org/service/local/artifact/maven/redirect?r=snapshots&g=com.bwsw&a=cloud-plugin-kv-storage&c=jar-with-dependencies&v=4.11.2.0-SNAPSHOT"
 service cloudstack-management stop
 service cloudstack-management start
 ```
